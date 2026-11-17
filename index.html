@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="32">
+<meta name="versao" content="33">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -127,7 +127,9 @@
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
       <button id="bXml">Gerar XML ajustado</button>
       <button id="bEnt" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão da loja, pelo agente do PC 1. NÃO use junto com a importação do XML pelo Gestão, senão o estoque entra duas vezes.">Enviar ao Gestão (entrada completa)</button>
+      <button id="bEntPos" title="faz a entrada completa no Gestão e, em seguida, manda o preço dos produtos que já existem direto para os caixas, sem precisar da Carga Completa. Produto novo só entra no caixa com a Carga Completa.">Enviar ao Gestão e ao POS</button>
       <button id="bSql" class="sec" title="só custo, venda e categoria — para quando a nota foi importada pelo próprio Gestão">Enviar só preços e categorias</button>
+      <button id="bSqlPos" class="sec" title="grava custo, venda e categoria no Gestão e manda o preço direto para os caixas">Só preços, no Gestão e no POS</button>
       <span id="stBaixa" class="chip av" style="display:none"></span>
       <span id="stBaixa2" class="chip av" style="display:none"></span>
       <span id="stAgente" class="orig" title="o agente é o programinha no PC 1 que grava no Gestão o que você envia daqui"></span>
@@ -804,7 +806,7 @@ function csvPrecos() {
 // O Gestão, ao mudar preço na tela, grava em PRODUTOS: PRECO_COMPRA, PRECO_VENDA1, MARGEM, ULT_ALT_PRECO, ULT_ALTERACAO,
 // e marca DATAS.T_ALT_PRODUTOS. O histórico de preços, o último preço de compra e o custo médio saem dos gatilhos do próprio banco.
 function sqlPrecos(loja) {
-  loja = loja || 1;
+  loja = loja || 1; posDoEnvio[loja] = [];
   const linhas = [], eans = [], visto = new Set();
   for (const it of itens) {
     const ePr = codLoja(it, loja);
@@ -818,6 +820,7 @@ function sqlPrecos(loja) {
     const cod = ePr.padStart(13, "0"), margem = Math.floor((venda / custo - 1) * 10000 + 1e-6) / 100;
     if (it.aux && ePr === principalDe(it)) linhas.push(...sqlAuxiliar(it.ean.padStart(13, "0"), cod));
     eans.push(cod);
+    { const o = { e: cod, v: Number(venda.toFixed(2)), c: custo }; if (it.an && (it.desc || "").trim()) o.d = descSql(it); posDoEnvio[loja].push(o); }
     let cat = "";
     if (loja === 1 && it.cg != null && it.cd != null && it.cs != null) cat += `, GRUPO = ${it.cg}, DEPARTAMENTO = ${it.cd}, SESSAO = ${it.cs}`;
     if (loja === 1 && it.cf != null) cat += `, FAMILIA = ${it.cf}`;
@@ -854,6 +857,9 @@ function codLoja(it, loja) {
   return it.ean2 && gtinValido(it.ean2) ? it.ean2 : null;
 }
 const itensDoEnvio = { 1: [], 2: [] };
+// produtos deste envio que também podem ir direto aos caixas (preço, custo e nome de quem já existe no POS)
+const posDoEnvio = { 1: [], 2: [] };
+const linhasPos = l => l.map(o => "--POS " + JSON.stringify(o)).join("\r\n") + (l.length ? "\r\n" : "");
 let tConc = null;
 function conciliarEnvios() {
   clearTimeout(tConc);
@@ -869,7 +875,7 @@ function conciliarEnvios() {
   }, 1200);
 }
 function sqlEntrada(loja) {
-  loja = loja || 1; itensDoEnvio[loja] = [];
+  loja = loja || 1; itensDoEnvio[loja] = []; posDoEnvio[loja] = [];
   const mapa = new Map(), auxs = [];
   for (const it of itens) {
     if (!it.ean || !gtinValido(it.ean)) continue;
@@ -892,6 +898,7 @@ function sqlEntrada(loja) {
     const it = a.it, cod = ean.padStart(13, "0"), custo = Math.round(a.valor / a.qtd * 1000) / 1000, margem = Math.floor((a.venda / custo - 1) * 10000 + 1e-6) / 100;
     const desc = semAcento((it.desc || it.xprod || "PRODUTO").toUpperCase()).replace(/[^\x20-\x7e]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60) || "PRODUTO";
     const cest = it.cest || cestDe(it.ncm) || "";
+    { const o = { e: cod, v: Number(Number(a.venda).toFixed(2)), c: custo }; if (it.an && (it.desc || "").trim()) o.d = desc; posDoEnvio[loja].push(o); }
     const c2 = loja === 2 ? catLoja2(it) : null;
     const c = loja === 2 ? c2 : { g: it.cg ?? 1, d: it.cd ?? 1, s: it.cs ?? 1 }, fam = loja === 2 ? c2.f : (it.cf ?? null);
     eans.push(cod);
@@ -1262,8 +1269,13 @@ function mostrarResultadoEnvio(v) {
 }
 // ---------- enviar ao Gestão pela fila (o ouvinte do PC de cada loja aplica) ----------
 const acompanhando = new Map();
+// o que o PC da loja respondeu sobre o envio aos caixas (linhas "POS OK / POS AVISO / POS ERRO")
+function resumoPos(res) {
+  const ls = String(res || "").split(/\r?\n/).filter(x => /^POS (OK|AVISO|ERRO)/.test(x)); if (!ls.length) return "";
+  return ls.map(x => x.replace(/^POS OK: /, "caixas: ").replace(/^POS AVISO: /, "caixas — atenção: ").replace(/^POS ERRO: /, "caixas NÃO atualizados: ")).join(" ");
+}
 const emCurso = v => v && (v.status === "pendente" || v.status === "aplicando");
-async function enviarAoGestao(tipo) {
+async function enviarAoGestao(tipo, comPos) {
   if (!supa) return baixarArquivo(tipo);
   const dois = l2On(), dst = destino();
   if (dois && !cad2Info) { await carregarLoja2(); if (!cad2Info) return msg("Não consegui carregar o cadastro da Loja 2; tente de novo."); }
@@ -1291,9 +1303,9 @@ async function enviarAoGestao(tipo) {
   const patch = {};
   for (const [loja, q, campo] of [[1, q1, "envio"], [2, q2, "envio2"]]) {
     if (!q) continue;
-    const { data, error } = await supa.from("fila").insert({ loja_id: loja, tipo, titulo: base + (dois ? " (Loja " + loja + ")" : ""), conteudo: q, status: "pendente" }).select("id").single();
+    const { data, error } = await supa.from("fila").insert({ loja_id: loja, tipo, titulo: base + (dois ? " (Loja " + loja + ")" : ""), conteudo: (comPos ? linhasPos(posDoEnvio[loja]) : "") + q, status: "pendente" }).select("id").single();
     if (error) { msg("Não consegui enviar para a Loja " + loja + ": " + error.message); continue; }
-    patch[campo] = { id: data.id, tipo, em: new Date().toISOString(), status: "pendente" };
+    patch[campo] = { id: data.id, tipo, em: new Date().toISOString(), status: "pendente" }; if (comPos) patch[campo].pos = 1;
     if (tipo !== "precos") patch[campo].itens = itensDoEnvio[loja].slice();
   }
   if (!Object.keys(patch).length) return;
@@ -1316,6 +1328,7 @@ function acompanharEnvio(id, chave, campo) {
     parar();
     let resumo = ""; const mres = /PRODUTOS_ATUALIZADOS[\s=]*(\d+)/.exec(f.resultado || "");
     if (mres) resumo = mres[1] + " produto(s) gravado(s)";
+    const rp = resumoPos(f.resultado); if (rp) resumo += (resumo ? " · " : "") + rp;
     const m = metaDe(chave), base = (m && m[campo] && m[campo].id === id) ? m[campo] : { id };
     const novo = { ...base, status: f.status, aplicado_em: f.aplicado_em || new Date().toISOString(), resumo };
     const patch = { [campo]: novo }; if ((campo === "envio" || !(m && m.envio)) && f.status === "aplicado" && novo.tipo !== "precos") patch.baixado = novo.aplicado_em;
@@ -1418,7 +1431,7 @@ async function prAbrir(g) {
       <label class="c">CEST<input class="p" type="text" inputmode="numeric" id="prCest" maxlength="7" placeholder="não mexer" style="width:90px" title="em branco não mexe no CEST do cadastro"></label>
     </div>${difNome ? `<div class="orig">Na Loja 2 o nome hoje é: <b>${escH(g[2].descricao)}</b></div>` : ""}
     ${bloco(1)}${bloco(2)}
-    <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><span id="prAviso" class="orig"></span></div>
+    <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><button id="prGravarPos" title="grava no Gestão e manda preço, custo e nome direto para os caixas da loja, sem a Carga Completa">Gravar no Gestão e enviar ao POS</button><span id="prAviso" class="orig"></span></div>
     <div class="painel" style="background:#fff8e1;margin-top:10px"><b>Validades deste produto</b> <span class="orig">— controle do nosso sistema (abas Validades e Avisos); salva na hora, não depende do botão acima</span>
       <div id="prVal" style="margin-top:6px"></div>
       <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -1456,7 +1469,8 @@ async function prAbrir(g) {
     q("auxAdd").onclick = () => { const v = q("auxNovo").value.replace(/\D/g, ""); if (!v) return; if (!gtinValido(v)) { document.getElementById("prAviso").textContent = "Código auxiliar inválido (confira os dígitos)."; return; } if (chave13(v) === chave13(g[l].ean) || PR.aux[l].includes(v) || novos.includes(v)) return; novos.push(v); q("auxNovo").value = ""; desenhaAux(); };
     desenhaAux();
   }
-  ed.querySelector("#prGravar").onclick = prGravar;
+  ed.querySelector("#prGravar").onclick = () => prGravar(false);
+  ed.querySelector("#prGravarPos").onclick = () => prGravar(true);
   if (ed.scrollIntoView) ed.scrollIntoView({ block: "start" });
 }
 // validades já lançadas para o produto aberto (pelo código de barras): mudar data/quantidade das avulsas e dar baixa
@@ -1508,20 +1522,22 @@ function prSql(l, blk) {
   if (!linhas.length) return null;
   linhas.push("UPDATE DATAS SET T_ALT_PRODUTOS = CURRENT_TIMESTAMP;",
     "SET LIST ON;", `SELECT ID, CODIGO_INTERNO, CODIGO_BARRAS, DESCRICAO, ATIVO, ESTOQUE_ATUAL, PRECO_COMPRA, PRECO_VENDA1, MARGEM, GRUPO, DEPARTAMENTO, SESSAO, FAMILIA, S_NCM, S_CEST FROM PRODUTOS WHERE ID = ${id};`);
-  return { sql: `/* AJUSTE DE PRODUTO LOJA ${l} - ${p.ean} - ${oque.join(", ")} */\r\n` + linhas.join("\r\n") + "\r\n", oque };
+  const pos = { e: p.ean }; if (mudouPv) pos.v = Number(pv.toFixed(2)); if (mudouPc) pos.c = Number(pc.toFixed(3)); if (oque.includes("nome")) pos.d = desc.slice(0, 60);
+  return { sql: `/* AJUSTE DE PRODUTO LOJA ${l} - ${p.ean} - ${oque.join(", ")} */\r\n` + linhas.join("\r\n") + "\r\n", oque, pos: Object.keys(pos).length > 1 ? pos : null };
 }
-async function prGravar() {
+async function prGravar(comPos) {
   const ed = document.getElementById("prEd"), av = document.getElementById("prAviso"), g = PR.grupo, envios = [];
   for (const blk of ed.querySelectorAll("[data-l]")) {
     const l = Number(blk.dataset.l); if (!blk.querySelector("[data-f=gravar]").checked) continue;
     const r = prSql(l, blk); if (r && r.erro) { av.textContent = r.erro; return; } if (r) envios.push([l, r, blk]);
   }
   if (!envios.length) { av.textContent = "Nada mudou (ou nenhuma loja marcada)."; return; }
-  if (!confirm("Gravar no Gestão?\n\n" + envios.map(([l, r]) => `Loja ${l}: ${r.oque.join(", ")}`).join("\n"))) return;
+  if (comPos && !envios.some(([, r]) => r.pos)) { av.textContent = "Só preço de venda, custo e nome vão direto ao caixa. O que você mudou (" + envios[0][1].oque.join(", ") + ") só chega ao caixa na Carga Completa — use \"Gravar no Gestão\"."; return; }
+  if (!confirm((comPos ? "Gravar no Gestão E enviar aos caixas?" : "Gravar no Gestão?") + "\n\n" + envios.map(([l, r]) => `Loja ${l}: ${r.oque.join(", ")}`).join("\n") + (comPos ? "\n\nVai direto ao caixa: preço de venda, custo e nome. O resto só na Carga Completa." : ""))) return;
   av.textContent = "Enviando…";
   for (const [l, r, blk] of envios) {
     const st = blk.querySelector("[data-f=st]");
-    const { data, error } = await supa.from("fila").insert({ loja_id: l, tipo: "ajuste", titulo: ("Ajuste " + g.ean + " - " + prTxt((g[1] || g[2]).descricao)).slice(0, 110), conteudo: r.sql, status: "pendente" }).select("id").single();
+    const { data, error } = await supa.from("fila").insert({ loja_id: l, tipo: "ajuste", titulo: ("Ajuste " + g.ean + " - " + prTxt((g[1] || g[2]).descricao)).slice(0, 110), conteudo: (comPos && r.pos ? linhasPos([r.pos]) : "") + r.sql, status: "pendente" }).select("id").single();
     if (error) { st.innerHTML = `<span class="chip falta">não enviou: ${escH(error.message)}</span>`; continue; }
     st.innerHTML = `<span class="chip av">enviado — aguardando o PC da Loja ${l}…</span>`; prAcompanhar(data.id, l, st);
   }
@@ -1531,7 +1547,7 @@ function prAcompanhar(id, l, st) {
   const ini = Date.now();
   const t = setInterval(async () => {
     const r = await supa.from("fila").select("status, resultado, aplicado_em").eq("id", id).single(); const f = r.data;
-    if (f && f.status === "aplicado") { clearInterval(t); st.innerHTML = `<span class="chip ok">gravado na Loja ${l}</span>`; msg(`Ajuste gravado no Gestão da Loja ${l}. A busca mostra os valores novos em até 5 minutos.`); setTimeout(() => cadastroDaNuvem(true), 25000); }
+    if (f && f.status === "aplicado") { clearInterval(t); const rp = resumoPos(f.resultado); st.innerHTML = `<span class="chip ok">gravado na Loja ${l}</span>` + (rp ? ` <span class="chip ${/NÃO|atenção/.test(rp) ? "falta" : "ok"}">${escH(rp)}</span>` : ""); msg(`Ajuste gravado no Gestão da Loja ${l}.` + (rp ? " " + rp : " A busca mostra os valores novos em até 5 minutos.")); setTimeout(() => cadastroDaNuvem(true), 25000); }
     else if (f && f.status === "erro") { clearInterval(t); st.innerHTML = `<span class="chip falta" style="cursor:pointer">o Gestão da Loja ${l} recusou — toque para ver</span>`; st.firstChild.onclick = () => mostrarResultadoEnvio({ id, status: "erro" }); }
     else if (Date.now() - ini > 45000 && st.dataset.av !== "1") { st.dataset.av = "1"; st.innerHTML = `<span class="chip av">na fila — o PC da Loja ${l} parece desligado; grava assim que ligar</span>`; }
     if (Date.now() - ini > 30 * 60000) clearInterval(t);
@@ -1876,6 +1892,7 @@ for (const id of ["gPct", "gMk", "gArr", "gModo"]) document.getElementById(id).a
 document.getElementById("bXml").addEventListener("click", () => { const m = document.getElementById("gModo").value, nome = `${cab.chave}-ajustado-${m}`, x = gerarXml(m);
   if (dl) baixar(nome + ".zip", zipUm(nome + ".xml", x)); else baixar(nome + ".xml", x, "application/xml"); });
 document.getElementById("bEnt").addEventListener("click", () => enviarAoGestao("entrada").catch(e => msg("Não consegui enviar: " + (e.message || e))));
+document.getElementById("bEntPos").addEventListener("click", () => enviarAoGestao("entrada", true).catch(e => msg("Não consegui enviar: " + (e.message || e))));
 document.getElementById("lnkArq").addEventListener("click", () => { if (confirm("Baixar o arquivo da ENTRADA COMPLETA para rodar pelo atalho 'Subir precos no Gestao'?\n(Cancelar = arquivo só de preços)")) baixarArquivo("entrada"); else baixarArquivo("precos"); });
 for (const b of document.querySelectorAll(".aba")) b.addEventListener("click", () => mostrar(b.dataset.v));
 for (const id of ["fNotaTxt", "fNotaSit"]) document.getElementById(id).addEventListener("input", desenharGerencia);
@@ -1919,6 +1936,7 @@ document.getElementById("soPend").addEventListener("change", ev => document.body
   q.addEventListener("blur", () => setTimeout(fechar, 150));
 })();
 document.getElementById("bSql").addEventListener("click", () => enviarAoGestao("precos").catch(e => msg("Não consegui enviar: " + (e.message || e))));
+document.getElementById("bSqlPos").addEventListener("click", () => enviarAoGestao("precos", true).catch(e => msg("Não consegui enviar: " + (e.message || e))));
 document.getElementById("bCsv").addEventListener("click", () => baixar(`precos_NF${cab.nnf}.csv`, csvPrecos(), "text/csv"));
 document.getElementById("bSalvar").addEventListener("click", () => baixar(`trabalho_NF${cab.nnf}.json`, JSON.stringify(estado()), "application/json"));
 document.getElementById("fTrab").addEventListener("change", async ev => { if (!cab) return; if (restaurar(JSON.parse(await lerArquivo(ev.target.files[0])))) { aplicarCadastro(); desenhar(); guardar(); } else msg("Esse trabalho é de outra nota."); });

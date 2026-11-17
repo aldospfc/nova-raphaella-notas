@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="33">
+<meta name="versao" content="34">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -1269,6 +1269,9 @@ function mostrarResultadoEnvio(v) {
 }
 // ---------- enviar ao Gestão pela fila (o ouvinte do PC de cada loja aplica) ----------
 const acompanhando = new Map();
+// o envio direto aos caixas só existe no PC da loja a partir do ouvinte 2.3 (ele se atualiza sozinho minutos depois de ligar)
+const posPronto = l => !!(agenteInfo && agenteInfo[l] && agenteInfo[l].pos);
+const semPos = l => `O PC da Loja ${l} ainda não recebeu a atualização do envio ao POS (acontece sozinho, alguns minutos depois de ligar). Por enquanto use o botão só do Gestão para essa loja.`;
 // o que o PC da loja respondeu sobre o envio aos caixas (linhas "POS OK / POS AVISO / POS ERRO")
 function resumoPos(res) {
   const ls = String(res || "").split(/\r?\n/).filter(x => /^POS (OK|AVISO|ERRO)/.test(x)); if (!ls.length) return "";
@@ -1287,6 +1290,7 @@ async function enviarAoGestao(tipo, comPos) {
     if (faltas.length) return msg("Nenhum item pronto para enviar — " + faltas.slice(0, 4).join("; ") + (faltas.length > 4 ? `; e mais ${faltas.length - 4} item(ns)` : "") + ".");
   }
   if (!q1 && !q2) return msg(tipo === "precos" ? "Nenhum item com EAN de unidade válido para subir preço." : "Nenhum item pronto: cada item precisa de código de barras válido, quantidade, custo e preço de venda.");
+  if (comPos) { await lerAgente(); for (const [l, q] of [[1, q1], [2, q2]]) if (q && !posPronto(l)) return msg(semPos(l)); }
   const m = metaDe(cab.chave) || {};
   if (emCurso(m.envio) || emCurso(m.envio2)) return msg("Já tem um envio desta nota aguardando o PC da loja. Espere ele terminar.");
   const jaFoi = v => v && v.status === "aplicado" && v.tipo !== "precos";
@@ -1345,13 +1349,13 @@ function acompanharEnvio(id, chave, campo) {
 }
 async function lerAgente() {
   if (!supa) return;
-  const r = await supa.from("lojas").select("id, nome, ultimo_contato, ouvinte_em, versao_agente").order("id");
+  const r = await supa.from("lojas").select("id, nome, ultimo_contato, ouvinte_em, versao_agente, ouvinte_versao").order("id");
   if (r.error || !r.data) return;
   agenteInfo = {};
   const partes = [];
   for (const d of r.data) {
     const on = (Date.now() - new Date(d.ouvinte_em || 0)) / 1000 < 150, ultimo = d.ultimo_contato ? new Date(d.ultimo_contato) : null;
-    agenteInfo[d.id] = { online: on, ouvinte_em: d.ouvinte_em, ultimo_contato: d.ultimo_contato };
+    agenteInfo[d.id] = { online: on, ouvinte_em: d.ouvinte_em, ultimo_contato: d.ultimo_contato, pos: parseFloat(d.ouvinte_versao) >= 2.3 };
     if (d.id === 1 || l2On() || d.ouvinte_em) partes.push(on ? `<span class="chip ok" style="padding:0 6px">Loja ${d.id} online</span>` : `<span class="chip av" style="padding:0 6px">Loja ${d.id} sem contato${ultimo ? " desde " + ultimo.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}</span>`);
   }
   const e = document.getElementById("stAgente"); if (e) e.innerHTML = partes.join(" ");
@@ -1532,6 +1536,7 @@ async function prGravar(comPos) {
     const r = prSql(l, blk); if (r && r.erro) { av.textContent = r.erro; return; } if (r) envios.push([l, r, blk]);
   }
   if (!envios.length) { av.textContent = "Nada mudou (ou nenhuma loja marcada)."; return; }
+  if (comPos) { await lerAgente(); for (const [l] of envios) if (!posPronto(l)) { av.textContent = semPos(l); return; } }
   if (comPos && !envios.some(([, r]) => r.pos)) { av.textContent = "Só preço de venda, custo e nome vão direto ao caixa. O que você mudou (" + envios[0][1].oque.join(", ") + ") só chega ao caixa na Carga Completa — use \"Gravar no Gestão\"."; return; }
   if (!confirm((comPos ? "Gravar no Gestão E enviar aos caixas?" : "Gravar no Gestão?") + "\n\n" + envios.map(([l, r]) => `Loja ${l}: ${r.oque.join(", ")}`).join("\n") + (comPos ? "\n\nVai direto ao caixa: preço de venda, custo e nome. O resto só na Carga Completa." : ""))) return;
   av.textContent = "Enviando…";

@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrada de notas — Nova Raphaella</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 0; color: #1b2430; background: #f4f6f9; }
+  header { background: var(--azul); color: #fff; padding: 10px 16px; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; }
+  header span { opacity: .85; }
+  main { padding: 12px 16px 60px; }
+  .painel { background: #fff; border: 1px solid var(--borda); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+  .linha { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+  label.c { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--cinza); }
+  input, select, button { font: inherit; }
+  input[type=text], input[type=number], select { border: 1px solid var(--borda); border-radius: 4px; padding: 4px 6px; background: var(--claro); color: #00308f; }
+  input[type=file] { font-size: 12px; }
+  button { border: 1px solid var(--azul); background: var(--azul); color: #fff; border-radius: 4px; padding: 6px 12px; cursor: pointer; }
+  button.sec { background: #fff; color: var(--azul); }
+  button:disabled { opacity: .45; cursor: default; }
+  .resumo { display: flex; gap: 22px; flex-wrap: wrap; }
+  .resumo div { min-width: 110px; }
+  .resumo b { display: block; font-size: 15px; }
+  .resumo small { color: var(--cinza); }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  th { background: var(--azul); color: #fff; font-weight: normal; padding: 6px 5px; text-align: left; position: sticky; top: 0; z-index: 2; font-size: 12px; }
+  td { border-bottom: 1px solid #e3e8ef; padding: 4px 5px; vertical-align: top; }
+  tr.rev td { background: #a9c8ee; }
+  tr.rev td .orig { color: #24426b; }
+  tr.rev td input.p, tr.rev td input.desc, tr.rev td input.ean { background: #e9f1fb; }
+  td.rv { text-align: center; white-space: nowrap; }
+  td.rv input { width: 20px; height: 20px; cursor: pointer; }
+  body.soPend tr.rev { display: none; }
+  body.semCod .cc { display: none; }
+  body.semBol #lBol, body.semBol #bAddBol { display: none; }
+  td.cc { font-size: 13px; white-space: nowrap; }
+  .c2 { display: none; background: #f3f0ff; }
+  body.div2 .c2 { display: table-cell; }
+  th.c2 { background: #4b3fa3 !important; color: #fff !important; }
+  th.c2 small { color: #e3defc; font-weight: normal; }
+  tr.rev td.c2 { background: #a9c8ee; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  #tb td.n, #tb td.cc, #tb td.rv { width: 1%; }
+  #tb [data-o=mg], #tb [data-o=mg2], #tb [data-o=l2] { white-space: normal; max-width: 170px; margin-left: auto; }
+  .sugs div { margin-top: 2px; } .sugs a { cursor: pointer; color: #0b57d0; }  /* colunas de número só do tamanho do conteúdo; a sobra vai para a descrição */
+  tr.duvida td { background: #fff7e6; }
+  td input.desc { width: 100%; min-width: 250px; }
+  td input.ean { width: 128px; }
+  td input.p { width: 52px; text-align: right; }
+  .orig { color: var(--cinza); font-size: 11px; margin-top: 2px; }
+  .chip { display: inline-block; font-size: 11px; border-radius: 9px; padding: 1px 7px; margin-top: 3px; }
+  .chip.ok { background: #dcfce7; color: var(--ok); }
+  .chip.novo { background: #e0e7ff; color: #3730a3; }
+  .chip.falta { background: #fee2e2; color: var(--erro); }
+  .chip.av { background: #fef3c7; color: var(--alerta); }
+  .sug { font-size: 11px; margin-top: 3px; }
+  .sug a { color: #0b57d0; cursor: pointer; text-decoration: underline; }
+  .custo { color: var(--verde); font-weight: bold; }
+  .rolagem { overflow: auto; max-height: 72vh; border: 1px solid var(--borda); border-radius: 6px; }
+  .aviso { color: var(--alerta); }
+  #busca { position: fixed; right: 16px; top: 60px; width: 460px; max-width: calc(100vw - 24px); max-height: 80vh; overflow: auto; background: #fff; border: 1px solid var(--azul); border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.2); padding: 10px; display: none; z-index: 5; }
+  #busca input[type=text], #busca input[type=email] { width: 100%; }
+  #busca input[type=checkbox] { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; }
+  #busca label.r { display: flex; align-items: flex-start; gap: 6px; line-height: 1.3; }
+  #busca .r { padding: 4px 2px; border-bottom: 1px solid #eef1f5; cursor: pointer; }
+  #busca .r:hover { background: var(--claro); }
+  .mono { font-family: Consolas, monospace; }
+  nav#abas { background: #fff; border-bottom: 1px solid var(--borda); padding: 6px 16px 0; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .aba { background: #fff; color: var(--azul); border: 1px solid var(--borda); border-bottom: none; border-radius: 6px 6px 0 0; padding: 7px 16px; }
+  .aba.ativa { background: var(--azul); color: #fff; border-color: var(--azul); }
+  #usuario a { color: #fff; opacity: .85; cursor: pointer; text-decoration: underline; margin-left: 8px; }
+  #alertas { margin-left: 14px; display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 4px; }
+  #alertas .chip { cursor: pointer; margin-top: 0; font-size: 12px; padding: 2px 9px; }
+  .bol { display: flex; gap: 10px; align-items: center; padding: 3px 0; flex-wrap: wrap; }
+  .nota { display: inline-flex; gap: 8px; align-items: center; border: 1px solid var(--borda); border-radius: 6px; padding: 5px 8px; margin: 0 8px 6px 0; background: #fff; }
+  .nota.atual { border-color: var(--azul); background: var(--claro); }
+  .nota a { color: #0b57d0; cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+<header><h1>Entrada de notas</h1><span>Nova Raphaella — entrada no Gestão, boletos e validades</span><span id="usuario" style="margin-left:auto"></span></header>
+<div id="login" style="display:none;max-width:360px;margin:60px auto;background:#fff;border:1px solid var(--borda);border-radius:8px;padding:18px 20px">
+  <h2 style="margin:0 0 10px;font-size:16px;color:var(--azul)">Entrar</h2>
+  <label class="c">E-mail<input type="email" id="lgEmail" autocomplete="username" style="width:100%"></label>
+  <label class="c" style="margin-top:8px">Senha<input type="password" id="lgSenha" autocomplete="current-password" style="width:100%"></label>
+  <div class="linha" style="margin-top:12px;gap:8px"><button id="lgEntrar">Entrar</button><button id="lgCriar" class="sec">Criar conta</button></div>
+  <div id="lgMsg" class="aviso" style="margin-top:10px"></div>
+  <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
+</div>
+<nav id="abas" style="display:none">
+  <button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button>
+  <span id="alertas"></span>
+</nav>
+<main id="principal" style="display:none">
+ <div id="vEntrada">
+  <div class="painel">
+    <div class="linha">
+      <label class="c">Abrir uma nota nova (XML da NF-e)<input type="file" id="fXml" accept=".xml"></label>
+      <button id="bManual" class="sec">Nova entrada sem nota</button>
+      <label class="c" id="lCad">Cadastro do Gestão (cadastro_gestao.json)<input type="file" id="fCad" accept=".json"></label>
+      <span id="stCad" class="orig"></span>
+      <span id="stSync" class="chip av">conectando…</span>
+    </div>
+    <div id="pNome" class="linha" style="display:none;margin-top:8px">
+      <label class="c">Nome para achar essa entrada depois (fornecedor, data…)<input type="text" id="nomeManual" maxlength="60" style="width:320px"></label>
+      <button id="bCriaManual">Criar entrada</button>
+    </div>
+    <div id="msg" class="aviso" style="margin-top:6px"></div>
+    <div id="notas" style="margin-top:8px"></div>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="painel">
+      <div class="resumo" id="cab"></div>
+    </div>
+    <div class="painel linha">
+      <label class="c">% na nota (padrão)<input type="number" id="gPct" value="100" min="1" max="100" step="1" style="width:80px"></label>
+      <label class="c">Acréscimo padrão sobre o custo (%)<input type="number" id="gMk" value="100" min="0" step="5" style="width:80px"></label>
+      <label class="c">Arredondar venda para<select id="gArr"><option value="0">centavos</option><option value="0.1">R$ 0,10</option><option value="0.5" selected>R$ 0,50</option><option value="1">R$ 1,00</option></select></label>
+      <label class="c">O que vai no XML<select id="gModo"><option value="A">A — só destrinchar (valores da nota)</option><option value="B">B — custo final embutido (IPI e DIFAL dentro do valor)</option></select></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option></select></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a coluna com o código / referência do produto no fornecedor"><input type="checkbox" id="gCod" style="width:18px;height:18px" checked> Mostrar código / referência</label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
+      <button id="bXml">Gerar XML ajustado</button>
+      <button id="bEnt" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão da loja, pelo agente do PC 1. NÃO use junto com a importação do XML pelo Gestão, senão o estoque entra duas vezes.">Enviar ao Gestão (entrada completa)</button>
+      <button id="bSql" class="sec" title="só custo, venda e categoria — para quando a nota foi importada pelo próprio Gestão">Enviar só preços e categorias</button>
+      <span id="stBaixa" class="chip av" style="display:none"></span>
+      <span id="stBaixa2" class="chip av" style="display:none"></span>
+      <span id="stAgente" class="orig" title="o agente é o programinha no PC 1 que grava no Gestão o que você envia daqui"></span>
+      <a id="lnkArq" style="cursor:pointer;color:#0b57d0;font-size:12px" title="se o PC da loja estiver desligado: baixa o arquivo para rodar pelo atalho 'Subir precos no Gestao'">baixar arquivo em vez de enviar</a>
+      <button id="bCsv" class="sec">Baixar tabela de preços (CSV)</button>
+      <button id="bConcl" class="sec">Marcar como concluída</button>
+      <span id="soLocal"><button id="bSalvar" class="sec">Salvar trabalho</button>
+      <label class="c" style="display:inline-flex">Reabrir trabalho<input type="file" id="fTrab" accept=".json"></label></span>
+    </div>
+    <div class="painel"><div class="resumo" id="tot"></div><div id="avisos" class="aviso" style="margin-top:6px"></div></div>
+    <div class="painel" id="pBol"></div>
+    <div class="painel linha" id="pAdd" style="display:none">
+      <label class="c">Adicionar item: bipe ou digite o código de barras e aperte Enter<input type="text" id="addEan" class="mono" inputmode="numeric" maxlength="14" style="width:230px"></label>
+      <button id="addCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button>
+      <label class="c" style="position:relative">ou busque pelo nome no cadastro do Gestão<input type="text" id="addNome" placeholder="ex.: marca texto amarelo" style="width:280px" autocomplete="off"><div id="addLista" class="r" style="display:none;position:absolute;top:100%;left:0;z-index:5;background:#fff;border:1px solid #c9d3e0;border-radius:6px;min-width:420px;max-height:260px;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div></label>
+      <button id="bAddSem" class="sec">Produto novo (sem código)</button>
+      <span class="orig">Produto que já existe no Gestão vem com descrição, custo, venda e estoque atuais. Produto novo: digite a descrição e o NCM no detalhe.</span>
+    </div>
+    <div class="rolagem">
+      <table>
+        <thead><tr>
+          <th class="rv" title="marque quando o item estiver com preço conferido / revisado; a linha inteira fica azul"><label style="cursor:pointer"><input type="checkbox" id="soPend" style="width:14px;height:14px"> só pendentes</label><br>OK</th><th>#</th><th class="cc" title="código ou referência do produto no fornecedor">Cód. / Ref.</th><th>Descrição para o cadastro (até 60)</th>
+          <th class="n">Qtd nota</th><th class="n">Vlr nota</th><th class="n">IPI</th>
+          <th class="n">Divisor</th><th class="n">Qtd un.</th><th>EAN da unidade</th>
+          <th class="n">% nota</th><th class="n">Fator DIFAL</th><th class="n">Custo item</th><th class="n">Custo un.</th>
+          <th class="n" title="quanto a venda fica acima do custo">Acrésc. %</th><th class="n" title="digite um preço e o acréscimo e a margem são calculados">Venda (R$)</th>
+          <th class="n c2" title="quanto vai para a Loja 2: embalagens fechadas (× divisor) e/ou unidades avulsas. Em branco = nada; o resto fica na Loja 1.">Para a Loja 2<br><small>embalagens + un. avulsas</small></th><th class="n c2" title="preço de venda na Loja 2. Em branco = igual ao da Loja 1.">Venda Loja 2</th>
+        </tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="busca"></div>
+ </div>
+ <div id="vNotas" style="display:none">
+  <div class="painel linha">
+    <label class="c">Procurar<input type="text" id="fNotaTxt" placeholder="fornecedor ou número" style="width:240px"></label>
+    <label class="c">Situação<select id="fNotaSit"><option value="">todas</option><option value="a">em andamento</option><option value="e">enviadas ao Gestão</option><option value="c">concluídas</option></select></label>
+    <div class="resumo" id="resNotas"></div>
+  </div>
+  <div class="rolagem"><table><thead><tr><th>Criada em</th><th>Fornecedor</th><th>Nota</th><th class="n">Itens</th><th class="n">Valor</th><th>Situação</th><th>Boletos</th><th></th></tr></thead><tbody id="tbNotas"></tbody></table></div>
+ </div>
+ <div id="vBoletos" style="display:none">
+  <div class="painel linha"><div class="resumo" id="resBol"></div><label style="margin-left:auto"><input type="checkbox" id="fBolPagos"> mostrar pagos</label></div>
+  <div class="rolagem"><table><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
+ </div>
+ <div id="vProdutos" style="display:none">
+  <div class="painel"><b>Ajustar produto no Gestão</b> <span class="orig">— sem nota: nome, custo, venda, estoque, categoria, NCM/CEST, códigos auxiliares, ativar ou inativar</span>
+   <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="nome do produto ou código de barras" style="flex:1;min-width:200px;font-size:16px;padding:6px"><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button></div>
+   <div id="prMsg" class="orig" style="margin-top:4px">Busca nas duas lojas. O cadastro mostrado aqui é a cópia da nuvem, atualizada a cada 5 minutos.</div></div>
+  <div id="prEd" style="display:none"></div>
+  <div class="painel" style="overflow:auto"><table><thead><tr><th>Produto</th><th class="n">Loja 1</th><th class="n">Loja 2</th></tr></thead><tbody id="prRes"></tbody></table></div>
+ </div>
+ <div id="vAvisos" style="display:none">
+  <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
+  <div class="painel"><b>Validades vencidas e dos próximos 30 dias</b><div id="avVal" style="margin-top:6px"></div></div>
+  <div class="painel"><b>Notas em andamento</b><div id="avNotas" style="margin-top:6px"></div></div>
+ </div>
+ <div id="vValidades" style="display:none">
+  <div class="painel linha">
+    <label class="c">Lançar validade de produto que já está na loja: código de barras<input type="text" id="vaEan" class="mono" inputmode="numeric" maxlength="14" style="width:170px"></label>
+    <label class="c">Produto<input type="text" id="vaDesc" maxlength="60" style="width:260px"></label>
+    <label class="c">Validade<input type="date" id="vaData"></label>
+    <label class="c">Quantidade<input type="number" id="vaQtd" min="0" step="1" style="width:80px"></label>
+    <label class="c">Loja<select id="vaLoja"><option>Loja 1</option><option>Loja 2</option></select></label>
+    <button id="vaOk">Lançar</button>
+  </div>
+  <div class="painel linha"><div class="resumo" id="resVal"></div><label style="margin-left:auto"><input type="checkbox" id="fValBaixa"> mostrar os que já tiveram baixa</label></div>
+  <div class="rolagem"><table><thead><tr><th>Validade</th><th>Produto</th><th>Código de barras</th><th class="n">Qtd</th><th>Origem</th><th>Situação</th><th></th></tr></thead><tbody id="tbVal"></tbody></table></div>
+  <div class="orig" style="margin-top:6px">Na entrada de uma nota, a validade é informada na setinha de cada item. Para o que já está na prateleira, use o lançamento acima.</div>
+ </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>window.SUPA={url:"https://nzecxuuzszkrzukkbaqx.supabase.co",key:"sb_publishable_JpyH0LLreCW8yhMVqa7Dig_m6ejXawT"};</script>
+<script>
+"use strict";
+const NS = "http://www.portalfiscal.inf.br/nfe";
+let db = null, dl = null, unsubItens = null, unsubNota = null; const pend = new Map();
+let cadInfo = null, listas = null; const abertos = new Set();
+let doc = null, xmlTexto = "", cab = null, itens = [], cad = null, cadIdx = null, cadAux = null, prefNota = new Set();
+
+// ---------- utilidades ----------
+const r2 = x => Math.round((x + Number.EPSILON) * 100) / 100;
+const br = (x, c = 2) => x.toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
+const semAcento = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+const filho = (e, nome) => { for (const c of e.children) if (c.localName === nome) return c; return null; };
+const txt = (e, caminho) => { let n = e; for (const p of caminho.split("/")) { if (!n) return ""; n = filho(n, p); } return n ? n.textContent.trim() : ""; };
+const num = s => s === "" ? 0 : parseFloat(s);
+function setTxt(e, nome, valor) { let n = filho(e, nome); if (n) n.textContent = valor; return n; }
+function gtinValido(e) {
+  if (!/^\d{8}$|^\d{12,14}$/.test(e)) return false;
+  const d = e.split("").reverse().map(Number); let s = 0;
+  for (let i = 1; i < d.length; i++) s += d[i] * (i % 2 ? 3 : 1);
+  return (10 - s % 10) % 10 === d[0];
+}
+const chave13 = e => e.replace(/^0+/, "");
+// EAN-13 a partir de 12 dígitos (dígito verificador) — mesmo padrão do "gerar código" do Gestão: 000000000 + sequência
+function ean13De12(d12) { let s = 0; for (let i = 0; i < 12; i++) s += parseInt(d12[i], 10) * (i % 2 ? 3 : 1); return d12 + String((10 - s % 10) % 10); }
+const ehInterno = e => /^000000000\d{4}$/.test(e || "");
+// código da casa: faixa 040 (uso interno de empresas no padrão GS1), numeração única para as duas lojas, guardada na nuvem
+const ehDaCasa = e => /^0400000\d{6}$/.test(e || "");
+const eanCasa = seq => ean13De12("0400000" + String(seq).padStart(5, "0"));
+const proximoInterno = ult => ean13De12(String((parseInt((ult || "0000000000000").slice(0, 12), 10) || 0) + 1).padStart(12, "0"));
+// produto "de verdade" de um item: o principal, quando o item é código auxiliar de outro
+const principalDe = it => it.aux || (cadAux && it.ean && !(cadIdx && cadIdx.has(chave13(it.ean))) && cadAux.get(chave13(it.ean))) || it.ean || "";
+
+// ---------- regras ----------
+const PADROES = [
+  /(?:DISPLAY|DISPLA|DP|CAIXA|CX|POTE|PT|PCTE|PCT|PACOTE|BLISTER|CARTELA|TUBO)\s*(?:C\/|COM|C)?\s*(\d{1,3})\s*-?\s*(?:UN\b|UNIDADES?|PCS?\b|TUBOS|POTES|$|-)/g,
+  /(?<![\d.,])(\d{1,3})\s*-?\s*(?:UN\b|UNIDADES)\s*(?:-|$)/g,
+];
+function sugerirDivisor(xprod) {
+  const s = semAcento(xprod.toUpperCase());
+  for (let i = 0; i < PADROES.length; i++) {
+    const m = [...s.matchAll(PADROES[i])];
+    if (m.length) { const d = parseInt(i === 0 ? m[m.length - 1][1] : m[0][1], 10); if (d >= 1) return d; }
+  }
+  return 1;
+}
+function duvidaDivisor(xprod, div) {
+  const s = semAcento(xprod.toUpperCase());
+  if (/\d+\s*POTES/.test(s)) return "display de potes: confira se vende o pote ou a peça";
+  if (/\d+\s*(FLS|FOLHAS)\s*$/.test(s) && /PCTE|PCT|PACOTE/.test(s)) return "pacote de folhas: confira se vende o pacote ou a folha";
+  if (div > 60) return "divisor alto: confira";
+  return "";
+}
+function limparDescricao(xprod, div) {
+  let s = semAcento(xprod.toUpperCase()).replace(/\s+/g, " ").trim();
+  if (div > 1) s = s.replace(/\s*-?\s*(?:DISPLAY|DISPLA|CAIXA|CX|POTE|PCTE)\s*(?:C\/|COM|C)?\s*\d+\s*-?\s*(?:UN|UNIDADES|TUBOS|PCS?)?(?=\s*(?:-|\(|$))/, "")
+                      .replace(/\s*-\s*\d+\s*-?\s*(?:UN|UNIDADES)\s*$/, "").replace(/\s+\d+\s*UN(?=\s*-\s*SEXTAVADO)/, "");
+  return s.replace(/\s*-\s*$/, "").replace(/\s+/g, " ").trim().slice(0, 60);
+}
+function fatorDifal(it, ufEmit) {
+  if (ufEmit === "SP" || it.cfop.startsWith("5")) return 1;
+  if (it.vst > 0 || ["10", "30", "60", "70"].includes(it.cst.slice(-2)) || ["6403", "5405"].includes(it.cfop)) return 1;
+  return ["1", "2", "3", "8"].includes(it.orig) ? 0.86 : 0.94;
+}
+// custo: valor cheio (nota ÷ % na nota) + IPI + ST + DIFAL; impostos só sobre a parte faturada
+function calc(it) {
+  const pct = (it.pct ?? gPct()) / 100;
+  const cheio = it.vprod / pct - it.vdesc + it.vfrete + it.voutro;
+  const difal = it.fd > 0 && it.fd < 1 ? it.vprod / it.fd - it.vprod : 0;
+  const custoItem = r2(cheio + it.vipi + it.vst + difal);
+  const qtdUn = it.qtd * it.div;
+  const custoUn = qtdUn > 0 ? custoItem / qtdUn : (it.m ? it.vun : 0);
+  let venda;
+  if (it.pv != null) venda = it.pv;
+  else {
+    venda = custoUn * (1 + (it.mk ?? gMk()) / 100);
+    const arr = parseFloat(document.getElementById("gArr").value);
+    venda = arr > 0 ? Math.ceil(venda / arr - 1e-9) * arr : r2(venda);
+  }
+  venda = r2(venda);
+  // acréscimo = quanto a venda está acima do custo; margem = quanto da venda é lucro
+  return { difal: r2(difal), custoItem, qtdUn, custoUn, venda, acresc: custoUn > 0 ? (venda / custoUn - 1) * 100 : 0, margem: venda > 0 ? (1 - custoUn / venda) * 100 : 0 };
+}
+const gPct = () => parseFloat(document.getElementById("gPct").value) || 100;
+const gMk = () => parseFloat(document.getElementById("gMk").value) || 0;
+
+// ---------- memória do fornecedor ----------
+// Por fornecedor (CNPJ) e código do produto na nota: divisor, EAN da unidade, descrição, categoria, acréscimo ou preço e último custo.
+let memForn = null;
+async function carregarMemoria(cnpj) {
+  memForn = null; if (!cnpj) return;
+  try {
+    if (db) { const s = await db.doc("memoria/" + cnpj).get(); memForn = s.exists ? (s.data().itens || {}) : {}; }
+    else memForn = JSON.parse(localStorage.getItem("entradaxml:mem:" + cnpj) || "{}");
+  } catch (e) { memForn = {}; }
+}
+async function salvarMemoria() {
+  if (!cab || cab.manual || !cab.cnpj) return 0;
+  const novo = {};
+  for (const it of itens) {
+    if (!it.cod || !it.ean || !gtinValido(it.ean)) continue;
+    const k = calc(it);
+    novo[it.cod] = { div: it.div, ean: it.ean, aux: it.aux || null, desc: it.desc || "", cg: it.cg ?? null, cd: it.cd ?? null, cs: it.cs ?? null, cf: it.cf ?? null, mk: it.mk ?? null, pv: it.pv ?? null, cu: Math.round(k.custoUn * 10000) / 10000, em: new Date().toISOString().slice(0, 10) };
+  }
+  const n = Object.keys(novo).length; if (!n) return 0;
+  memForn = { ...(memForn || {}), ...novo };
+  try {
+    if (db) { const ref = db.doc("memoria/" + cab.cnpj); if ((await ref.get()).exists) await ref.update({ nome: cab.emit, itens: novo }); else await ref.set({ nome: cab.emit, itens: novo }); }
+    else localStorage.setItem("entradaxml:mem:" + cab.cnpj, JSON.stringify(memForn));
+  } catch (e) { msg("Não consegui guardar a memória do fornecedor (" + ((e && e.code) || "erro") + ")."); return 0; }
+  return n;
+}
+
+// ---------- entrada sem nota ----------
+function itemManual(g) {
+  return { n: g.n, m: 1, cod: g.cod || "", jg: g.jg ? 1 : 0, eanNota: "", xprod: g.xprod || "", cfop: "5102", ncm: g.ncm || "", cest: g.cest || "", un: "UN", qtd: g.qtd || 0, vun: g.vun || 0, vprod: r2((g.qtd || 0) * (g.vun || 0)),
+    vdesc: 0, vfrete: 0, voutro: 0, orig: "0", cst: "", vst: g.vst || 0, vipi: g.vipi || 0, pct: null, mk: g.mk ?? null, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null,
+    div: 1, fd: 1, ean: g.ean || "", aux: g.aux || null, desc: g.desc || "", tocado: true, descTocada: true };
+}
+function cabManual(chave, nome) { return { manual: true, chave, emit: nome, cnpj: "", uf: "SP", nnf: "sem nota", vProd: 0, vIPI: 0, vST: 0, vNF: 0 }; }
+function adicionarItem(ean) {
+  if (!cab || !cab.manual) return;
+  ean = (ean || "").replace(/\D/g, "");
+  if (ean && !gtinValido(ean)) return msg("Código de barras inválido (dígito verificador): " + ean);
+  if (ean && itens.some(i => i.ean === ean)) { msg("Esse código já está na lista."); const e = document.querySelector(`#l${itens.find(i => i.ean === ean).n} [data-c=qtd]`); if (e) e.focus(); return; }
+  const pr = ean && cadAux && !(cadIdx && cadIdx.has(chave13(ean))) ? cadAux.get(chave13(ean)) : null;
+  const p = ean && cadInfo ? cadInfo.get(chave13(pr || ean)) : null;
+  const it = itemManual({ n: Date.now() * 10 + Math.floor(Math.random() * 10), ean, aux: pr || null, xprod: p ? p[1] : "", desc: p ? p[1] : "", qtd: 0, vun: p && p[3] ? p[3] : 0, pv: p && p[4] ? p[4] : null });
+  itens.push(it); desenhar(); guardar(it); msg("");
+  const foco = document.querySelector(`#l${it.n} [data-c=${p ? "qtd" : "desc"}]`); if (foco) foco.focus();
+}
+function removerItem(it) {
+  itens = itens.filter(x => x !== it); pend.delete(it.n); desenhar();
+  if (db) { db.doc(`notas/${cab.chave}/itens/${idItem(it.n)}`).delete().catch(() => {}); const v = `${cab.chave}_${idItem(it.n)}`; if (valDocs.has(v)) db.doc("validades/" + v).delete().catch(() => {}); } else guardar();
+}
+const rot = it => it.m ? itens.indexOf(it) + 1 : it.n;
+
+// ---------- leitura da nota ----------
+function lerNota(texto) {
+  const d = new DOMParser().parseFromString(texto, "application/xml");
+  if (d.getElementsByTagName("parsererror").length) throw new Error("O arquivo não é um XML válido.");
+  const inf = d.getElementsByTagNameNS(NS, "infNFe")[0];
+  if (!inf) throw new Error("Não achei a NF-e dentro do arquivo.");
+  const emit = filho(inf, "emit"), ide = filho(inf, "ide"), tot = filho(filho(inf, "total"), "ICMSTot");
+  const c = { emit: txt(emit, "xNome"), cnpj: txt(emit, "CNPJ"), uf: txt(emit, "enderEmit/UF"), nnf: txt(ide, "nNF"),
+              chave: (inf.getAttribute("Id") || "").replace(/^NFe/, ""), vProd: num(txt(tot, "vProd")), vIPI: num(txt(tot, "vIPI")),
+              vST: num(txt(tot, "vST")), vNF: num(txt(tot, "vNF")), dups: [] };
+  const cobr = filho(inf, "cobr");
+  if (cobr) for (const dp of cobr.children) if (dp.localName === "dup") c.dups.push({ n: txt(dp, "nDup"), venc: txt(dp, "dVenc"), valor: num(txt(dp, "vDup")), pago: null, nf: 1 });
+  const lista = [];
+  for (const det of inf.children) {
+    if (det.localName !== "det") continue;
+    const p = filho(det, "prod"), imp = filho(det, "imposto"), icms = filho(imp, "ICMS").children[0];
+    const it = { n: parseInt(det.getAttribute("nItem"), 10), cod: txt(p, "cProd"), eanNota: txt(p, "cEAN"), xprod: txt(p, "xProd"),
+      cfop: txt(p, "CFOP"), ncm: txt(p, "NCM"), cest: txt(p, "CEST"), un: txt(p, "uCom"), qtd: num(txt(p, "qCom")), vun: num(txt(p, "vUnCom")), vprod: num(txt(p, "vProd")),
+      vdesc: num(txt(p, "vDesc")), vfrete: num(txt(p, "vFrete")), voutro: num(txt(p, "vOutro")),
+      orig: txt(icms, "orig"), cst: txt(icms, "CST") || txt(icms, "CSOSN"), vst: num(txt(icms, "vICMSST")),
+      vipi: num(txt(imp, "IPI/IPITrib/vIPI")), pct: null, mk: null, pv: null, cg: null, cd: null, cs: null, cf: null, val: null, ec: null };
+    it.div = sugerirDivisor(it.xprod);
+    it.fd = fatorDifal(it, c.uf);
+    it.ean = ""; it.aux = null;
+    lista.push(it);
+  }
+  return { d, c, lista };
+}
+function aplicarCadastro() {
+  // EAN da nota que já existe no cadastro = a nota já está na unidade de venda
+  for (const it of itens) {
+    if (it.tocado || it.m) continue;
+    const mm = memForn && it.cod ? memForn[it.cod] : null;
+    if (mm && mm.ean) { // já vimos esse código desse fornecedor: repete o que foi feito da última vez
+      Object.assign(it, { div: mm.div || 1, ean: mm.ean, aux: mm.aux || null, cg: mm.cg ?? null, cd: mm.cd ?? null, cs: mm.cs ?? null, cf: mm.cf ?? null, mk: mm.mk ?? null, pv: mm.pv ?? null, mem: mm });
+      it.desc = it.descTocada ? it.desc : (mm.desc || limparDescricao(it.xprod, it.div)); it.sug = null; continue;
+    }
+    const existe = buscaEan(it.eanNota);
+    if (existe) { it.div = 1; it.ean = it.eanNota; const pr = cadAux && cadAux.get(chave13(it.eanNota)); if (pr && !cadIdx.has(chave13(it.eanNota))) it.aux = pr; }
+    else if (it.div === 1 && gtinValido(it.eanNota)) it.ean = it.eanNota;
+    it.desc = it.descTocada ? it.desc : limparDescricao(it.xprod, it.div);
+    it.sug = (!it.ean && cad) ? melhorSugestao(it) : null;
+  }
+}
+function buscaEan(e) {
+  if (!cadIdx || !e) return null;
+  const k = chave13(e);
+  if (cadIdx.has(k)) return cadIdx.get(k);
+  if (cadAux && cadAux.has(k)) { const pr = cadAux.get(k); return (cadIdx.get(chave13(pr)) || "?") + " (código auxiliar)"; }
+  return null;
+}
+
+// ---------- sugestões pelo cadastro ----------
+const PARA = new Set(["DE","C","COM","E","UN","DISPLAY","CAIXA","CX","POTE","BRW","MM","PLASTICA","PLASTICO","ESFEROGRAFICA","P","EM","DA","DO","PARA"]);
+function tokens(s) {
+  s = semAcento(s.toUpperCase()).replace(/,/g, ".").replace(/(\d)\.0?(\d)\s*MM/g, "$1.$2");
+  return new Set((s.match(/[A-Z]+|\d+(?:\.\d+)?/g) || []).filter(w => /^\d/.test(w) || (w.length > 1 && !PARA.has(w))));
+}
+// índice palavra -> produtos do cadastro, para sugerir parecidos pelo nome sem varrer o cadastro inteiro a cada item
+let cadTok = null, tSugs = null;
+const EMB = new Set(["DP", "PT", "CJTO", "CART", "SHRK", "SHRINK", "PCT", "PDQ", "CXDP", "AV", "TB", "MIN", "NF"]);
+function sugestoesNome(it) {
+  if (!cad) return [];
+  if (!cadTok) { cadTok = new Map(); cad.forEach((c, i) => { for (const w of c[2]) { let l = cadTok.get(w); if (!l) cadTok.set(w, l = []); l.push(i); } }); }
+  const a = [...tokens(it.desc || it.xprod)].filter(w => !EMB.has(w) && !/^\d+$/.test(w) || /^\d+\.\d+$/.test(w)), cont = new Map();
+  for (const w of a) for (const i of cadTok.get(w) || []) cont.set(i, (cont.get(i) || 0) + 1);
+  const res = [];
+  for (const [i, n] of cont) { const tk = cad[i][2]; if (n >= 2 && n / tk.size >= 0.6) res.push([n + n / tk.size, cad[i][0], cad[i][1]]); }
+  res.sort((x, y) => y[0] - x[0]);
+  return res.slice(0, 3);
+}
+// calcula as sugestões aos poucos, para a tela não travar em nota grande
+function agendarSugestoes() {
+  clearTimeout(tSugs); if (!cad) return;
+  const fila_ = itens.filter(i => !i.ean && !i.jg && i.sugs === undefined && (i.m || !i.sug));
+  const passo = () => { const lote = fila_.splice(0, 8); for (const it of lote) { it.sugs = sugestoesNome(it); if (it.sugs.length && !it.ean) atualizarLinha(it); } if (fila_.length) tSugs = setTimeout(passo, 20); };
+  if (fila_.length) tSugs = setTimeout(passo, 300);
+}
+function ranking(it, textoLivre) {
+  if (!textoLivre && (it.m || !it.eanNota)) textoLivre = [...tokens(it.desc || it.xprod)].filter(w => !EMB.has(w)).join(" ");
+  const a = tokens(textoLivre ?? it.xprod), res = [];
+  for (const [e, ds, tk] of cad) {
+    if (!textoLivre && !prefNota.has(e.slice(0, 7))) continue;
+    let inter = 0; for (const w of tk) if (a.has(w)) inter++;
+    if (!inter) continue;
+    const s = textoLivre ? (inter === a.size ? 2 : 0) + inter / tk.size : inter / tk.size + 0.1 * inter;
+    if (s > 0) res.push([s, e, ds]);
+  }
+  res.sort((x, y) => y[0] - x[0]);
+  return res.slice(0, 12);
+}
+function melhorSugestao(it) {
+  if (it.div === 1) return null;
+  // caixa com código DUN-14: o EAN da unidade sai do próprio código
+  const m = /^[1-8](\d{12})\d$/.exec(it.eanNota);
+  if (m) { const b = m[1]; let t = 0; for (let i = 0; i < 12; i++) t += Number(b[11 - i]) * (i % 2 ? 1 : 3);
+    return { ean: b + (10 - t % 10) % 10, desc: "calculado do código da caixa (DUN-14)" }; }
+  // só sugere quando a descrição inteira do cadastro (3 palavras ou mais) aparece na nota e não há empate
+  const a = tokens(it.xprod), ok = [];
+  for (const [e, ds, tk] of cad) {
+    if (tk.size < 3 || !prefNota.has(e.slice(0, 7))) continue;
+    let todos = true; for (const w of tk) if (!a.has(w)) { todos = false; break; }
+    if (todos) ok.push([tk.size, e, ds]);
+  }
+  ok.sort((x, y) => y[0] - x[0]);
+  return ok.length && (ok.length < 2 || ok[0][0] > ok[1][0]) ? { ean: ok[0][1], desc: ok[0][2] } : null;
+}
+
+// ---------- tela ----------
+function desenhar() {
+  agendarSugestoes(); conciliarEnvios();
+  document.getElementById("app").style.display = "";
+  document.getElementById("pAdd").style.display = cab.manual ? "" : "none";
+  document.getElementById("bXml").style.display = cab.manual ? "none" : "";
+  document.getElementById("bSql").style.display = cab.manual ? "none" : "";
+  document.getElementById("gModo").parentElement.style.display = cab.manual ? "none" : "";
+  document.getElementById("gPct").parentElement.style.display = cab.manual ? "none" : "";
+  if (cab.manual) document.getElementById("cab").innerHTML = `<div><small>Entrada sem nota</small><b>${cab.emit.replace(/</g, "&lt;")}</b></div>`;
+  else document.getElementById("cab").innerHTML =
+    `<div><small>Fornecedor</small><b>${cab.emit}</b></div><div><small>UF</small><b>${cab.uf}</b></div><div><small>NF-e</small><b>${cab.nnf}</b></div>` +
+    `<div><small>Produtos</small><b>R$ ${br(cab.vProd)}</b></div><div><small>IPI</small><b>R$ ${br(cab.vIPI)}</b></div><div><small>ST</small><b>R$ ${br(cab.vST)}</b></div><div><small>Total da nota</small><b>R$ ${br(cab.vNF)}</b></div>`;
+  const tb = document.getElementById("tb"); tb.innerHTML = "";
+  for (const it of itens) {
+    const tr = document.createElement("tr"); tr.id = "l" + it.n;
+    if (it.rev) tr.classList.add("rev");
+    tr.innerHTML = `<td class="rv"><input type="checkbox" data-c="rev" title="preço conferido / item revisado"${it.rev ? " checked" : ""}></td><td><a data-d="1" title="categoria, família e estoque" style="cursor:pointer;color:#0b57d0;white-space:nowrap">${abertos.has(it.n) ? "▾" : "▸"} ${rot(it)}</a></td><td class="mono cc"><b>${it.cod || ""}</b></td>
+      <td><input class="desc" type="text" maxlength="60" data-c="desc"><div class="orig" data-o="nm"></div><div class="orig">${it.xprod}${it.m ? ' <a data-x="1" title="tira este item da entrada (pede confirmação)" style="cursor:pointer;color:#b91c1c;float:right;margin-left:12px">remover item</a>' : ""}</div></td>
+      ${it.m ? `<td class="n"><input class="p" type="text" inputmode="decimal" data-c="qtd" placeholder="qtd"><div class="orig">custo un. <input class="p" type="text" inputmode="decimal" data-c="vun" style="width:60px"></div></td><td class="n" data-o="vprod"></td><td class="n">${it.vipi || it.vst ? br((it.vipi || 0) + (it.vst || 0)) : "-"}</td>`
+        : `<td class="n">${br(it.qtd, 0)} ${it.un}<div class="orig">× ${br(it.vun)}</div></td><td class="n">${br(it.vprod)}</td><td class="n">${br(it.vipi)}</td>`}
+      <td class="n"><input class="p" type="number" min="1" step="1" data-c="div"></td><td class="n" data-o="qtdUn"></td>
+      <td><input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-c="ean" placeholder="bipar ou digitar"> <a class="sug" style="cursor:pointer;color:#0b57d0" data-b="1">buscar</a> <a class="sug" style="cursor:pointer;color:#0b57d0" data-cam="1" title="ler o código de barras com a câmera do celular">📷</a><div data-o="st"></div></td>
+      <td class="n"><input class="p" type="number" min="1" max="100" data-c="pct" placeholder="${gPct()}"></td>
+      <td class="n"><input class="p" type="number" min="0.5" max="1" step="0.01" data-c="fd"></td>
+      <td class="n" data-o="custoItem"></td><td class="n custo" data-o="custoUn"></td>
+      <td class="n"><input class="p" type="number" min="0" step="any" data-c="mk" placeholder="${gMk()}"></td>
+      <td class="n"><input class="p" type="text" inputmode="decimal" data-c="pv" style="width:64px"><div class="orig" data-o="mg"></div></td>
+      <td class="n c2" style="white-space:nowrap"><span data-o="l2in"><input class="p" type="number" min="0" step="1" data-c="l2e" style="width:46px" placeholder="emb" title="embalagens fechadas para a Loja 2"> + <input class="p" type="number" min="0" step="1" data-c="l2u" style="width:46px" placeholder="un" title="unidades avulsas para a Loja 2"></span><div data-o="e2in" style="display:none;margin-top:2px"><input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-c="ean2" style="width:118px" placeholder="cód. na Loja 2" title="o código deste item é interno da Loja 1; informe o código de barras deste produto no Gestão da Loja 2"></div><div class="orig" data-o="l2"></div></td>
+      <td class="n c2"><input class="p" type="text" inputmode="decimal" data-c="pv2" style="width:64px" placeholder="igual"><div class="orig" data-o="mg2"></div></td>`;
+    tb.appendChild(tr);
+    for (const inp of tr.querySelectorAll("input")) {
+      const c = inp.dataset.c; inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? "");
+      inp.addEventListener("input", () => {
+        if (c === "desc") { it.desc = inp.value; it.descTocada = true; }
+        else if (c === "ean") { it.ean = inp.value.replace(/\D/g, ""); it.tocado = true; }
+        else if (c === "ean2") { it.ean2 = inp.value.replace(/\D/g, "") || null; if (it.ean2 && gtinValido(it.ean2) && it.ean2.length >= 8) guardarEquiv(principalDe(it), it.ean2); }
+        else if (c === "div") { it.div = Math.max(1, parseInt(inp.value, 10) || 1); it.tocado = true; if (!it.descTocada) { it.desc = limparDescricao(it.xprod, it.div); tr.querySelector("[data-c=desc]").value = it.desc; } }
+        else if (c === "fd") it.fd = parseFloat(inp.value) || 1;
+        else if (c === "qtd" || c === "vun") { const v = parseFloat(inp.value.replace(/\./g, "").replace(",", ".")); it[c] = v > 0 ? v : 0; it.vprod = r2(it.qtd * it.vun); }
+        else if (c === "pv" || c === "pv2") { const v = parseFloat(inp.value.replace(/\./g, "").replace(",", ".")); it[c] = v > 0 ? r2(v) : null; }
+        else if (c === "l2e" || c === "l2u") { const v = parseInt(inp.value, 10); it[c] = v > 0 ? v : null; setTimeout(desenharBoletosNota, 0); }
+        else if (c === "mk") { it.mk = inp.value === "" ? null : parseFloat(inp.value); it.pv = null; }
+        else it[c] = inp.value === "" ? null : parseFloat(inp.value);
+        atualizarLinha(it); if (c === "ean" || c === "div") desenharDetalhe(it); totais(); guardar(it);
+        if (c === "pct") { if (db) agendarCfg(); else if (metaLocal) metaLocal.cfg = cfgAtual(); desenharBoletosNota(); alertas(); }
+      });
+      if (c === "ean") inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const prox = document.querySelector(`#l${it.n + 1} [data-c=ean]`); if (prox) prox.focus(); } });
+    }
+    tr.querySelector("[data-b]").addEventListener("click", () => abrirBusca(it));
+    tr.querySelector("[data-cam]").addEventListener("click", () => lerCamera(c => usarEan(it, c)));
+    tr.querySelector("[data-c=rev]").addEventListener("change", ev => { it.rev = ev.target.checked ? 1 : 0; tr.classList.toggle("rev", !!it.rev); it.tocado = true; totais(); guardar(it); });
+    tr.querySelector("[data-d]").addEventListener("click", () => { if (abertos.has(it.n)) abertos.delete(it.n); else abertos.add(it.n); tr.querySelector("[data-d]").textContent = (abertos.has(it.n) ? "▾ " : "▸ ") + rot(it); desenharDetalhe(it); });
+    const rx = tr.querySelector("[data-x]"); if (rx) rx.addEventListener("click", () => { if (rx.dataset.ok) removerItem(it); else { rx.dataset.ok = "1"; rx.textContent = "confirmar"; } });
+    const dt = document.createElement("tr"); dt.id = "d" + it.n; dt.style.display = "none"; dt.innerHTML = `<td colspan="15" style="background:#f6f9fd;padding:8px 12px 10px 40px"></td>`; tb.appendChild(dt);
+    atualizarLinha(it); desenharDetalhe(it);
+  }
+  totais();
+}
+function escH(t) { return String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+function atualizarLinha(it) {
+  const tr = document.getElementById("l" + it.n); if (!tr) return;
+  const k = calc(it), o = n => tr.querySelector(`[data-o=${n}]`);
+  o("qtdUn").textContent = br(k.qtdUn, 0);
+  if (it.m) o("vprod").textContent = br(it.vprod);
+  o("custoItem").textContent = br(k.custoItem);
+  o("custoUn").textContent = br(k.custoUn, 4);
+  const iPv = tr.querySelector("[data-c=pv]"), iMk = tr.querySelector("[data-c=mk]");
+  if (iPv !== document.activeElement) iPv.value = br(k.venda);
+  if (iMk !== document.activeElement) iMk.value = it.pv != null ? k.acresc.toFixed(1) : (it.mk ?? "");
+  iPv.style.fontWeight = it.pv != null ? "bold" : "";
+  if (l2On()) {
+    const dst = destino(), q2 = qLojas(it, k)[1], bruto = dst === "div" ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
+    o("l2in").style.display = dst === "div" ? "" : "none";
+    o("e2in").style.display = interno ? "" : "none";
+    if (interno && !it.ean2) { const g = equiv.get(String(principalDe(it)).padStart(13, "0")), i2 = tr.querySelector("[data-c=ean2]"); if (g && i2 !== document.activeElement) { it.ean2 = g; if (i2) i2.value = g; } }
+    o("l2").innerHTML = dst === "ambas" ? `<b>${br(k.qtdUn, 0)}</b> un em cada loja` : dst === "2" ? `<b>${br(k.qtdUn, 0)}</b> un, tudo na Loja 2` : bruto > k.qtdUn ? `<span class="chip falta">passa do que veio (${br(k.qtdUn, 0)})</span>` : bruto ? `Loja 2: <b>${br(q2, 0)}</b> un · Loja 1: <b>${br(k.qtdUn - q2, 0)}</b> un` : `tudo na Loja 1 (${br(k.qtdUn, 0)} un)`;
+    const e1 = tr.querySelector("[data-c=l2e]"); if (e1) e1.style.visibility = it.div > 1 ? "" : "hidden";
+    if (interno && !c2_ && q2 > 0) o("l2").innerHTML += `<br><span class="chip falta" title="código interno (000000000…) é uma numeração de cada loja: na Loja 2 esse mesmo número pode ser outro produto">código interno da Loja 1 — informe o código da Loja 2, senão este item não vai para lá</span>`;
+    else if (interno && it.ean2 && !gtinValido(it.ean2)) o("l2").innerHTML += `<br><span class="chip falta">código da Loja 2 inválido</span>`;
+    o("mg2").innerHTML = (k.custoUn > 0 ? `margem ${br((1 - k.custoUn / v2) * 100, 1)}%` : "") + (!cad2Info ? "<br>carregando Loja 2…" : !it.ean ? "" : p2 ? `<br><span title="como está no Gestão da Loja 2 hoje">hoje L2: venda <b>${br(p2[4] ?? 0)}</b> · est. ${br(p2[2] ?? 0, 0)}</span>` : (bruto ? `<br><span class="chip novo" style="padding:0 4px">novo na Loja 2</span>` + (catLoja2(it).ok ? "" : ` <span class="chip av" style="padding:0 4px" title="não achei na Loja 2 uma categoria com o mesmo nome; o produto entra na categoria padrão de lá">categoria padrão</span>`) : ""));
+  }
+  const pj = infoDe(it);
+  { // nome que está hoje no Gestão e opção de trocar pelo nome digitado
+    const e = o("nm"), atual = pj && pj[1] ? String(pj[1]).trim() : "";
+    if (!atual) { e.innerHTML = ""; }
+    else {
+      const igual = atual.toUpperCase() === descSql(it);
+      e.innerHTML = `<span title="nome deste produto no cadastro do Gestão hoje">no Gestão: <b>${escH(atual)}</b></span>` + (igual ? "" : ` <label style="cursor:pointer;white-space:nowrap;color:#0b57d0" title="marcado: no envio o nome do cadastro passa a ser o que está digitado acima (nas lojas que receberem esta nota)"><input type="checkbox" data-an="1" style="width:13px;height:13px;vertical-align:middle"${it.an ? " checked" : ""}> trocar pelo nome acima</label> · <a data-un="1" style="cursor:pointer;color:#0b57d0">usar o nome do Gestão</a>`);
+      const cb = e.querySelector("[data-an]"); if (cb) cb.addEventListener("change", () => { it.an = cb.checked ? 1 : 0; it.tocado = true; guardar(it); });
+      const un = e.querySelector("[data-un]"); if (un) un.addEventListener("click", () => { it.desc = atual.slice(0, 60); it.descTocada = true; it.an = 0; const i = tr.querySelector("[data-c=desc]"); if (i) i.value = it.desc; atualizarLinha(it); guardar(it); });
+    }
+  }
+  o("mg").innerHTML = `margem ${br(k.margem, 1)}%` + (it.pv != null ? " · preço fixado" : "") +
+    (pj && pj[2] != null ? `<br><span title="como está no Gestão hoje">hoje: custo <b>${br(pj[3] ?? 0)}</b> · venda <b>${br(pj[4] ?? 0)}</b> · est. ${br(pj[2], 0)}</span>` +
+      (pj[4] > 0 && Math.abs(k.venda - pj[4]) >= 0.01 ? ` <span class="chip ${k.venda > pj[4] ? "av" : "ok"}" style="padding:0 4px">venda ${k.venda > pj[4] ? "sobe" : "cai"} ${br(Math.abs(k.venda / pj[4] - 1) * 100, 0)}%</span>` : "") : "");
+  const duv = duvidaDivisor(it.xprod, it.div);
+  tr.classList.toggle("duvida", !!duv); tr.classList.toggle("rev", !!it.rev);
+  let h = "";
+  if (!it.ean) h = `<span class="chip falta">sem EAN — vai como SEM GTIN</span> <a data-gi="1" style="cursor:pointer;color:#0b57d0" title="cria um código de barras da casa (faixa 040), com numeração única para as duas lojas. Antes era igual ao botão do Gestão (000000000 + número)">gerar código da casa</a>`;
+  else if (!gtinValido(it.ean)) h = `<span class="chip falta">EAN inválido (dígito verificador)</span>`;
+  else if (it.aux) {
+    const pd = cadIdx && cadIdx.get(chave13(it.aux)), na = itens.find(x => x !== it && x.ean === it.aux);
+    h = `<span class="chip ok">auxiliar de <span class="mono">${it.aux}</span> ${pd || (na ? (na.desc || na.xprod) : "")}${!pd && !na ? ' — <b>principal não encontrado</b>' : ""}</span> <a data-ga="0" style="cursor:pointer;color:#0b57d0">desfazer</a>`;
+  }
+  else { const ex = buscaEan(it.ean); h = ex ? `<span class="chip ok">já no cadastro: ${ex}</span>` : `<span class="chip novo">${cad ? "produto novo" : "EAN ok"}</span>`;
+    if (cad && !(cadAux && cadAux.has(chave13(it.ean)))) h += ` <a data-ga="1" style="cursor:pointer;color:#0b57d0" title="este código passa a ser um segundo código de barras de outro produto (estoque e preço ficam no principal)">é auxiliar de…</a>`; }
+  if (ehInterno(it.ean)) h += ` <span class="chip av" title="código interno antigo, da numeração da Loja 1; na Loja 2 esse número pode ser outro produto">código interno da Loja 1</span>`;
+  if (ehDaCasa(it.ean)) h += ` <span class="chip ok" title="código da casa (faixa 040): o mesmo nas duas lojas">código da casa</span>`;
+  if (it.ean && cad && !it.aux && !buscaEan(it.ean)) { if (!it.ncm || it.ncm.length < 8) h += ` <span class="chip falta" title="abra o item (▸) e informe o NCM">sem NCM</span>`; else if (!it.cest && !cestDe(it.ncm)) h += ` <span class="chip av" title="não achei CEST para este NCM no cadastro; se o produto tiver, informe no detalhe">CEST?</span>`; }
+  if (it.div > 1 && it.ean && chave13(it.ean) === chave13(it.eanNota)) h += ` <span class="chip av">é o EAN da caixa</span>`;
+  const rep = it.ean && itens.some(x => x !== it && x.ean === it.ean); if (rep) h += ` <span class="chip av">mesmo código de outro item — soma no mesmo produto</span>`;
+  if (duv) h += ` <span class="chip av">${duv}</span>`;
+  if (it.val) h += ` <span class="chip novo">validade ${dataBr(it.val)}</span>`;
+  if (it.ec != null) h += ` <span class="chip av">estoque acertado para ${br(it.ec, 0)} antes da entrada</span>`;
+  if (it.mem) {
+    h += ` <span class="chip ok" title="divisor, código, categoria e preço repetidos da última nota deste fornecedor (${dataBr(it.mem.em)})">memória do fornecedor</span>`;
+    if (it.mem.cu > 0) { const dv = (k.custoUn / it.mem.cu - 1) * 100; if (Math.abs(dv) >= 1) h += ` <span class="chip ${dv > 0 ? "falta" : "ok"}">custo ${dv > 0 ? "subiu" : "caiu"} ${br(Math.abs(dv), 1)}% desde ${dataBr(it.mem.em)}</span>`; }
+  }
+  if (!it.ean && it.sug) h += `<div class="sug">parecido no cadastro (confira): <span class="mono">${it.sug.ean}</span> ${it.sug.desc} — <a data-u="1">usar</a></div>`;
+  if (it.e1 || it.e2) h = `<span class="chip ok" title="este item já foi gravado no Gestão por um envio daqui; não entra de novo no próximo envio">enviado${it.e1 ? " à Loja 1 em " + dataBr(it.e1) : ""}${it.e1 && it.e2 ? " e" : ""}${it.e2 ? " à Loja 2 em " + dataBr(it.e2) : ""}</span> <a data-re="1" style="cursor:pointer;color:#667;font-size:11px" title="apaga a marca de enviado: o item volta a entrar no próximo envio (soma o estoque de novo)">enviar de novo</a> ` + h;
+  if (it.jg) h = `<span class="chip ok" title="este item já foi lançado no Gestão antes de vir para o sistema; fica aqui só para conferência e não entra no envio">já lançado no Gestão — fora do envio</span> <a data-jg="1" style="cursor:pointer;color:#0b57d0;font-size:11px">incluir no envio</a> ` + h;
+  if (!it.jg) h += ` <div><a data-mjg="1" style="cursor:pointer;color:#667;font-size:11px" title="use quando este item já foi lançado no Gestão por fora do sistema: ele continua na nota (custo, boletos), mas não entra no envio">já lancei este item no Gestão</a></div>`;
+  if (!it.ean && !it.jg && it.sugs && it.sugs.length) h += `<div class="sug sugs">parecidos no cadastro (confira):` + it.sugs.map((x, i) => `<div><span class="mono">${x[1]}</span> ${escH(x[2])} — <a data-us="${i}">usar</a></div>`).join("") + `</div>`;
+  o("st").innerHTML = h;
+  const re = o("st").querySelector("[data-re]"); if (re) re.addEventListener("click", () => { if (!confirm("Tirar a marca de enviado deste item?\nNo próximo envio ele entra de novo e o estoque soma outra vez.")) return; it.e1 = null; it.e2 = null; atualizarLinha(it); totais(); guardar(it); });
+  const mjg = o("st").querySelector("[data-mjg]"); if (mjg) mjg.addEventListener("click", () => { it.jg = 1; it.rev = 1; tr.classList.add("rev"); const c = tr.querySelector("[data-c=rev]"); if (c) c.checked = true; atualizarLinha(it); totais(); guardar(it); });
+  for (const a of o("st").querySelectorAll("[data-us]")) a.addEventListener("click", () => usarEan(it, it.sugs[Number(a.dataset.us)][1]));
+  const jg = o("st").querySelector("[data-jg]"); if (jg) jg.addEventListener("click", () => { if (!confirm("Incluir este item no próximo envio ao Gestão?\nSe ele já foi lançado lá, o estoque vai somar em dobro.")) return; it.jg = 0; atualizarLinha(it); totais(); guardar(it); });
+  const u = o("st").querySelector("[data-u]");
+  if (u) u.addEventListener("click", () => usarEan(it, it.sug.ean));
+  const gi = o("st").querySelector("[data-gi]"); if (gi) gi.addEventListener("click", () => gerarInterno(it));
+  const ga = o("st").querySelector("[data-ga]"); if (ga) ga.addEventListener("click", () => { if (ga.dataset.ga === "1") abrirBusca(it, true); else { it.aux = null; it.tocado = true; atualizarLinha(it); desenharDetalhe(it); totais(); guardar(it); } });
+}
+// próximo código interno: maior entre o último do Gestão, o último já gerado por aqui (nuvem) e os desta nota
+let ultInternoGerado = "";
+async function gerarInterno(it) {
+  if (supa) { // numeração única das duas lojas, tirada da nuvem (dois aparelhos nunca recebem o mesmo número)
+    const { data, error } = await supa.rpc("proximo_ean_casa");
+    if (error || !(Number(data) > 0)) return msg("Não consegui gerar o código agora" + (error ? " (" + error.message + ")" : "") + ". Tente de novo.");
+    const novo = eanCasa(Number(data));
+    if ((cadIdx && cadIdx.has(chave13(novo))) || (cad2Info && cad2Info.has(chave13(novo)))) return msg("O código " + novo + " já existe no cadastro; clique de novo para gerar o próximo.");
+    usarEan(it, novo);
+    return msg(`Código da casa ${novo} criado para o item ${rot(it)}. Ele vale nas duas lojas. Para juntar outras cores no mesmo produto, repita esse código nelas.`);
+  }
+  if (!listas) return msg("Cadastro do Gestão ainda não carregado.");
+  let ult = listas.ultimoEanInterno || "0000000000000";
+  const maior = (a, b) => (a || "") > (b || "") ? a : b;
+  try { if (db) { const s = await db.doc("contador/ean_interno").get(); if (s.exists) ult = maior(ult, s.data().ult); } } catch (e) {}
+  ult = maior(ult, ultInternoGerado);
+  for (const o of itens) if (ehInterno(o.ean)) ult = maior(ult, o.ean);
+  const novo = proximoInterno(ult); ultInternoGerado = novo;
+  try { if (db) await db.doc("contador/ean_interno").set({ ult: novo, em: new Date().toISOString() }); } catch (e) {}
+  usarEan(it, novo);
+  msg(`Código interno ${novo} criado para o item ${rot(it)}. Para juntar outras cores no mesmo produto, repita esse código nelas.`);
+}
+function usarAuxiliar(it, ePrincipal) {
+  if (!it.ean) { it.ean = it.eanNota || ""; const i = document.querySelector(`#l${it.n} [data-c=ean]`); if (i) i.value = it.ean; }
+  it.aux = ePrincipal; it.tocado = true;
+  atualizarLinha(it); desenharDetalhe(it); totais(); guardar(it);
+}
+function usarEan(it, e) {
+  it.ean = e; it.tocado = true;
+  document.querySelector(`#l${it.n} [data-c=ean]`).value = e;
+  atualizarLinha(it); desenharDetalhe(it); totais(); guardar(it);
+}
+// ---------- detalhes do item: estoque, preço atual e categoria ----------
+// CEST sugerido para um NCM: o mais usado no cadastro do Gestão para esse NCM
+const cestDe = ncm => { ncm = (ncm || "").replace(/\D/g, ""); if (!listas || !listas.cestPorNcm || ncm.length < 8) return ""; return listas.cestPorNcm.get(ncm) || ""; };
+const infoDe = it => { const e = principalDe(it); return (cadInfo && e && cadInfo.get(chave13(e))) || null; };
+// categoria em vigor: a escolhida na tela; senão a que o produto já tem no Gestão
+function catDe(it) { const p = infoDe(it); return { g: it.cg ?? (p ? p[5] : null), d: it.cd ?? (p ? p[6] : null), s: it.cs ?? (p ? p[7] : null), f: it.cf ?? (p ? p[8] : null) }; }
+const geral = lista => (lista.find(x => x[1] === ".GERAL") || lista[0] || [null])[0];
+function opcoes(lista, atual, vazio) { return `<option value="">${vazio}</option>` + lista.map(x => `<option value="${x[0]}"${x[0] === atual ? " selected" : ""}>${x[1].replace(/</g, "&lt;")}</option>`).join(""); }
+function desenharDetalhe(it) {
+  const dt = document.getElementById("d" + it.n); if (!dt) return;
+  dt.style.display = abertos.has(it.n) ? "" : "none"; if (!abertos.has(it.n)) return;
+  const td = dt.firstElementChild;
+  if (!listas) { td.textContent = "Cadastro do Gestão não carregado."; return; }
+  const p = infoDe(it), c = catDe(it), k = calc(it);
+  let h = "";
+  if (p && p[2] != null) h += `<b>No Gestão em ${listas.data}:</b> estoque <input type="number" data-ec="1" step="1" value="${it.ec ?? p[2]}" style="width:72px;font-weight:bold${it.ec != null ? ";background:#fff3cd" : ""}" title="estoque que está no Gestão agora. Se a contagem real for outra, corrija aqui: o acerto vai junto com a entrada."> ${it.ec != null ? `<span class="chip av">era ${br(p[2], 0)} no Gestão — vai ser acertado para ${br(it.ec, 0)}</span> ` : ""}→ fica <b>${br((it.ec ?? p[2]) + k.qtdUn, 0)}</b> com esta nota · custo R$ ${br(p[3] ?? 0)} · venda R$ ${br(p[4] ?? 0)}` + (p[9] ? ` · último preço em ${p[9].split("-").reverse().join("/")}` : "") + (p[10] === 0 ? ` · <span class="chip falta">inativo</span>` : "");
+  else if (p) h += `<b>No Gestão:</b> ${p[1].replace(/</g, "&lt;")} (sem detalhes nesta cópia)`;
+  else h += it.ean ? `<b>Produto novo:</b> ainda não existe no Gestão; entra com ${br(k.qtdUn, 0)} unidades.` : `Informe o EAN da unidade para ver o estoque.`;
+  const dep = listas.deptos.filter(x => x[2] === c.g), ses = listas.sessoes.filter(x => x[2] === c.d);
+  h += `<div class="linha" style="margin-top:8px;gap:12px">
+    <label class="c">Grupo<select data-k="cg">${opcoes(listas.grupos, c.g, "(não mexer)")}</select></label>
+    <label class="c">Departamento<select data-k="cd">${opcoes(dep, c.d, "(não mexer)")}</select></label>
+    <label class="c">Seção<select data-k="cs">${opcoes(ses, c.s, "(não mexer)")}</select></label>
+    <label class="c">Família<select data-k="cf">${opcoes(listas.familias, c.f, "(sem família)")}</select></label>
+    <label class="c" title="NCM do produto (8 dígitos). Na nota fiscal já vem preenchido; na entrada sem nota, digite.">NCM<input type="text" inputmode="numeric" maxlength="8" data-ncm="1" value="${it.ncm || ""}" style="width:90px" placeholder="8 dígitos"></label>
+    <label class="c" title="CEST: preenchido automaticamente pelo NCM, conforme o cadastro do Gestão. Pode corrigir.">CEST<input type="text" inputmode="numeric" maxlength="7" data-cest="1" value="${it.cest || ""}" style="width:80px" placeholder="${cestDe(it.ncm) || "—"}"></label>
+    <label class="c">Validade<input type="date" data-val="1" value="${it.val || ""}"></label>
+    <button class="sec" data-copiar="1" title="escolha para quais outros itens copiar grupo, departamento, seção e família">Copiar categoria para outros itens…</button>
+    ${it.cg != null || it.cf != null ? '<span class="chip novo">categoria vai junto com os preços</span>' : ""}</div>`;
+  td.innerHTML = h;
+  for (const sel of td.querySelectorAll("select")) sel.addEventListener("change", () => {
+    const v = sel.value === "" ? null : parseInt(sel.value, 10), kk = sel.dataset.k, a = catDe(it);
+    if (kk === "cf") it.cf = v;
+    else if (v == null) { it.cg = it.cd = it.cs = null; }
+    else {
+      if (kk === "cg") { it.cg = v; it.cd = geral(listas.deptos.filter(x => x[2] === v)); it.cs = geral(listas.sessoes.filter(x => x[2] === it.cd)); }
+      if (kk === "cd") { it.cg = a.g; it.cd = v; it.cs = geral(listas.sessoes.filter(x => x[2] === v)); }
+      if (kk === "cs") { it.cg = a.g; it.cd = a.d; it.cs = v; }
+    }
+    it.tocado = true; desenharDetalhe(it); guardar(it);
+  });
+  const iNcm = td.querySelector("[data-ncm]"), iCest = td.querySelector("[data-cest]");
+  iNcm.addEventListener("input", () => { it.ncm = iNcm.value.replace(/\D/g, ""); it.tocado = true; const sug = cestDe(it.ncm); if (sug && (!it.cest || it.cestAuto)) { it.cest = sug; it.cestAuto = true; iCest.value = sug; } iCest.placeholder = sug || "—"; atualizarLinha(it); guardar(it); });
+  iCest.addEventListener("input", () => { it.cest = iCest.value.replace(/\D/g, ""); it.cestAuto = false; it.tocado = true; guardar(it); });
+  const iec = td.querySelector("[data-ec]");
+  if (iec) iec.addEventListener("change", ev => { const v = parseFloat(ev.target.value); it.ec = ev.target.value === "" || isNaN(v) || (p && v === p[2]) ? null : v; it.tocado = true; atualizarLinha(it); desenharDetalhe(it); guardar(it); });
+  td.querySelector("[data-val]").addEventListener("change", ev => { it.val = ev.target.value || null; it.tocado = true; atualizarLinha(it); guardar(it); if (!db) { desenharValidades(); alertas(); } });
+  td.querySelector("[data-copiar]").addEventListener("click", () => escolherItensParaCategoria(it));
+}
+function totais() {
+  let custo = 0, difal = 0, semEan = 0, novos = 0, un = 0;
+  for (const it of itens) { const k = calc(it); custo += k.custoItem; difal += k.difal; un += k.qtdUn; if (!it.ean || !gtinValido(it.ean)) semEan++; else if (cad && !it.aux && !buscaEan(it.ean)) novos++; }
+  const base = cab.manual ? 0 : cab.vNF, ac = base ? (custo / base - 1) * 100 : 0;
+  document.getElementById("tot").innerHTML =
+    `<div><small>Itens</small><b>${itens.length}</b></div><div><small>Revisados</small><b>${itens.filter(i => i.rev).length} de ${itens.length}</b></div><div><small>Unidades</small><b>${br(un, 0)}</b></div>` +
+    `<div><small>Custo final total</small><b>R$ ${br(custo)}</b></div><div><small>DIFAL (fora dos boletos)</small><b>R$ ${br(difal)}</b></div>` +
+    `<div><small>Acréscimo sobre a nota</small><b>${br(ac, 1)}%</b></div><div><small>Sem EAN</small><b>${semEan}</b></div>` + (cad ? `<div><small>Produtos novos</small><b>${novos}</b></div>` : "");
+  if (itens.some(i => i.e1 || i.e2)) {
+    let ok = 0, falta = 0;
+    for (const it of itens) { if (it.jg) continue; const [q1, q2] = qLojas(it, calc(it)); if ((!(q1 > 0) || it.e1) && (!(q2 > 0) || it.e2)) ok++; else falta++; }
+    document.getElementById("tot").innerHTML += `<div style="background:#e8f5e9;border-radius:6px;padding:2px 8px" title="itens já gravados no Gestão por envios desta nota; no próximo envio só vão os que faltam"><small>Enviados ao Gestão</small><b>${ok} · faltam ${falta}</b></div>`;
+  }
+  if (l2On()) { const t = totaisLojas(), soDiv = div2On();
+    document.getElementById("tot").innerHTML += `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px"><small>Loja 1</small><b>${br(t.un1, 0)} un · R$ ${br(t.custo1)}</b></div><div style="background:#f3f0ff;border-radius:6px;padding:2px 8px"><small>Loja 2</small><b>${br(t.un2, 0)} un · R$ ${br(t.custo2)}</b></div>${soDiv ? `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="parte da Loja 2 no valor da nota, para ratear os boletos"><small>Loja 2 nos boletos</small><b>${br(t.fracao * 100, 1)}%</b></div><div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="o DIFAL é pago pela Loja 1 na GARE; esta é a parte da Loja 2, somada ao que ela paga nos boletos"><small>DIFAL da Loja 2</small><b>R$ ${br(t.difal2)}</b></div>` : ""}`; }
+  const av = [];
+  if (div2On()) { const ex = totaisLojas().excede; if (ex) av.push(`<b>${ex} item(ns) com mais unidades para a Loja 2 do que vieram na nota.</b>`); }
+  if (!cad) av.push("Cadastro do Gestão não carregado: sem ele não dá para saber quais EANs já existem nem sugerir a unidade.");
+  if (semEan) av.push(`${semEan} item(ns) sem EAN de unidade válido — no XML vão como SEM GTIN.`);
+  document.getElementById("avisos").innerHTML = av.join("<br>");
+}
+
+// ---------- copiar categoria para itens escolhidos ----------
+const nomeCat = (lista, id) => { const x = lista.find(y => y[0] === id); return x ? x[1] : "—"; };
+function escolherItensParaCategoria(it) {
+  const a = catDe(it), b = document.getElementById("busca");
+  const primeira = ((it.desc || it.xprod).match(/[A-Za-z]+/) || [""])[0].toUpperCase();
+  const outros = itens.filter(o => o !== it);
+  if (!outros.length) return msg("Não há outros itens nesta nota.");
+  b.style.display = "block";
+  b.innerHTML = `<b>Copiar categoria do item ${rot(it)}</b> — ${nomeCat(listas.grupos, a.g)} › ${nomeCat(listas.deptos, a.d)} › ${nomeCat(listas.sessoes, a.s)}${a.f != null ? " · família " + nomeCat(listas.familias, a.f) : ""}
+    <div class="linha" style="gap:10px;margin:6px 0"><a style="cursor:pointer;color:#0b57d0" data-m="todos">marcar todos</a><a style="cursor:pointer;color:#0b57d0" data-m="nenhum">desmarcar</a><a style="cursor:pointer;color:#0b57d0" data-m="novos">só os produtos novos sem categoria</a><a style="cursor:pointer;color:#0b57d0" data-m="nome">só os que começam com "${primeira}"</a></div>
+    <div id="br" style="max-height:300px;overflow:auto"></div>
+    <div class="linha" style="margin-top:8px;gap:8px"><button id="bOk">Copiar para os marcados</button><span class="orig" id="bQtd"></span><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div>`;
+  const d = b.querySelector("#br");
+  const contar = () => { const n = d.querySelectorAll("input:checked").length; b.querySelector("#bQtd").textContent = n ? `${n} marcado(s)` : "nenhum marcado"; };
+  d.addEventListener("change", contar);
+  for (const o of outros) {
+    const c = catDe(o), tem = c.g != null || c.f != null, novo = !infoDe(o);
+    const r = document.createElement("label"); r.className = "r"; r.style.display = "block";
+    r.innerHTML = `<input type="checkbox" data-n="${o.n}"${(novo && !tem && (o.desc || o.xprod).toUpperCase().startsWith(primeira)) ? " checked" : ""}> <b>${rot(o)}</b> ${(o.desc || o.xprod).replace(/</g, "&lt;")} <span class="orig">${novo ? "produto novo" : "já no Gestão"}${tem ? " · já tem: " + nomeCat(listas.grupos, c.g) + (c.f != null ? " / " + nomeCat(listas.familias, c.f) : "") : " · sem categoria"}</span>`;
+    d.appendChild(r);
+  }
+  const caixas = () => [...d.querySelectorAll("input[type=checkbox]")];
+  for (const m of b.querySelectorAll("[data-m]")) m.onclick = () => {
+    for (const cb of caixas()) { const o = itens.find(x => x.n === +cb.dataset.n), c = catDe(o);
+      cb.checked = m.dataset.m === "todos" ? true : m.dataset.m === "nenhum" ? false : m.dataset.m === "novos" ? (!infoDe(o) && c.g == null && c.f == null) : (o.desc || o.xprod).toUpperCase().startsWith(primeira); } contar(); };
+  contar();
+  b.querySelector("#bOk").onclick = () => {
+    let n = 0;
+    for (const cb of caixas()) if (cb.checked) { const o = itens.find(x => x.n === +cb.dataset.n); o.cg = a.g; o.cd = a.d; o.cs = a.s; o.cf = a.f; o.tocado = true; n++; desenharDetalhe(o); guardar(o); }
+    b.style.display = "none"; msg(n ? `Categoria copiada para ${n} item(ns).` : "Nenhum item marcado.");
+  };
+  b.querySelector("#bx").onclick = () => b.style.display = "none";
+}
+
+// ---------- busca manual no cadastro ----------
+function abrirBusca(it, paraAux) {
+  const b = document.getElementById("busca");
+  if (!cad) { b.style.display = "block"; b.innerHTML = "A busca procura o produto na lista de produtos do Gestão, e essa lista ainda não foi carregada nesta tela. No topo, em “Cadastro do Gestão”, escolha o arquivo cadastro_gestao.json. <a style='cursor:pointer;color:#0b57d0' id='bx'>fechar</a>"; b.querySelector("#bx").onclick = () => b.style.display = "none"; return; }
+  b.style.display = "block";
+  b.innerHTML = `<b>Item ${rot(it)}</b> — ${it.xprod}${paraAux ? `<br><span class="chip av">escolha o produto PRINCIPAL: o código ${it.ean || it.eanNota} vira um segundo código de barras dele</span>` : ""}<br><input type="text" id="bq" placeholder="palavras para buscar no cadastro" style="margin:6px 0"><div id="br"></div><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a>`;
+  const escolher = e => { if (paraAux) usarAuxiliar(it, e); else usarEan(it, e); b.style.display = "none"; };
+  const mostrar = lista => { const d = b.querySelector("#br"); d.innerHTML = "";
+    if (paraAux) for (const o of itens) if (o !== it && o.ean && gtinValido(o.ean) && !o.aux && !buscaEan(o.ean)) { const r = document.createElement("div"); r.className = "r"; r.innerHTML = `<span class="mono">${o.ean}</span> ${(o.desc || o.xprod).replace(/</g, "&lt;")} <span class="chip novo">item ${rot(o)} desta nota</span>`; r.onclick = () => escolher(o.ean); d.appendChild(r); }
+    if (!lista.length && !d.children.length) d.innerHTML = "<i>nada encontrado</i>";
+    for (const [s, e, ds] of lista) { const r = document.createElement("div"); r.className = "r"; r.innerHTML = `<span class="mono">${e}</span> ${ds}`; r.onclick = () => escolher(e); d.appendChild(r); } };
+  mostrar(ranking(it));
+  const q = b.querySelector("#bq"); q.focus();
+  q.addEventListener("input", () => mostrar(q.value.trim().length > 1 ? ranking(it, q.value) : ranking(it)));
+  b.querySelector("#bx").onclick = () => b.style.display = "none";
+}
+
+// ---------- gerar XML ----------
+// Troca só o conteúdo das tags necessárias no texto original; todo o resto do arquivo fica byte a byte igual.
+const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const troca = (bloco, tag, valor) => bloco.replace(new RegExp(`<${tag}>[^<]*</${tag}>`), `<${tag}>${valor}</${tag}>`);
+const tira = (bloco, tag) => bloco.replace(new RegExp(`<${tag}>[^<]*</${tag}>`), "");
+const noBloco = (texto, tag, f) => texto.replace(new RegExp(`<${tag}(?:\\s[^>]*)?>[\\s\\S]*?</${tag}>`), m => f(m));
+function gerarXml(modo) {
+  let somaProd = 0;
+  let saida = xmlTexto.replace(/<det\s+nItem="(\d+)"\s*>[\s\S]*?<\/det>/g, (det, n) => {
+    const it = itens.find(x => x.n === parseInt(n, 10)), k = calc(it);
+    const ean = it.ean && gtinValido(it.ean) ? it.ean : "SEM GTIN";
+    const vprod = modo === "B" ? k.custoItem : it.vprod;
+    somaProd += vprod;
+    det = noBloco(det, "prod", p => {
+      p = troca(p, "cEAN", ean); p = troca(p, "cEANTrib", ean);
+      p = troca(p, "xProd", esc(it.desc || it.xprod));
+      if (it.div > 1) { p = troca(p, "uCom", "UN"); p = troca(p, "uTrib", "UN"); }
+      p = troca(p, "qCom", k.qtdUn.toFixed(4)); p = troca(p, "qTrib", k.qtdUn.toFixed(4));
+      p = troca(p, "vUnCom", (vprod / k.qtdUn).toFixed(10)); p = troca(p, "vUnTrib", (vprod / k.qtdUn).toFixed(10));
+      p = troca(p, "vProd", vprod.toFixed(2));
+      if (modo === "B") for (const t of ["vDesc", "vFrete", "vOutro"]) p = tira(p, t);
+      return p;
+    });
+    if (modo === "B") {
+      det = noBloco(det, "IPITrib", b => troca(troca(troca(b, "vIPI", "0.00"), "pIPI", "0.00"), "vBC", "0.00"));
+      det = noBloco(det, "ICMS", b => troca(troca(b, "vICMSST", "0.00"), "vBCST", "0.00"));
+    }
+    return det;
+  });
+  if (modo === "B") saida = noBloco(saida, "ICMSTot", t => {
+    t = troca(t, "vProd", r2(somaProd).toFixed(2)); t = troca(t, "vNF", r2(somaProd).toFixed(2));
+    for (const g of ["vIPI", "vST", "vBCST", "vDesc", "vFrete", "vOutro"]) t = troca(t, g, "0.00");
+    return t;
+  });
+  return saida;
+}
+function msg(t) { document.getElementById("msg").textContent = t || ""; }
+async function baixar(nome, conteudo, tipo) {
+  if (!dl) { // arquivo aberto direto do computador: download normal
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([conteudo], { type: tipo })); a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove(); return;
+  }
+  try { await dl.save({ filename: nome, data: conteudo instanceof Uint8Array ? new Blob([conteudo]) : conteudo }); msg(""); }
+  catch (e) { if (e && e.code !== "declined") msg("Não consegui salvar o arquivo (" + ((e && e.code) || "erro") + ")."); }
+}
+// zip simples (sem compressão) com um arquivo dentro: a página publicada não pode baixar .xml direto
+function crc32(u8) { let c, crc = -1; for (let i = 0; i < u8.length; i++) { c = (crc ^ u8[i]) & 255; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; crc = (crc >>> 8) ^ c; } return (crc ^ -1) >>> 0; }
+function zipUm(nome, texto) {
+  const enc = new TextEncoder(), dados = enc.encode(texto), nm = enc.encode(nome), crc = crc32(dados), n = dados.length;
+  const u16 = v => [v & 255, v >>> 8], u32 = v => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, v >>> 24];
+  const comum = [...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(n), ...u32(n), ...u16(nm.length), ...u16(0)];
+  const local = [0x50, 0x4b, 3, 4, ...comum], central = [0x50, 0x4b, 1, 2, ...u16(20), ...comum, ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(0)];
+  const fim = [0x50, 0x4b, 5, 6, ...u16(0), ...u16(0), ...u16(1), ...u16(1), ...u32(central.length + nm.length), ...u32(local.length + nm.length + n), ...u16(0)];
+  const out = new Uint8Array(local.length + nm.length + n + central.length + nm.length + fim.length); let o = 0;
+  for (const p of [local, nm, dados, central, nm, fim]) { out.set(p, o); o += p.length; }
+  return out;
+}
+function csvPrecos() {
+  const l = ["item;codigo_fornecedor;ean_unidade;descricao;quantidade_unidades;custo_unitario;preco_venda;ja_no_cadastro"];
+  for (const it of itens) { const k = calc(it);
+    l.push([it.n, it.cod, it.ean, (it.desc || "").replace(/;/g, ","), k.qtdUn, k.custoUn.toFixed(4).replace(".", ","), k.venda.toFixed(2).replace(".", ","), cad ? (buscaEan(it.ean) ? "sim" : "nao") : ""].join(";")); }
+  return "﻿" + l.join("\r\n");
+}
+
+// ---------- preços para o Gestão ----------
+// O Gestão, ao mudar preço na tela, grava em PRODUTOS: PRECO_COMPRA, PRECO_VENDA1, MARGEM, ULT_ALT_PRECO, ULT_ALTERACAO,
+// e marca DATAS.T_ALT_PRODUTOS. O histórico de preços, o último preço de compra e o custo médio saem dos gatilhos do próprio banco.
+function sqlPrecos(loja) {
+  loja = loja || 1;
+  const linhas = [], eans = [], visto = new Set();
+  for (const it of itens) {
+    const ePr = codLoja(it, loja);
+    if (!ePr || !it.ean || !gtinValido(it.ean) || visto.has(ePr)) continue;
+    if (it.jg) continue;
+    const k = calc(it), custo = Math.round(k.custoUn * 1000) / 1000, venda = loja === 2 ? (it.pv2 ?? k.venda) : k.venda;
+    if (!(custo > 0) || !(venda > 0)) continue;
+    if (loja === 2 && !(qLojas(it, k)[1] > 0) && it.pv2 == null) continue;
+    if (loja === 1 && destino() === "2") continue; // na Loja 2 só mexe no que foi dividido ou teve preço digitado
+    visto.add(ePr);
+    const cod = ePr.padStart(13, "0"), margem = Math.floor((venda / custo - 1) * 10000 + 1e-6) / 100;
+    if (it.aux && ePr === principalDe(it)) linhas.push(...sqlAuxiliar(it.ean.padStart(13, "0"), cod));
+    eans.push(cod);
+    let cat = "";
+    if (loja === 1 && it.cg != null && it.cd != null && it.cs != null) cat += `, GRUPO = ${it.cg}, DEPARTAMENTO = ${it.cd}, SESSAO = ${it.cs}`;
+    if (loja === 1 && it.cf != null) cat += `, FAMILIA = ${it.cf}`;
+    linhas.push(`UPDATE PRODUTOS SET PRECO_COMPRA = ${custo.toFixed(3)}, PRECO_VENDA1 = ${venda.toFixed(2)}, MARGEM = ${margem.toFixed(2)}${cat}${nomeSql(it)}, ULT_ALT_PRECO = CURRENT_DATE, ULT_ALTERACAO = CURRENT_DATE, ALT_ETIQUETA = 1, ALT_PDV = 1 WHERE CODIGO_BARRAS = '${cod}';`);
+  }
+  if (!linhas.length) return null;
+  const grupos = []; for (let i = 0; i < eans.length; i += 400) grupos.push("CODIGO_BARRAS IN (" + eans.slice(i, i + 400).map(e => `'${e}'`).join(",") + ")");
+  const onde = grupos.join(" OR ");
+  return [`/* ENTRADA-XML-PRECOS LOJA ${loja} NF ${cab.nnf} - ${semAcento(cab.emit)} - ${linhas.length} produtos */`,
+    ...linhas,
+    "UPDATE DATAS SET T_ALT_PRODUTOS = CURRENT_TIMESTAMP;",
+    "COMMIT;",
+    `SELECT COUNT(*) AS PRODUTOS_ATUALIZADOS FROM PRODUTOS WHERE ULT_ALT_PRECO = CURRENT_DATE AND (${onde});`,
+    `SELECT CODIGO_BARRAS, CAST(DESCRICAO AS VARCHAR(40)) AS DESCRICAO, PRECO_COMPRA, PRECO_VENDA1 FROM PRODUTOS WHERE ${onde} ORDER BY DESCRICAO;`,
+    ""].join("\r\n");
+}
+
+// Entrada completa: cadastra o produto se ainda não existe (com os mesmos valores padrão que o Gestão usa em produto novo),
+// dá entrada no estoque pela rotina do próprio Gestão ('S' = entrada simples de produtos) e grava custo, venda e categoria.
+const descSql = it => semAcento((it.desc || it.xprod || "PRODUTO").toUpperCase()).replace(/[^\x20-\x7e]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60) || "PRODUTO";
+const nomeSql = it => it.an && (it.desc || "").trim() ? `, DESCRICAO = ${aspas(descSql(it))}, DESCRICAO_RESUMIDA = ${aspas(descSql(it).slice(0, 30))}` : "";
+const aspas = t => "'" + String(t).replace(/'/g, "''") + "'";
+// vínculo de código auxiliar, como o Gestão grava (tabela COD_AUXILIARES); não repete se já existir
+function sqlAuxiliar(codAux, codPrincipal) {
+  return [
+    `INSERT INTO COD_AUXILIARES (ID_PRODUTO, S_CODIGO) SELECT P.ID, ${aspas(codAux)} FROM PRODUTOS P WHERE P.CODIGO_BARRAS = ${aspas(codPrincipal)} AND NOT EXISTS (SELECT 1 FROM COD_AUXILIARES A WHERE A.S_CODIGO = ${aspas(codAux)} OR A.S_CODIGO = ${aspas(chave13(codAux))});`,
+    `UPDATE DATAS SET T_ALT_COD_AUXILIARES = CURRENT_TIMESTAMP;`];
+}
+// código do produto em cada loja. Código interno (000000000xxxx) é uma sequência própria de cada loja:
+// o mesmo número pode ser outro produto na Loja 2, então lá só vale o código informado em "cód. na Loja 2".
+function codLoja(it, loja) {
+  const pr = principalDe(it);
+  if (loja !== 2 || !ehInterno(String(pr).padStart(13, "0"))) return pr;
+  return it.ean2 && gtinValido(it.ean2) ? it.ean2 : null;
+}
+const itensDoEnvio = { 1: [], 2: [] };
+let tConc = null;
+function conciliarEnvios() {
+  clearTimeout(tConc);
+  tConc = setTimeout(() => {
+    if (!cab || !itens.length) return; const chave = cab.chave, m = metaDe(chave); if (!m) return;
+    for (const [campo, loja] of [["envio", 1], ["envio2", 2]]) {
+      const v = m[campo]; if (!v || v.status !== "aplicado" || v.tipo === "precos" || !v.itens || v.marc) continue;
+      let achou = 0;
+      for (const n of v.itens) { const it = itens.find(x => x.n === n); if (!it) continue; achou++; if (!it["e" + loja]) { it["e" + loja] = v.aplicado_em || new Date().toISOString(); atualizarLinha(it); guardar(it); } }
+      if (achou === v.itens.length) salvarMeta(chave, { [campo]: { ...v, marc: 1 } });
+    }
+    totais();
+  }, 1200);
+}
+function sqlEntrada(loja) {
+  loja = loja || 1; itensDoEnvio[loja] = [];
+  const mapa = new Map(), auxs = [];
+  for (const it of itens) {
+    if (!it.ean || !gtinValido(it.ean)) continue;
+    if (it.jg) continue; // já lançado no Gestão por fora do sistema
+    if (it["e" + loja]) continue; // já enviado a esta loja por aqui (envio em partes)
+    const k = calc(it); if (!(k.qtdUn > 0) || !(k.custoUn > 0) || !(k.venda > 0)) continue;
+    const ePr = codLoja(it, loja); if (!ePr) continue;
+    const comAux = it.aux && ePr === principalDe(it);
+    if (comAux) auxs.push([it.ean.padStart(13, "0"), ePr.padStart(13, "0")]);
+    const qL = qLojas(it, k)[loja - 1]; if (!(qL > 0)) { if (comAux) auxs.pop(); continue; }
+    itensDoEnvio[loja].push(it.n);
+    const vL = k.custoItem * qL / k.qtdUn, venL = loja === 2 ? (it.pv2 ?? k.venda) : k.venda, ecL = loja === 1 ? (it.ec ?? null) : null;
+    const a = mapa.get(ePr);
+    if (a) { a.qtd += qL; a.valor += vL; if (a.ec == null) a.ec = ecL; if (a.it.aux && !it.aux) a.it = it; }
+    else mapa.set(ePr, { it, qtd: qL, valor: vL, venda: venL, ec: ecL });
+  }
+  if (!mapa.size) return null;
+  const linhas = [], eans = [];
+  for (const [ean, a] of mapa) {
+    const it = a.it, cod = ean.padStart(13, "0"), custo = Math.round(a.valor / a.qtd * 1000) / 1000, margem = Math.floor((a.venda / custo - 1) * 10000 + 1e-6) / 100;
+    const desc = semAcento((it.desc || it.xprod || "PRODUTO").toUpperCase()).replace(/[^\x20-\x7e]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60) || "PRODUTO";
+    const cest = it.cest || cestDe(it.ncm) || "";
+    const c2 = loja === 2 ? catLoja2(it) : null;
+    const c = loja === 2 ? c2 : { g: it.cg ?? 1, d: it.cd ?? 1, s: it.cs ?? 1 }, fam = loja === 2 ? c2.f : (it.cf ?? null);
+    eans.push(cod);
+    // CODIGO_INTERNO vai explícito (maior + 1), como o Gestão faz na tela dele; o gerador do banco está defasado e repetia números de produtos antigos
+    linhas.push(`INSERT INTO PRODUTOS (CODIGO_INTERNO, CODIGO_BARRAS, DESCRICAO, DESCRICAO_RESUMIDA, UNIDADE, PRECO_COMPRA, CUSTO_MEDIO, PRECO_VENDA1, MARGEM, GRUPO, DEPARTAMENTO, SESSAO, FAMILIA, S_NCM, S_CEST, ESTOQUE_ATUAL, DATA_INCLUSAO, ULT_ALT_PRECO, ULT_ALTERACAO, ` +
+      `ATIVO, ALT_ETIQUETA, ALT_BALANCA, ALT_PDV, PRECO_ATUALIZADO, B_EXPORTA_PDV, B_EXP_TABLET, B_ALT_DELIVERY, B_PARTICIPA_COTACAO, ALIQUOTA, ICMS, IPI, ST, S_ORIGEM_ST_SAIDA, NUM_IMPRESSORA, CASAS_DECIMAIS, PASTA_CAIXA, GONDULAS, VALIDADE, UNIDADES_CAIXA, I_TIPO_ATU_NCM, ` +
+      `S_COD_CST_PIS_ENTRADA, S_COD_CST_PIS_SAIDA, S_COD_CST_COFINS_ENTRADA, S_COD_CST_COFINS_SAIDA, ` +
+      `COMPOSICAO, PROMOCAO, PERMITIR_DESC, SEMELHANTE, PESADO, B_OUTRAS_EMB, B_UTILIZA_GRADE, B_SERVICO, B_COMBUSTIVEL, B_BEBIDA_ALCOOLICA, B_PRODUTO_TRANSFORMACAO, B_EMB_OBRIGATORIA, B_DECRETO_40016, B_INGREDIENTE, B_COMPLETA_DESC, B_EMITE_ETIQUETA, B_CONTROLA_VALIDADE, B_FABRICACAO, B_DESONERADO, B_IS, B_SERVICE_DELIVERY, B_IGNORAR_ATU_SAC_FISCAL, I_COD_TIPO_ITEM, I_AUX1, ` +
+      `PRECO_VENDA2, PRECO_VENDA3, PRECO_CUSTO, PRECO_PROMOCAO, ${loja === 1 ? "PRECO_VENDA_PIX, " : ""}PRECO_CONCORRENTE, PRECO_CONCORRENTE_MENOR, PORCENTAGEM_PROMOCAO, COMISSAO, QUANTIDADE_CLIENTE, ESTOQUE_MIN, ESTOQUE_MAX, ESTOQUE_ATUAL_INICIO_DIA, F_ESTOQUE_PRODUCAO, F_MVA_ST, F_AUX1, F_AUX2, F_AUX3, F_AUX4, F_PRECO_PROG, F_PRECO_PROG2, F_PRECO_PROG3, F_BCSTRET, F_VICMSSTRET, F_ALIQNAC_MUN) ` +
+      `SELECT (SELECT CAST(MAX(CAST(P2.CODIGO_INTERNO AS INTEGER)) + 1 AS VARCHAR(6)) FROM PRODUTOS P2), ${aspas(cod)}, ${aspas(desc)}, ${aspas(desc.slice(0, 30))}, 'Un', ${custo.toFixed(3)}, ${custo.toFixed(3)}, ${a.venda.toFixed(2)}, ${margem.toFixed(2)}, ${c.g}, ${c.d}, ${c.s}, ${fam ?? "NULL"}, ${it.ncm ? aspas(it.ncm) : "NULL"}, ${cest ? aspas(cest) : "NULL"}, 0, CURRENT_DATE, CURRENT_DATE, CURRENT_DATE, ` +
+      `1, 1, 1, 0, 0, 1, 1, 1, 1, 3, 18, 10, '000', '0', 'N', 2, 1, 1, 3, 1, 1, '50', '01', '50', '01', ` +
+      `0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ` +
+      `${loja === 1 ? "0, " : ""}0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ` +
+      `FROM RDB$DATABASE WHERE NOT EXISTS (SELECT 1 FROM PRODUTOS WHERE CODIGO_BARRAS = ${aspas(cod)});`);
+    if (a.ec != null) { // acerto do estoque contado, registrado como o Gestão registra uma alteração manual de estoque
+      linhas.push(`INSERT INTO HIST_ALT_ESTOQUE_MANUAL (ID_PRODUTO, F_ESTOQUE_ANTERIOR, F_ESTOQUE_NOVO, DH_OPERACAO, ID_USUARIO, ID_SUPERVISOR, ID_LOJA, S_ESTACAO) SELECT ID, ESTOQUE_ATUAL, ${a.ec}, CURRENT_TIMESTAMP, 1, 0, 0, 'ENTRADA-NOTAS' FROM PRODUTOS WHERE CODIGO_BARRAS = ${aspas(cod)} AND ESTOQUE_ATUAL <> ${a.ec};`);
+      linhas.push(`update PRODUTOS set ESTOQUE_ATUAL = ${a.ec} where CODIGO_BARRAS = ${aspas(cod)};`);
+    }
+    linhas.push(`EXECUTE PROCEDURE ATUALIZAR_ESTOQUE (1, 1, 1, ${aspas(cod)}, 'S', ${a.qtd}, ${a.valor.toFixed(2)}, 0, CURRENT_DATE, 0, '', CURRENT_TIME, -1, NULL);`);
+    let cat = "";
+    if (loja === 1 && it.cg != null && it.cd != null && it.cs != null) cat += `, GRUPO = ${it.cg}, DEPARTAMENTO = ${it.cd}, SESSAO = ${it.cs}`;
+    if (loja === 1 && it.cf != null) cat += `, FAMILIA = ${it.cf}`;
+    linhas.push(`UPDATE PRODUTOS SET PRECO_COMPRA = ${custo.toFixed(3)}, PRECO_VENDA1 = ${a.venda.toFixed(2)}, MARGEM = ${margem.toFixed(2)}${cat}${nomeSql(it)}, ULT_ALT_PRECO = CURRENT_DATE, ULT_ALTERACAO = CURRENT_DATE, ALT_ETIQUETA = 1, ALT_PDV = 1 WHERE CODIGO_BARRAS = ${aspas(cod)};`);
+  }
+  for (const [ca, cp] of auxs) linhas.push(...sqlAuxiliar(ca, cp));
+  const grupos = []; for (let i = 0; i < eans.length; i += 400) grupos.push("CODIGO_BARRAS IN (" + eans.slice(i, i + 400).map(aspas).join(",") + ")");
+  const onde = grupos.join(" OR ");
+  return [`/* ENTRADA-XML-PRECOS ENTRADA COMPLETA LOJA ${loja} (produtos novos + estoque + precos) - ${cab.manual ? "sem nota" : "NF " + cab.nnf} - ${semAcento(cab.emit).replace(/[^\x20-\x7e]|\*\//g, " ")} - ${eans.length} produtos */`,
+    ...linhas,
+    "UPDATE DATAS SET T_ALT_PRODUTOS = CURRENT_TIMESTAMP;",
+    "COMMIT;",
+    `SELECT COUNT(*) AS PRODUTOS_ATUALIZADOS FROM PRODUTOS WHERE ULT_ALT_PRECO = CURRENT_DATE AND (${onde});`,
+    `SELECT CODIGO_BARRAS, CAST(DESCRICAO AS VARCHAR(40)) AS DESCRICAO, ESTOQUE_ATUAL, PRECO_COMPRA, PRECO_VENDA1 FROM PRODUTOS WHERE ${onde} ORDER BY DESCRICAO;`,
+    ""].join("\r\n");
+}
+
+// ---------- salvar / reabrir ----------
+const estado = () => ({ chave: cab.chave, manual: cab.manual ? cab.emit : null, gPct: gPct(), gMk: gMk(), itens: itens.map(i => ({ ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean, aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc, pct: i.pct, mk: i.mk, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada })), meta: metaLocal });
+function guardar(it) {
+  if (!db) { try { localStorage.setItem("entradaxml:" + cab.chave, JSON.stringify(estado())); } catch (e) {} return; }
+  if (it) agendarItem(it); else agendarCfg();
+}
+function restaurar(s) {
+  if (!s || s.chave !== cab.chave) return false;
+  document.getElementById("gPct").value = s.gPct; document.getElementById("gMk").value = s.gMk;
+  if (s.meta && !db) metaLocal = s.meta;
+  for (const g of s.itens) { let it = itens.find(x => x.n === g.n); if (!it && g.m && cab.manual) { it = itemManual(g); itens.push(it); } if (it) Object.assign(it, g); }
+  return true;
+}
+
+// ---------- trabalho compartilhado entre os PCs (página publicada) ----------
+const idItem = n => "i" + String(n).padStart(4, "0");
+const estadoItem = i => ({ ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean || "", aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc || "", pct: i.pct ?? null, mk: i.mk ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada });
+// fator dos boletos em meia nota: quanto o valor cheio (com os impostos da parte faturada) é maior que o valor da nota
+function fatorBoletos() {
+  if (!cab || cab.manual || !itens.length) return 1;
+  let nota = 0, cheio = 0;
+  for (const it of itens) { const extra = -it.vdesc + it.vfrete + it.voutro + it.vipi + it.vst; nota += it.vprod + extra; cheio += it.vprod / ((it.pct ?? gPct()) / 100) + extra; }
+  return nota > 0 ? Math.round(cheio / nota * 10000) / 10000 : 1;
+}
+const cfgAtual = () => ({ gPct: gPct(), gMk: gMk(), gArr: document.getElementById("gArr").value, gModo: document.getElementById("gModo").value, gDiv2: div2On() ? 1 : 0, gDest: destino(), fb: fatorBoletos() });
+function sync(t, ok) { const e = document.getElementById("stSync"); e.textContent = t; e.className = "chip " + (ok ? "ok" : "av"); }
+function marcaSync() { if (db) sync(pend.size ? "salvando…" : "salvo — os dois PCs veem a mesma nota", !pend.size); }
+function agendarItem(it) {
+  const p = pend.get(it.n) || {}; clearTimeout(p.timer);
+  p.timer = setTimeout(() => gravarItem(it, cab.chave), 500); pend.set(it.n, p); marcaSync();
+}
+async function gravarItem(it, chave) {
+  const p = pend.get(it.n); if (!p) return;
+  if (p.gravando) { p.denovo = true; return; }
+  p.gravando = true; p.timer = null;
+  try { await db.doc(`notas/${chave}/itens/${idItem(it.n)}`).set(estadoItem(it)); await syncValidade(it, chave); }
+  catch (e) { msg("Não consegui salvar o item " + it.n + " (" + ((e && e.code) || "erro") + "). Confira a conexão."); }
+  p.gravando = false;
+  if (p.denovo) { p.denovo = false; return gravarItem(it, chave); }
+  if (!p.timer) pend.delete(it.n);
+  marcaSync();
+}
+let tCfg = null;
+function agendarCfg() { clearTimeout(tCfg); const chave = cab.chave, c = cfgAtual(); const m = metaDe(chave); if (m) m.cfg = c; tCfg = setTimeout(() => db.doc("notas/" + chave).update({ cfg: c }).catch(() => {}), 600); }
+let tDesenha = null;
+function aplicarRemoto(g) {
+  let it = itens.find(x => x.n === g.n);
+  if (!it && cab.manual && g.m) { it = itemManual(g); Object.assign(it, { e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, an: g.an ? 1 : 0, div: g.div || 1, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, pct: g.pct ?? null, fd: g.fd || 1 }); itens.push(it); itens.sort((a, b) => a.n - b.n); clearTimeout(tDesenha); tDesenha = setTimeout(desenhar, 30); return; }
+  if (!it || pend.has(it.n)) return;
+  if (it.m) { it.xprod = g.xprod; it.qtd = g.qtd; it.vun = g.vun; it.vprod = r2(g.qtd * g.vun); it.vipi = g.vipi || 0; it.vst = g.vst || 0; }
+  Object.assign(it, { jg: g.jg ? 1 : 0, an: g.an ? 1 : 0, e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, div: g.div, ean: g.ean, aux: g.aux ?? null, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, ncm: g.ncm ?? it.ncm ?? "", cest: g.cest ?? it.cest ?? "", desc: g.desc, pct: g.pct, mk: g.mk, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null, fd: g.fd, tocado: g.tocado, descTocada: g.descTocada });
+  const tr = document.getElementById("l" + it.n); if (!tr) return;
+  for (const inp of tr.querySelectorAll("input")) if (inp !== document.activeElement) { const c = inp.dataset.c; if (c === "rev") { inp.checked = !!it.rev; continue; } inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? ""); }
+  tr.classList.toggle("rev", !!it.rev);
+  atualizarLinha(it); desenharDetalhe(it);
+}
+async function abrirNota(chave, texto) {
+  try {
+    if (unsubItens) unsubItens(); if (unsubNota) unsubNota(); unsubItens = unsubNota = null; pend.clear();
+    const meta = listaNotas.find(n => n.id === chave);
+    if (chave.startsWith("M")) { xmlTexto = ""; doc = null; cab = cabManual(chave, (meta && meta.emit) || "Entrada sem nota"); itens = []; }
+    else {
+    if (!texto) { const q = await db.collection(`notas/${chave}/xml`).get(); texto = q.docs.map(d => d.data().t).join(""); }
+    if (!texto) return msg("Essa nota ainda está sendo enviada pelo outro PC. Tente de novo em instantes.");
+    xmlTexto = texto; const r = lerNota(texto); doc = r.d; cab = r.c; itens = r.lista;
+    await carregarMemoria(cab.cnpj);
+    }
+    baixadoEm = (meta && meta.baixado) || null; envioAtual = (meta && meta.envio) || null; envio2Atual = (meta && meta.envio2) || null;
+    if (emCurso(envioAtual) && supa) acompanharEnvio(envioAtual.id, chave, "envio");
+    if (emCurso(envio2Atual) && supa) acompanharEnvio(envio2Atual.id, chave, "envio2");
+    aplicarDest(destDeCfg(meta && meta.cfg));
+    if (meta && meta.boletos === undefined && cab.dups && cab.dups.length) salvarMeta(chave, { boletos: cab.dups });
+    else if (meta && meta.boletos && cab.dups && cab.dups.length && !meta.boletos.some(b => b.nf)) { const ns = new Set(cab.dups.map(d => d.n)); salvarMeta(chave, { boletos: meta.boletos.map(b => ns.has(b.n) ? { ...b, nf: 1 } : { ...b }) }); }
+    prefNota = new Set(itens.map(i => chave13(i.eanNota).slice(-13).slice(0, 7)));
+    aplicarCadastro(); desenhar(); msg(""); avisoBaixa(); redesenharTudo();
+    unsubItens = db.collection(`notas/${chave}/itens`).onSnapshot(s => {
+      for (const c of s.docChanges()) {
+        if (c.type !== "removed") { if (!c.doc.metadata.hasPendingWrites) aplicarRemoto(c.doc.data()); }
+        else if (cab.manual) { const n = c.doc.data().n, tinha = itens.length; itens = itens.filter(x => x.n !== n || pend.has(n)); if (itens.length !== tinha) desenhar(); }
+      }
+      totais(); marcaSync();
+    }, e => sync("sem conexão com o armazenamento (" + e.code + ")", false));
+    unsubNota = db.doc("notas/" + chave).onSnapshot(s => {
+      if (s.exists) { baixadoEm = s.data().baixado || null; if (!s.metadata.hasPendingWrites) { envioAtual = s.data().envio || envioAtual; envio2Atual = s.data().envio2 || envio2Atual; } avisoBaixa(); }
+      const c = s.exists && s.data().cfg; if (!c || s.metadata.hasPendingWrites) return;
+      for (const k of ["gPct", "gMk", "gArr", "gModo"]) { const e = document.getElementById(k); if (e !== document.activeElement && c[k] != null) e.value = c[k]; }
+      if ((c.gDest != null || c.gDiv2 != null) && Date.now() - destLocalEm > 2500) aplicarDest(destDeCfg(c));
+      for (const it of itens) atualizarLinha(it); totais();
+    }, () => {});
+  } catch (e) { msg("Não consegui abrir a nota: " + (e.message || e.code)); }
+}
+async function novaNota(texto) {
+  const r = lerNota(texto), chave = r.c.chave;
+  if (!/^\d{44}$/.test(chave)) throw new Error("Não achei a chave de 44 dígitos da NF-e nesse arquivo.");
+  const ref = db.doc("notas/" + chave);
+  const jaExiste = (await ref.get()).exists;
+  // Guarda o XML se a nota é nova ou se o XML dela ainda não está na nuvem (nota migrada / envio interrompido)
+  const temXml = jaExiste && !(await db.collection(`notas/${chave}/xml`).get()).empty;
+  if (!temXml) {
+    sync("enviando a nota…", false);
+    const partes = []; for (let i = 0; i < texto.length; i += 100000) partes.push(texto.slice(i, i + 100000));
+    for (let i = 0; i < partes.length; i++) await db.doc(`notas/${chave}/xml/p${String(i).padStart(3, "0")}`).set({ t: partes[i] });
+  }
+  if (!jaExiste) await ref.set({ emit: r.c.emit, nnf: r.c.nnf, vNF: r.c.vNF, itens: r.lista.length, criado: new Date().toISOString(), cfg: { ...cfgAtual(), gPct: 100, fb: 1 }, boletos: r.c.dups });
+  await abrirNota(chave, texto);
+}
+let listaNotas = [], baixadoEm = null, metaLocal = null, valDocs = new Map(), vista = "entrada", envioAtual = null, envio2Atual = null, agenteInfo = null;
+const hoje = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
+const dias = iso => iso ? Math.round((new Date(iso.slice(0, 10) + "T00:00:00") - hoje()) / 86400000) : NaN;
+const dataBr = iso => !iso ? "" : iso.length > 10 ? new Date(iso).toLocaleDateString("pt-BR") : iso.split("-").reverse().join("/");
+const pnum = t => { const v = parseFloat(String(t).replace(/\./g, "").replace(",", ".")); return v > 0 ? r2(v) : 0; };
+const h = t => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const fonteNotas = () => db ? listaNotas : (metaLocal ? [metaLocal] : []);
+const metaDe = chave => fonteNotas().find(n => n.id === chave) || null;
+const rotNota = n => n.id.startsWith("M") ? "sem nota" : "NF " + n.nnf;
+// valor a pagar: boleto que veio do XML é multiplicado pelo fator da meia nota; boleto digitado vale o que foi digitado
+const fbDe = n => (n && n.cfg && n.cfg.fb > 1 ? n.cfg.fb : 1);
+const aPagar = (n, b) => r2((b.valor || 0) * (b.nf ? fbDe(n) : 1));
+async function salvarMeta(chave, patch) {
+  const m = metaDe(chave); if (m) Object.assign(m, patch);
+  if (db) { try { await db.doc("notas/" + chave).update(patch); } catch (e) { msg("Não consegui salvar (" + ((e && e.code) || "erro") + ")."); } } else if (cab) guardar();
+  redesenharTudo();
+}
+function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); }
+function mostrar(v) {
+  vista = v;
+  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vValidades", "validades"], ["vAvisos", "avisos"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
+  redesenharTudo();
+}
+const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
+  : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
+  : ((n.envio && n.envio.status === "erro") || (n.envio2 && n.envio2.status === "erro")) ? ["a", "Erro ao gravar no Gestão", "falta"]
+  : n.baixado ? ["e", "Enviada ao Gestão em " + dataBr(n.baixado), "novo"] : ["a", "Em andamento", "av"];
+
+// ----- boletos -----
+function sitBoleto(b) {
+  if (b.pago) return ["pago em " + dataBr(b.pago), "ok"];
+  const d = dias(b.venc); if (isNaN(d)) return ["sem vencimento", "av"];
+  if (d < 0) return [`vencido há ${-d} dia${d === -1 ? "" : "s"}`, "falta"];
+  if (d === 0) return ["vence hoje", "falta"];
+  if (d <= 7) return [`vence em ${d} dia${d === 1 ? "" : "s"}`, "av"];
+  return [`vence em ${d} dias`, "novo"];
+}
+function mudarBoleto(chave, i, patch) {
+  const m = metaDe(chave); if (!m) return;
+  const bs = (m.boletos || []).map(x => ({ ...x }));
+  if (patch === null) bs.splice(i, 1); else if (i >= bs.length) bs.push(patch); else Object.assign(bs[i], patch);
+  return salvarMeta(chave, { boletos: bs });
+}
+// "as duas lojas": cada loja recebe a sua nota, então os boletos existem em dobro (um jogo por loja)
+function ajustarBoletosLojas() {
+  if (!cab) return; const m = metaDe(cab.chave); if (!m) return;
+  const bs = m.boletos || [], tem = bs.some(b => b.l2);
+  if (destino() === "ambas" && !tem && bs.length) { salvarMeta(cab.chave, { cfg: cfgAtual(), boletos: [...bs, ...bs.map(b => ({ ...b, n: (b.n || "") + " L2", l2: 1, pago: null }))] }); msg("Boletos duplicados: um jogo para cada loja."); }
+  else if (destino() !== "ambas" && tem) { const fica = bs.filter(b => !b.l2 || b.pago); salvarMeta(cab.chave, { cfg: cfgAtual(), boletos: fica }); if (fica.length !== bs.length) msg("Boletos da Loja 2 (ainda não pagos) removidos."); }
+}
+function desenharBoletosNota() {
+  const p = document.getElementById("pBol"); if (!p || !cab) return;
+  const m = metaDe(cab.chave), bs = (m && m.boletos) || [];
+  const totalBol = bs.reduce((a, b) => a + aPagar(m, b), 0), r2_ = div2On() && bs.length && totaisLojas().un2 > 0 ? rateioLoja2(m, bs) : null;
+  if (bs.length && itens.length && (r2_ || bs.some(b => b.p2))) agendarPartesL2(cab.chave, r2_ ? r2_.partes : null);
+  p.innerHTML = `<a id="bolSeta" title="clique para esconder ou mostrar a lista de boletos" style="cursor:pointer;color:inherit;font-weight:bold;text-decoration:none">${document.body.classList.contains("semBol") ? "▸" : "▾"} Boletos desta nota</a> <span class="orig">${bs.length ? bs.length + " boleto" + (bs.length > 1 ? "s" : "") + " · total a pagar R$ " + br(bs.reduce((a, b) => a + aPagar(m, b), 0)) + (fbDe(m) > 1 ? ` — meia nota: os boletos da nota estão multiplicados por ${String(fbDe(m)).replace(".", ",")}` : "") : "nenhum boleto lançado"}</span>${r2_ ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><b>Loja 2 paga R$ ${br(r2_.total2)}</b> = R$ ${br(r2_.bol)} dos boletos (${br(r2_.fracao * 100, 1)}%${r2_.porNota ? ", calculado nota por nota" : ""})${r2_.difal2 ? ` + R$ ${br(r2_.difal2)} da parte dela no DIFAL` : ""} · Loja 1 fica com R$ ${br(r2(totalBol - r2_.total2))}${r2_.difal2 ? " dos boletos, já descontado o DIFAL que a Loja 2 devolve" : ""}</div>` : ""}<div id="lBol"></div><button class="sec" id="bAddBol" style="margin-top:6px">Adicionar boleto</button>`;
+  p.querySelector("#bolSeta").addEventListener("click", () => { const g = document.getElementById("gBol"); g.checked = !g.checked; g.dispatchEvent(new Event("change")); });
+  const l = p.querySelector("#lBol");
+  bs.forEach((b, i) => {
+    const [txtS, cls] = sitBoleto(b), e = document.createElement("div"); e.className = "bol";
+    e.innerHTML = `<span style="min-width:70px">${h(b.n || i + 1)}</span><label>vencimento <input type="date" data-k="venc" value="${h(b.venc || "")}"></label><label>${b.nf ? "valor na nota" : "valor"} R$ <input type="text" inputmode="decimal" data-k="valor" value="${b.valor ? br(b.valor) : ""}" style="width:90px;text-align:right"></label>` +
+      `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${r2_ && r2_.partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="parte da Loja 2 neste boleto, já com a parte dela no DIFAL">Loja 2 me paga: R$ ${br(r2_.partes[i])} · Loja 1: R$ ${br(r2(aPagar(m, b) - r2_.partes[i]))}</span><label title="marque quando a Loja 2 te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec ? " checked" : ""}> Loja 2 já me pagou</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
+    e.querySelector("[data-k=venc]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { venc: ev.target.value }));
+    e.querySelector("[data-k=valor]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { valor: pnum(ev.target.value) }));
+    e.querySelector("[data-k=pago]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { pago: ev.target.checked ? new Date().toISOString() : null }));
+    const rc = e.querySelector("[data-k=rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(cab.chave, i, { rec: ev.target.checked ? new Date().toISOString() : null }));
+    const x = e.querySelector("[data-x]"); x.addEventListener("click", () => { if (x.dataset.ok) mudarBoleto(cab.chave, i, null); else { x.dataset.ok = "1"; x.textContent = "confirmar"; } });
+    l.appendChild(e);
+  });
+  p.querySelector("#bAddBol").addEventListener("click", () => mudarBoleto(cab.chave, bs.length, { n: String(bs.length + 1).padStart(3, "0"), venc: "", valor: 0, pago: null }));
+}
+function todosBoletos() {
+  const out = []; for (const n of fonteNotas()) (n.boletos || []).forEach((b, i) => out.push({ n, i, b }));
+  return out.sort((x, y) => (x.b.venc || "9999").localeCompare(y.b.venc || "9999"));
+}
+function desenharBoletos() {
+  if (vista !== "boletos") return;
+  const todos = todosBoletos(), abertos_ = todos.filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
+  const venc = abertos_.filter(x => dias(x.b.venc) < 0), s7 = abertos_.filter(x => { const d = dias(x.b.venc); return d >= 0 && d <= 7; }), s30 = abertos_.filter(x => { const d = dias(x.b.venc); return d > 7 && d <= 30; });
+  document.getElementById("resBol").innerHTML = `<div><small>Vencidos</small><b>${venc.length} · R$ ${br(soma(venc))}</b></div><div><small>Próximos 7 dias</small><b>${s7.length} · R$ ${br(soma(s7))}</b></div><div><small>De 8 a 30 dias</small><b>${s30.length} · R$ ${br(soma(s30))}</b></div><div><small>Total em aberto</small><b>${abertos_.length} · R$ ${br(soma(abertos_))}</b></div>` + (todos.some(x => x.b.p2 && !x.b.rec) ? `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="soma da parte da Loja 2 nos boletos em que ela ainda não te pagou"><small>Loja 2 tem a me pagar</small><b>R$ ${br(todos.reduce((a, x) => a + (x.b.p2 && !x.b.rec ? x.b.p2 : 0), 0))}</b></div>` : "");
+  const tb = document.getElementById("tbBol"); tb.innerHTML = "";
+  const lista = document.getElementById("fBolPagos").checked ? todos : todos.filter(x => !x.b.pago || (x.b.p2 && !x.b.rec)); // boleto pago continua na lista enquanto a Loja 2 não acertar a parte dela
+  if (!lista.length) tb.innerHTML = `<tr><td colspan="8"><i>${db ? "Nenhum boleto em aberto." : "Sem armazenamento compartilhado, aparecem aqui só os boletos da nota aberta."}</i></td></tr>`;
+  for (const x of lista) {
+    const [txtS, cls] = sitBoleto(x.b), tr = document.createElement("tr");
+    tr.innerHTML = `<td>${dataBr(x.b.venc) || "-"}</td><td>${h(x.n.emit)}</td><td><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a></td><td>${h(x.b.n || x.i + 1)}</td><td class="n">${br(aPagar(x.n, x.b))}${x.b.nf && fbDe(x.n) > 1 ? '<div class="orig">meia nota</div>' : ""}</td><td class="n">${x.b.p2 ? "<b>" + br(x.b.p2) + `</b><div class="orig"><label><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : x.b.l2 ? '<span class="orig">boleto da Loja 2</span>' : ""}</td><td><span class="chip ${cls}">${txtS}</span></td><td><input type="checkbox"${x.b.pago ? " checked" : ""}></td>`;
+    tr.querySelector("a").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(x.n.id); });
+    tr.querySelector("input:not([data-rec])").addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { pago: ev.target.checked ? new Date().toISOString() : null }));
+    const rc = tr.querySelector("[data-rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { rec: ev.target.checked ? new Date().toISOString() : null }));
+    tb.appendChild(tr);
+  }
+}
+
+// ----- gerência de notas -----
+function desenharGerencia() {
+  if (vista !== "notas") return;
+  const q = semAcento(document.getElementById("fNotaTxt").value.toLowerCase()), sit = document.getElementById("fNotaSit").value;
+  const todas = [...fonteNotas()].sort((a, b) => (b.criado || "").localeCompare(a.criado || ""));
+  const conta = k => todas.filter(n => sitNota(n)[0] === k).length;
+  document.getElementById("resNotas").innerHTML = `<div><small>Em andamento</small><b>${conta("a")}</b></div><div><small>Enviadas ao Gestão</small><b>${conta("e")}</b></div><div><small>Concluídas</small><b>${conta("c")}</b></div>`;
+  const tb = document.getElementById("tbNotas"); tb.innerHTML = "";
+  const lista = todas.filter(n => (!sit || sitNota(n)[0] === sit) && (!q || semAcento((n.emit + " " + n.nnf).toLowerCase()).includes(q)));
+  if (!lista.length) tb.innerHTML = `<tr><td colspan="8"><i>${db ? "Nenhuma nota encontrada." : "Sem armazenamento compartilhado, aparece aqui só a nota aberta."}</i></td></tr>`;
+  for (const n of lista) {
+    const [k, txtS, cls] = sitNota(n), bs = n.boletos || [], pagos = bs.filter(b => b.pago).length, tr = document.createElement("tr");
+    tr.innerHTML = `<td>${dataBr(n.criado)}</td><td>${h(n.emit)}</td><td>${h(rotNota(n))}</td><td class="n">${n.itens || "-"}</td><td class="n">${n.vNF ? br(n.vNF) : "-"}</td><td><span class="chip ${cls}">${txtS}</span></td><td>${bs.length ? pagos + " de " + bs.length + " pagos" : "-"}</td>` +
+      `<td style="white-space:nowrap"><a data-a="abrir" style="cursor:pointer;color:#0b57d0;text-decoration:underline">abrir</a> · <a data-a="concl" style="cursor:pointer;color:#0b57d0;text-decoration:underline">${n.concluida ? "reabrir" : "concluir"}</a> · <a data-a="excl" style="cursor:pointer;color:#b91c1c;text-decoration:underline">excluir</a></td>`;
+    tr.querySelector("[data-a=abrir]").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(n.id); });
+    tr.querySelector("[data-a=concl]").addEventListener("click", () => salvarMeta(n.id, { concluida: n.concluida ? null : new Date().toISOString() }));
+    const x = tr.querySelector("[data-a=excl]"); x.addEventListener("click", () => { if (!db) return; if (x.dataset.ok) excluirNota(n.id); else { x.dataset.ok = "1"; x.textContent = "confirmar exclusão"; } });
+    tb.appendChild(tr);
+  }
+}
+function botaoConcluir() {
+  const b = document.getElementById("bConcl"); if (!b || !cab) return;
+  const m = metaDe(cab.chave); b.textContent = m && m.concluida ? "Reabrir nota (concluída em " + dataBr(m.concluida) + ")" : "Marcar como concluída";
+}
+
+// ----- validades -----
+async function syncValidade(it, chave) {
+  if (!db) return;
+  const id = `${chave}_${idItem(it.n)}`, a = valDocs.get(id), ref = db.doc("validades/" + id);
+  if (it.val) {
+    const base = { ean: it.ean || "", desc: it.desc || it.xprod || "", val: it.val, qtd: calc(it).qtdUn, nota: chave, emit: cab ? cab.emit : "", nnf: cab ? cab.nnf : "" };
+    if (!a) await ref.set({ ...base, baixa: null });
+    else if (["ean", "desc", "val", "qtd"].some(k => a[k] !== base[k])) await ref.update(base);
+  } else if (a) await ref.delete();
+}
+function listaValidades() {
+  const l = db ? [...valDocs].map(([id, v]) => ({ id, ...v })) : itens.filter(i => i.val).map(i => ({ id: "l" + i.n, ean: i.ean, desc: i.desc || i.xprod, val: i.val, qtd: calc(i).qtdUn, emit: cab.emit, nnf: cab.nnf, nota: cab.chave, baixa: null }));
+  return l.sort((a, b) => (a.val || "").localeCompare(b.val || ""));
+}
+function sitValidade(v) {
+  if (v.baixa) return ["baixa em " + dataBr(v.baixa), "ok"];
+  const d = dias(v.val);
+  if (d < 0) return [`vencido há ${-d} dia${d === -1 ? "" : "s"}`, "falta"];
+  if (d <= 7) return [d === 0 ? "vence hoje" : `vence em ${d} dia${d === 1 ? "" : "s"}`, "falta"];
+  if (d <= 30) return [`vence em ${d} dias`, "av"];
+  return [`vence em ${d} dias`, "novo"];
+}
+function desenharValidades() {
+  if (vista !== "validades") return;
+  const todos = listaValidades(), pend_ = todos.filter(v => !v.baixa);
+  const venc = pend_.filter(v => dias(v.val) < 0), s30 = pend_.filter(v => { const d = dias(v.val); return d >= 0 && d <= 30; }), s60 = pend_.filter(v => { const d = dias(v.val); return d > 30 && d <= 60; });
+  document.getElementById("resVal").innerHTML = `<div><small>Vencidos</small><b>${venc.length}</b></div><div><small>Vencem em 30 dias</small><b>${s30.length}</b></div><div><small>De 31 a 60 dias</small><b>${s60.length}</b></div><div><small>Acompanhando</small><b>${pend_.length}</b></div>`;
+  const tb = document.getElementById("tbVal"); tb.innerHTML = "";
+  const lista = document.getElementById("fValBaixa").checked ? todos : pend_;
+  if (!lista.length) tb.innerHTML = `<tr><td colspan="7"><i>Nenhuma validade lançada.</i></td></tr>`;
+  for (const v of lista) {
+    const [txtS, cls] = sitValidade(v), tr = document.createElement("tr");
+    const origem = v.avulso ? "lançado na loja" + (v.loja ? " — " + v.loja : "") : `${v.emit} — ${String(v.nota || "").startsWith("M") ? "sem nota" : "NF " + v.nnf}`;
+    tr.innerHTML = `<td>${dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td class="n">${br(v.qtd || 0, 0)}</td><td>${h(origem)}</td><td><span class="chip ${cls}">${txtS}${v.baixa && v.motivo ? " — " + h(v.motivo) : ""}</span></td><td>${db ? `<a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${v.baixa ? "desfazer baixa" : "dar baixa"}</a>` : ""}</td>`;
+    const a = tr.querySelector("a"); if (a) a.addEventListener("click", () => {
+      const salva = p => db.doc("validades/" + v.id).update(p).catch(e => msg("Não consegui salvar (" + e.code + ")."));
+      if (v.baixa) return salva({ baixa: null, motivo: null });
+      const sel = document.createElement("select"); sel.innerHTML = "<option value=''>motivo da baixa…</option>" + ["vendido", "vencido e descartado", "devolvido ao fornecedor", "promoção para girar", "outro"].map(o => `<option>${o}</option>`).join("");
+      sel.addEventListener("change", () => { if (sel.value) salva({ baixa: new Date().toISOString(), motivo: sel.value }); });
+      a.replaceWith(sel); sel.focus();
+    });
+    tb.appendChild(tr);
+  }
+}
+
+function lancarValidadeAvulsa() {
+  const g = id => document.getElementById(id), ean = g("vaEan").value.replace(/\D/g, ""), desc = g("vaDesc").value.trim(), val = g("vaData").value, qtd = parseFloat(g("vaQtd").value) || 0;
+  if (!db) return msg("O lançamento avulso precisa do armazenamento compartilhado (página publicada).");
+  if (!desc || !val) return msg("Informe o produto e a data de validade.");
+  if (ean && !gtinValido(ean)) return msg("Código de barras inválido (dígito verificador).");
+  db.doc("validades/A" + Date.now()).set({ avulso: 1, ean, desc, val, qtd, loja: g("vaLoja").value, nota: "", emit: "", nnf: "", baixa: null })
+    .then(() => { g("vaEan").value = g("vaDesc").value = g("vaData").value = g("vaQtd").value = ""; msg(""); g("vaEan").focus(); })
+    .catch(e => msg("Não consegui salvar (" + e.code + ")."));
+}
+
+// ----- tela de avisos -----
+function desenharAvisos() {
+  if (vista !== "avisos") return;
+  const tab = (id, cab_, linhas, vazio) => { document.getElementById(id).innerHTML = linhas.length ? `<table><thead><tr>${cab_.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${linhas.join("")}</tbody></table>` : `<i>${vazio}</i>`; };
+  const bol = todosBoletos().filter(x => !x.b.pago && dias(x.b.venc) <= 7);
+  tab("avBol", ["Vencimento", "Fornecedor", "Nota", "Parcela", "Valor a pagar", "Loja 2 me paga", "Situação"], bol.map(x => { const [t, c] = sitBoleto(x.b); return `<tr><td>${dataBr(x.b.venc)}</td><td>${h(x.n.emit)}</td><td>${h(rotNota(x.n))}</td><td>${h(x.b.n || x.i + 1)}</td><td>R$ ${br(aPagar(x.n, x.b))}</td><td>${x.b.p2 ? "R$ " + br(x.b.p2) + (x.b.rec ? " (já pagou)" : "") : ""}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum boleto vencido ou vencendo nos próximos 7 dias.");
+  const val = listaValidades().filter(v => !v.baixa && dias(v.val) <= 30);
+  tab("avVal", ["Validade", "Produto", "Código de barras", "Qtd", "Situação"], val.map(v => { const [t, c] = sitValidade(v); return `<tr><td>${dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td>${br(v.qtd || 0, 0)}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum produto vencido ou vencendo nos próximos 30 dias.");
+  const nts = fonteNotas().filter(n => !n.concluida).sort((a, b) => (a.criado || "").localeCompare(b.criado || ""));
+  tab("avNotas", ["Criada em", "Fornecedor", "Nota", "Situação"], nts.map(n => { const [k, t, c] = sitNota(n); return `<tr><td>${dataBr(n.criado)}</td><td>${h(n.emit)}</td><td>${h(rotNota(n))}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhuma nota em andamento.");
+}
+
+// ----- alertas no topo -----
+function alertas() {
+  const e = document.getElementById("alertas"); if (!e) return; e.innerHTML = "";
+  const chip = (t, cls, v) => { const s = document.createElement("span"); s.className = "chip " + cls; s.textContent = t; s.onclick = () => mostrar(v); e.appendChild(s); };
+  const bol = todosBoletos().filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
+  const bv = bol.filter(x => dias(x.b.venc) < 0), b7 = bol.filter(x => { const d = dias(x.b.venc); return d >= 0 && d <= 7; });
+  if (bv.length) chip(`${bv.length} boleto${bv.length > 1 ? "s" : ""} vencido${bv.length > 1 ? "s" : ""} · R$ ${br(soma(bv))}`, "falta", "boletos");
+  if (b7.length) chip(`${b7.length} boleto${b7.length > 1 ? "s" : ""} em 7 dias · R$ ${br(soma(b7))}`, "av", "boletos");
+  const val = listaValidades().filter(v => !v.baixa), vv = val.filter(v => dias(v.val) < 0), v30 = val.filter(v => { const d = dias(v.val); return d >= 0 && d <= 30; });
+  if (vv.length) chip(`${vv.length} produto${vv.length > 1 ? "s" : ""} vencido${vv.length > 1 ? "s" : ""}`, "falta", "validades");
+  if (v30.length) chip(`${v30.length} validade${v30.length > 1 ? "s" : ""} em 30 dias`, "av", "validades");
+}
+function chipEnvio(e, v, rot, loja, baixadoLocal) {
+  if (!e) return;
+  const quando = iso => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  e.onclick = null; e.style.cursor = "";
+  if (v && (v.status === "pendente" || v.status === "aplicando")) {
+    e.className = "chip av"; e.style.display = "";
+    const on = agenteInfo && agenteInfo[loja] && agenteInfo[loja].online;
+    e.textContent = rot + (v.status === "aplicando" ? "o PC da loja está gravando no Gestão…" : on ? "enviado — aguardando o PC da loja gravar (segundos)…" : "enviado — o PC da loja parece desligado; grava assim que ligar");
+  } else if (v && v.status === "erro") {
+    e.className = "chip falta"; e.style.display = ""; e.style.cursor = "pointer";
+    e.textContent = rot + "erro ao gravar no Gestão em " + quando(v.aplicado_em || v.em) + " — clique para ver"; e.onclick = () => mostrarResultadoEnvio(v);
+  } else if (v && v.status === "aplicado") {
+    e.className = "chip ok"; e.style.display = ""; e.style.cursor = "pointer";
+    e.textContent = rot + (v.tipo === "precos" ? "preços gravados" : "entrada gravada") + " no Gestão em " + quando(v.aplicado_em || v.em) + (v.resumo ? " — " + v.resumo : "") + (v.tipo === "precos" ? "" : " — não envie de novo"); e.onclick = () => mostrarResultadoEnvio(v);
+  } else if (baixadoLocal) { e.className = "chip av"; e.style.display = ""; e.textContent = "arquivo de entrada já baixado em " + quando(baixadoLocal) + " — não aplique duas vezes"; }
+  else e.style.display = "none";
+}
+function avisoBaixa() {
+  const dois = !!envio2Atual || l2On();
+  chipEnvio(document.getElementById("stBaixa"), envioAtual, dois ? "Loja 1: " : "", 1, baixadoEm);
+  chipEnvio(document.getElementById("stBaixa2"), envio2Atual, "Loja 2: ", 2, null);
+}
+function mostrarResultadoEnvio(v) {
+  const b = document.getElementById("busca"); b.style.display = "block";
+  b.innerHTML = `<b>Envio ao Gestão</b> — ${v.status === "aplicado" ? "gravado" : v.status} · pedido nº ${v.id}<br><pre id="bRes" style="white-space:pre-wrap;font-size:11px;max-height:50vh;overflow:auto;background:#f6f8fb;padding:6px">carregando…</pre><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a>`;
+  b.querySelector("#bx").onclick = () => b.style.display = "none";
+  supa.from("fila").select("resultado").eq("id", v.id).single().then(r => { b.querySelector("#bRes").textContent = (r.data && r.data.resultado) || (r.error ? "não consegui ler: " + r.error.message : "(sem detalhes)"); });
+}
+// ---------- enviar ao Gestão pela fila (o ouvinte do PC de cada loja aplica) ----------
+const acompanhando = new Map();
+const emCurso = v => v && (v.status === "pendente" || v.status === "aplicando");
+async function enviarAoGestao(tipo) {
+  if (!supa) return baixarArquivo(tipo);
+  const dois = l2On(), dst = destino();
+  if (dois && !cad2Info) { await carregarLoja2(); if (!cad2Info) return msg("Não consegui carregar o cadastro da Loja 2; tente de novo."); }
+  const gera = loja => tipo === "precos" ? sqlPrecos(loja) : sqlEntrada(loja);
+  const q1 = dst === "2" ? null : gera(1), q2 = dois ? gera(2) : null;
+  if (!q1 && !q2 && tipo !== "precos" && itens.some(i => i.e1 || i.e2)) return msg("Nada pendente para enviar: os itens prontos já foram enviados. Os que faltam precisam de código de barras válido, quantidade, custo e preço de venda.");
+  if (!q1 && !q2 && tipo !== "precos") { // diz o que falta em cada item, em vez de uma mensagem genérica
+    const faltas = itens.filter(i => !i.jg && !i.e1 && !i.e2).map(i => { const k = calc(i), f = []; if (!i.ean) f.push("código de barras"); else if (!gtinValido(i.ean)) f.push("código de barras válido"); if (!(k.qtdUn > 0)) f.push("quantidade"); if (!(k.custoUn > 0)) f.push("custo (valor unitário)"); if (!(k.venda > 0)) f.push("preço de venda"); return f.length ? `item ${rot(i)}: falta ${f.join(", ")}` : null; }).filter(Boolean);
+    if (faltas.length) return msg("Nenhum item pronto para enviar — " + faltas.slice(0, 4).join("; ") + (faltas.length > 4 ? `; e mais ${faltas.length - 4} item(ns)` : "") + ".");
+  }
+  if (!q1 && !q2) return msg(tipo === "precos" ? "Nenhum item com EAN de unidade válido para subir preço." : "Nenhum item pronto: cada item precisa de código de barras válido, quantidade, custo e preço de venda.");
+  const m = metaDe(cab.chave) || {};
+  if (emCurso(m.envio) || emCurso(m.envio2)) return msg("Já tem um envio desta nota aguardando o PC da loja. Espere ele terminar.");
+  const jaFoi = v => v && v.status === "aplicado" && v.tipo !== "precos";
+  const emPartes = itens.some(i => i.e1 || i.e2); // com itens já marcados como enviados, só os pendentes vão: não dobra
+  if (tipo !== "precos" && !emPartes && (m.baixado || jaFoi(m.envio) || jaFoi(m.envio2)) && !confirm("Esta nota JÁ FOI enviada ao Gestão" + (m.baixado ? " em " + dataBr(m.baixado) : "") + ".\nEnviar de novo soma o estoque em dobro.\n\nEnviar mesmo assim?")) return;
+  const falta = itens.filter(i => !i.ean || !gtinValido(i.ean) || !(calc(i).qtdUn > 0)).length;
+  if (tipo !== "precos" && falta && !confirm(`${falta} item(ns) vão ficar de fora por falta de código de barras válido ou quantidade.\nEnviar os demais?`)) return;
+  if (tipo !== "precos" && dois) {
+    const t = totaisLojas(); if (t.excede) return msg(`${t.excede} item(ns) com mais unidades para a Loja 2 do que vieram na nota. Corrija antes de enviar.`);
+    if (!confirm(`${dst === "ambas" ? "Entrada INTEIRA nas duas lojas" : dst === "2" ? "Entrada só na Loja 2" : "Dividir a entrada"}:\n\nLoja 1: ${br(t.un1, 0)} unidades (R$ ${br(t.custo1)})\nLoja 2: ${br(t.un2, 0)} unidades (R$ ${br(t.custo2)})\n\n${dst === "2" ? "Enviar para a Loja 2?" : "Enviar para as duas lojas?"}`)) return;
+  }
+  const base = ((tipo === "precos" ? "Precos " : "Entrada ") + (cab.manual ? "sem nota" : "NF " + cab.nnf) + " - " + semAcento(cab.emit)).slice(0, 110);
+  msg("Enviando…");
+  const patch = {};
+  for (const [loja, q, campo] of [[1, q1, "envio"], [2, q2, "envio2"]]) {
+    if (!q) continue;
+    const { data, error } = await supa.from("fila").insert({ loja_id: loja, tipo, titulo: base + (dois ? " (Loja " + loja + ")" : ""), conteudo: q, status: "pendente" }).select("id").single();
+    if (error) { msg("Não consegui enviar para a Loja " + loja + ": " + error.message); continue; }
+    patch[campo] = { id: data.id, tipo, em: new Date().toISOString(), status: "pendente" };
+    if (tipo !== "precos") patch[campo].itens = itensDoEnvio[loja].slice();
+  }
+  if (!Object.keys(patch).length) return;
+  if (patch.envio) envioAtual = patch.envio; if (patch.envio2) envio2Atual = patch.envio2;
+  await salvarMeta(cab.chave, patch);
+  avisoBaixa();
+  for (const campo of Object.keys(patch)) acompanharEnvio(patch[campo].id, cab.chave, campo);
+  const nm = await salvarMemoria();
+  msg("Enviado. " + (nm ? `Memória do fornecedor atualizada com ${nm} produto(s).` : ""));
+}
+function acompanharEnvio(id, chave, campo) {
+  campo = campo || "envio";
+  if (acompanhando.has(id)) return;
+  const inicio = Date.now();
+  const atual = () => campo === "envio2" ? envio2Atual : envioAtual;
+  const parar = () => { const a = acompanhando.get(id); if (!a) return; clearInterval(a.t); try { supa.removeChannel(a.c); } catch (e) {} acompanhando.delete(id); };
+  const trata = async f => {
+    if (!f || f.status === "pendente" || f.status === "aplicando") { const v = atual(); if (f && v && v.id === id && v.status !== f.status) { v.status = f.status; avisoBaixa(); } return; }
+    if (!acompanhando.has(id)) return;
+    parar();
+    let resumo = ""; const mres = /PRODUTOS_ATUALIZADOS[\s=]*(\d+)/.exec(f.resultado || "");
+    if (mres) resumo = mres[1] + " produto(s) gravado(s)";
+    const m = metaDe(chave), base = (m && m[campo] && m[campo].id === id) ? m[campo] : { id };
+    const novo = { ...base, status: f.status, aplicado_em: f.aplicado_em || new Date().toISOString(), resumo };
+    const patch = { [campo]: novo }; if ((campo === "envio" || !(m && m.envio)) && f.status === "aplicado" && novo.tipo !== "precos") patch.baixado = novo.aplicado_em;
+    if (cab && cab.chave === chave) { if (campo === "envio2") envio2Atual = novo; else envioAtual = novo; if (patch.baixado) baixadoEm = patch.baixado; }
+    await salvarMeta(chave, patch); avisoBaixa(); conciliarEnvios();
+    const lj = campo === "envio2" ? "Loja 2" : "Loja 1";
+    if (f.status === "aplicado") { msg(`Gravado no Gestão da ${lj}` + (resumo ? ": " + resumo : "") + ". O estoque na tela atualiza em instantes."); setTimeout(() => { cadastroDaNuvem(true); if (cad2Info) carregarLoja2(); }, 20000); setTimeout(() => { cadastroDaNuvem(true); if (cad2Info) carregarLoja2(); }, 75000); }
+    else msg(`O Gestão da ${lj} recusou parte do envio. Clique no aviso vermelho para ver a mensagem do banco.`);
+  };
+  const consulta = async () => { const r = await supa.from("fila").select("status, resultado, aplicado_em").eq("id", id).single(); if (!r.error) await trata(r.data); };
+  const t = setInterval(() => { if (Date.now() - inicio > 20 * 60000) { parar(); return; } if (Date.now() - inicio < 120000 || Math.floor((Date.now() - inicio) / 3000) % 5 === 0) consulta(); }, 3000);
+  const c = supa.channel("fila-" + id).on("postgres_changes", { event: "UPDATE", schema: "public", table: "fila", filter: "id=eq." + id }, p => trata(p.new)).subscribe();
+  acompanhando.set(id, { t, c }); consulta();
+}
+async function lerAgente() {
+  if (!supa) return;
+  const r = await supa.from("lojas").select("id, nome, ultimo_contato, ouvinte_em, versao_agente").order("id");
+  if (r.error || !r.data) return;
+  agenteInfo = {};
+  const partes = [];
+  for (const d of r.data) {
+    const on = (Date.now() - new Date(d.ouvinte_em || 0)) / 1000 < 150, ultimo = d.ultimo_contato ? new Date(d.ultimo_contato) : null;
+    agenteInfo[d.id] = { online: on, ouvinte_em: d.ouvinte_em, ultimo_contato: d.ultimo_contato };
+    if (d.id === 1 || l2On() || d.ouvinte_em) partes.push(on ? `<span class="chip ok" style="padding:0 6px">Loja ${d.id} online</span>` : `<span class="chip av" style="padding:0 6px">Loja ${d.id} sem contato${ultimo ? " desde " + ultimo.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}</span>`);
+  }
+  const e = document.getElementById("stAgente"); if (e) e.innerHTML = partes.join(" ");
+  avisoBaixa();
+}
+// ---------- aba Produtos: ajuste avulso de cadastro (sem nota), direto no Gestão de cada loja ----------
+const PR = { listas: null, grupo: null, aux: { 1: [], 2: [] }, vendo: {} };
+const PR_COLS = "loja_id,id_gestao,codigo_interno,ean,descricao,estoque,preco_compra,preco_venda,custo_medio,grupo,departamento,sessao,familia,ncm,ativo";
+const prNum = v => { v = String(v ?? "").trim(); if (!v) return null; const n = parseFloat(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v); return isFinite(n) ? n : null; };
+const prTxt = t => semAcento(String(t || "").toUpperCase()).replace(/[^\x20-\x7e]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+async function prListas() {
+  if (PR.listas) return PR.listas;
+  const r = await supa.from("listas").select("loja_id, tipo, id, descricao, pai").limit(5000);
+  const L = { 1: { G: [], D: [], S: [], F: [] }, 2: { G: [], D: [], S: [], F: [] } };
+  for (const x of r.data || []) if (L[x.loja_id] && L[x.loja_id][x.tipo]) L[x.loja_id][x.tipo].push([x.id, x.descricao || "", x.pai]);
+  for (const l of [1, 2]) for (const t of "GDSF") L[l][t].sort((a, b) => a[1].localeCompare(b[1]));
+  if (!r.error) PR.listas = L; return L;
+}
+async function prBuscar() {
+  if (!supa) return;
+  const txt = document.getElementById("prQ").value.trim(), res = document.getElementById("prRes"), st = document.getElementById("prMsg");
+  if (txt.length < 3) { st.textContent = "Digite pelo menos 3 letras ou o código de barras."; return; }
+  st.textContent = "Buscando…"; let rows = [];
+  if (/^\d{4,14}$/.test(txt)) {
+    const cands = [...new Set([txt, txt.padStart(13, "0"), txt.replace(/^0+/, "") || "0"])];
+    const r = await supa.from("produtos").select(PR_COLS).in("ean", cands); rows = r.data || [];
+    const a = await supa.from("auxiliares").select("loja_id, id_produto").in("ean_aux", cands);
+    for (const x of a.data || []) { const r2 = await supa.from("produtos").select(PR_COLS).eq("loja_id", x.loja_id).eq("id_gestao", x.id_produto); rows.push(...(r2.data || [])); }
+    const eans = [...new Set(rows.map(p => p.ean))]; // completa com o mesmo produto na outra loja
+    if (eans.length) { const r3 = await supa.from("produtos").select(PR_COLS).in("ean", eans); for (const p of r3.data || []) if (!rows.some(x => x.loja_id === p.loja_id && x.id_gestao === p.id_gestao)) rows.push(p); }
+  } else {
+    const ws = semAcento(txt.toUpperCase()).replace(/[%_,()]/g, " ").split(/\s+/).filter(w => w.length > 1).slice(0, 6);
+    let q = supa.from("produtos").select(PR_COLS); for (const w of ws) q = q.ilike("descricao", `%${w}%`);
+    const r = await q.order("descricao").limit(200); rows = r.data || [];
+    if (r.error) { st.textContent = "Não consegui buscar: " + r.error.message; return; }
+  }
+  const g = new Map();
+  for (const p of rows) { const k = chave13(p.ean); if (!g.has(k)) g.set(k, { ean: p.ean }); if (!g.get(k)[p.loja_id]) g.get(k)[p.loja_id] = p; }
+  const lista = [...g.values()].sort((a, b) => ((a[1] || a[2]).descricao || "").localeCompare((b[1] || b[2]).descricao || ""));
+  st.textContent = lista.length ? `${lista.length} produto(s)${rows.length >= 200 ? " (mostrando os primeiros; refine a busca)" : ""}. Toque em um para editar.` : "Nada encontrado.";
+  const cel = p => p ? `${p.ativo === false ? '<span class="chip falta" style="padding:0 4px">inativo</span> ' : ""}R$ ${br(Number(p.preco_venda) || 0)} · est. ${br(Number(p.estoque) || 0, 0)}` : '<span class="orig">não tem</span>';
+  res.innerHTML = lista.slice(0, 100).map((x, i) => `<tr data-i="${i}" style="cursor:pointer"><td>${escH((x[1] || x[2]).descricao)}<div class="orig mono">${escH(x.ean)}${(() => { const k = chave13(x.ean), vs = [...valDocs.values()].filter(v => v.ean && !v.baixa && chave13(v.ean) === k).map(v => v.val).sort(); return vs.length ? ` · <span class="chip novo" style="padding:0 4px">validade ${dataBr(vs[0])}${vs.length > 1 ? " +" + (vs.length - 1) : ""}</span>` : ""; })()}</div></td><td class="n">${cel(x[1])}</td><td class="n">${cel(x[2])}</td></tr>`).join("");
+  for (const tr of res.querySelectorAll("tr")) tr.addEventListener("click", () => prAbrir(lista[Number(tr.dataset.i)]));
+  if (lista.length === 1) prAbrir(lista[0]);
+}
+async function prAbrir(g) {
+  PR.grupo = g; const ed = document.getElementById("prEd"); ed.style.display = ""; ed.innerHTML = "carregando…";
+  const L = await prListas();
+  for (const l of [1, 2]) { PR.aux[l] = []; if (g[l]) { const a = await supa.from("auxiliares").select("ean_aux").eq("loja_id", l).eq("id_produto", g[l].id_gestao); PR.aux[l] = (a.data || []).map(x => x.ean_aux); } }
+  const base = g[1] || g[2]; PR.descIni = base.descricao || ""; PR.ncmIni = String(base.ncm || "").replace(/\D/g, "");
+  const difNome = g[1] && g[2] && prTxt(g[1].descricao) !== prTxt(g[2].descricao);
+  const bloco = l => { const p = g[l]; if (!p) return `<div class="painel" style="background:#f6f8fb"><b>Loja ${l}</b>: este código não está cadastrado nesta loja.</div>`;
+    const dep = L[l].D.filter(x => x[2] === p.grupo), ses = L[l].S.filter(x => x[2] === p.departamento);
+    return `<div class="painel" data-l="${l}" style="background:${l === 2 ? "#f3f0ff" : "#f6f8fb"}">
+      <label style="font-weight:bold"><input type="checkbox" data-f="gravar" checked style="width:18px;height:18px;vertical-align:middle"> Gravar na Loja ${l}</label> <span class="orig">cód. interno ${escH(p.codigo_interno || "")} · estoque hoje ${br(Number(p.estoque) || 0, 0)} · custo médio ${br(Number(p.custo_medio) || 0)}</span> <span data-f="st"></span>
+      <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap">
+        <label class="c">Custo (R$)<input class="p" type="text" inputmode="decimal" data-f="pc" value="${br(Number(p.preco_compra) || 0, 3)}" style="width:86px"></label>
+        <label class="c">Venda (R$)<input class="p" type="text" inputmode="decimal" data-f="pv" value="${br(Number(p.preco_venda) || 0)}" style="width:86px"></label>
+        <label class="c">Acrésc. % (markup)<input class="p" type="text" inputmode="decimal" data-f="mk" style="width:86px" title="acréscimo sobre o custo. Digite aqui e a venda é calculada; ou digite a venda e ele se ajusta"></label>
+        <label class="c">Margem s/ venda<span data-f="mg" style="padding:6px 0;font-weight:bold"></span></label>
+        <label class="c">Estoque novo<input class="p" type="text" inputmode="decimal" data-f="est" placeholder="não mexer" style="width:96px" title="acerto de contagem: em branco não mexe no estoque"></label>
+        <label class="c" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-f="ativo" ${p.ativo === false ? "" : "checked"} style="width:18px;height:18px"> Ativo</label>
+      </div>
+      <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap">
+        <label class="c">Grupo<select data-f="g">${opcoes(L[l].G, p.grupo, "(sem grupo)")}</select></label>
+        <label class="c">Departamento<select data-f="d">${opcoes(dep, p.departamento, "(escolha)")}</select></label>
+        <label class="c">Seção<select data-f="s">${opcoes(ses, p.sessao, "(escolha)")}</select></label>
+        <label class="c">Família<select data-f="f">${opcoes(L[l].F, p.familia, "(nenhuma)")}</select></label>
+      </div>
+      <div style="margin-top:6px"><span class="orig">Códigos auxiliares:</span> <span data-f="auxs"></span>
+        <input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-f="auxNovo" placeholder="novo código auxiliar" style="width:150px"> <a data-f="auxAdd" style="cursor:pointer;color:#0b57d0">incluir</a></div>
+    </div>`; };
+  ed.innerHTML = `<div class="painel"><b>${escH(base.descricao)}</b> <span class="mono orig">${escH(g.ean)}</span> <a id="prFechar" style="cursor:pointer;color:#0b57d0;float:right">fechar</a>
+    <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap">
+      <label class="c" style="flex:1;min-width:240px">Descrição (até 60)<input class="desc" type="text" id="prDesc" maxlength="60" value="${escH(base.descricao || "").replace(/"/g, "&quot;")}" style="width:100%"></label>
+      <label class="c">NCM<input class="p" type="text" inputmode="numeric" id="prNcm" maxlength="8" value="${escH(base.ncm || "")}" style="width:90px"></label>
+      <label class="c">CEST<input class="p" type="text" inputmode="numeric" id="prCest" maxlength="7" placeholder="não mexer" style="width:90px" title="em branco não mexe no CEST do cadastro"></label>
+    </div>${difNome ? `<div class="orig">Na Loja 2 o nome hoje é: <b>${escH(g[2].descricao)}</b></div>` : ""}
+    ${bloco(1)}${bloco(2)}
+    <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><span id="prAviso" class="orig"></span></div>
+    <div class="painel" style="background:#fff8e1;margin-top:10px"><b>Validades deste produto</b> <span class="orig">— controle do nosso sistema (abas Validades e Avisos); salva na hora, não depende do botão acima</span>
+      <div id="prVal" style="margin-top:6px"></div>
+      <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <label class="c">Nova validade<input type="date" id="prValData"></label>
+        <label class="c">Quantidade<input type="number" id="prValQtd" min="0" step="1" style="width:80px"></label>
+        <label class="c">Loja<select id="prValLoja">${g[1] ? "<option>Loja 1</option>" : ""}${g[2] ? "<option>Loja 2</option>" : ""}</select></label>
+        <button id="prValOk">Lançar validade</button>
+      </div></div></div>`;
+  prValidades();
+  ed.querySelector("#prValOk").onclick = () => {
+    const val = ed.querySelector("#prValData").value, qtd = parseFloat(ed.querySelector("#prValQtd").value) || 0;
+    if (!db) return msg("A validade precisa do armazenamento compartilhado (página publicada).");
+    if (!val) return msg("Informe a data de validade.");
+    const idV = "A" + Date.now(), dadoV = { avulso: 1, ean: g.ean, desc: prTxt(document.getElementById("prDesc").value) || base.descricao || "", val, qtd, loja: ed.querySelector("#prValLoja").value, nota: "", emit: "", nnf: "", baixa: null };
+    db.doc("validades/" + idV).set(dadoV)
+      .then(() => { ed.querySelector("#prValData").value = ed.querySelector("#prValQtd").value = ""; msg("Validade lançada."); if (!valDocs.has(idV)) valDocs.set(idV, dadoV); prValidades(); alertas(); })
+      .catch(e => msg("Não consegui salvar a validade (" + (e.code || e.message) + ")."));
+  };
+  ed.querySelector("#prFechar").onclick = () => { ed.style.display = "none"; PR.grupo = null; };
+  ed.querySelector("#prNcm").addEventListener("input", ev => { const c = cestDe(ev.target.value.replace(/\D/g, "")); if (c) ed.querySelector("#prCest").placeholder = "sugestão: " + c; });
+  for (const blk of ed.querySelectorAll("[data-l]")) {
+    const l = Number(blk.dataset.l), q = f => blk.querySelector(`[data-f=${f}]`), novos = [], fora = new Set();
+    blk._novos = novos; blk._fora = fora;
+    // custo, venda e markup andam juntos: mexeu na venda ou no custo, o markup se ajusta; mexeu no markup, a venda é recalculada
+    const mg = (deMk) => { const pc = prNum(q("pc").value); let pv = prNum(q("pv").value);
+      if (deMk) { const mk = prNum(q("mk").value); if (pc > 0 && mk != null && mk > -100) { pv = Math.round(pc * (1 + mk / 100) * 100) / 100; q("pv").value = br(pv); } }
+      else q("mk").value = pc > 0 && pv > 0 ? br((pv / pc - 1) * 100, 1) : "";
+      q("mg").textContent = pc > 0 && pv > 0 ? br((1 - pc / pv) * 100, 1) + "%" : "—"; };
+    q("pc").addEventListener("input", () => mg(false)); q("pv").addEventListener("input", () => mg(false)); q("mk").addEventListener("input", () => mg(true)); mg(false);
+    q("g").addEventListener("change", () => { const v = Number(q("g").value) || null; q("d").innerHTML = opcoes(L[l].D.filter(x => x[2] === v), null, "(escolha)"); q("s").innerHTML = opcoes([], null, "(escolha)"); });
+    q("d").addEventListener("change", () => { const v = Number(q("d").value) || null; q("s").innerHTML = opcoes(L[l].S.filter(x => x[2] === v), null, "(escolha)"); });
+    const desenhaAux = () => { q("auxs").innerHTML = [...PR.aux[l].map(a => `<span class="chip" style="${fora.has(a) ? "text-decoration:line-through;background:#fde8e8" : ""}">${escH(a)} <a data-rm="${escH(a)}" style="cursor:pointer;color:#b91c1c">${fora.has(a) ? "manter" : "remover"}</a></span>`), ...novos.map(a => `<span class="chip ok">${escH(a)} (novo) <a data-nv="${escH(a)}" style="cursor:pointer;color:#b91c1c">tirar</a></span>`)].join(" ") || '<span class="orig">nenhum</span>';
+      for (const a of q("auxs").querySelectorAll("[data-rm]")) a.onclick = () => { fora.has(a.dataset.rm) ? fora.delete(a.dataset.rm) : fora.add(a.dataset.rm); desenhaAux(); };
+      for (const a of q("auxs").querySelectorAll("[data-nv]")) a.onclick = () => { novos.splice(novos.indexOf(a.dataset.nv), 1); desenhaAux(); }; };
+    q("auxAdd").onclick = () => { const v = q("auxNovo").value.replace(/\D/g, ""); if (!v) return; if (!gtinValido(v)) { document.getElementById("prAviso").textContent = "Código auxiliar inválido (confira os dígitos)."; return; } if (chave13(v) === chave13(g[l].ean) || PR.aux[l].includes(v) || novos.includes(v)) return; novos.push(v); q("auxNovo").value = ""; desenhaAux(); };
+    desenhaAux();
+  }
+  ed.querySelector("#prGravar").onclick = prGravar;
+  if (ed.scrollIntoView) ed.scrollIntoView({ block: "start" });
+}
+// validades já lançadas para o produto aberto (pelo código de barras): mudar data/quantidade das avulsas e dar baixa
+function prValidades() {
+  const cx = document.getElementById("prVal"), g = PR.grupo; if (!cx || !g) return;
+  const k = chave13(g.ean), lista = (db ? [...valDocs].map(([id, v]) => ({ id, ...v })) : []).filter(v => v.ean && chave13(v.ean) === k && !v.baixa).sort((a, b) => (a.val || "").localeCompare(b.val || ""));
+  if (!lista.length) { cx.innerHTML = '<span class="orig">Nenhuma validade em aberto para este produto.</span>'; return; }
+  cx.innerHTML = "";
+  for (const v of lista) {
+    const [txtS, cls] = sitValidade(v), d = document.createElement("div"); d.className = "linha"; d.style.cssText = "gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px";
+    const origem = v.avulso ? "lançado na loja" + (v.loja ? " — " + v.loja : "") : `${v.emit || ""} — ${String(v.nota || "").startsWith("M") ? "sem nota" : "NF " + (v.nnf || "")}`;
+    d.innerHTML = (v.avulso ? `<input type="date" data-k="val" value="${v.val || ""}"> <input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:70px" title="quantidade">` : `<b>${dataBr(v.val)}</b> · ${br(v.qtd || 0, 0)} un`) + ` <span class="chip ${cls}">${txtS}</span> <span class="orig">${escH(origem)}${v.avulso ? "" : " (data e quantidade vêm da nota)"}</span> <a data-k="bx" style="cursor:pointer;color:#0b57d0;text-decoration:underline">dar baixa</a>`;
+    const salva = p => db.doc("validades/" + v.id).update(p).then(() => { const a = valDocs.get(v.id); if (a) valDocs.set(v.id, { ...a, ...p }); prValidades(); alertas(); }).catch(e => msg("Não consegui salvar (" + (e.code || e.message) + ")."));
+    for (const i of d.querySelectorAll("input")) i.addEventListener("change", () => { const nv = d.querySelector("[data-k=val]").value; if (!nv) return msg("A data não pode ficar em branco; para tirar, dê baixa."); salva({ val: nv, qtd: parseFloat(d.querySelector("[data-k=qtd]").value) || 0 }); });
+    d.querySelector("[data-k=bx]").addEventListener("click", ev => { const sel = document.createElement("select"); sel.innerHTML = "<option value=''>motivo da baixa…</option>" + ["vendido", "vencido e descartado", "devolvido ao fornecedor", "promoção para girar", "lançado errado", "outro"].map(o => `<option>${o}</option>`).join(""); sel.addEventListener("change", () => { if (sel.value) salva({ baixa: new Date().toISOString(), motivo: sel.value }); }); ev.target.replaceWith(sel); sel.focus(); });
+    cx.appendChild(d);
+  }
+}
+// monta o SQL de uma loja só com o que mudou; devolve null se nada mudou
+function prSql(l, blk) {
+  const p = PR.grupo[l], q = f => blk.querySelector(`[data-f=${f}]`), sets = [], linhas = [], oque = [];
+  const desc = prTxt(document.getElementById("prDesc").value);
+  const mexeuNome = desc !== prTxt(PR.descIni), mexeuNcm = document.getElementById("prNcm").value.replace(/\D/g, "") !== PR.ncmIni; // nome e NCM são campos comuns: só valem se você mexeu neles
+  if (mexeuNome && desc && desc !== prTxt(p.descricao)) { sets.push(`DESCRICAO = ${aspas(desc)}`, `DESCRICAO_RESUMIDA = ${aspas(desc.slice(0, 30))}`); oque.push("nome"); }
+  const pc = prNum(q("pc").value), pv = prNum(q("pv").value), mudouPc = pc != null && pc > 0 && Math.abs(pc - (Number(p.preco_compra) || 0)) > 0.0005, mudouPv = pv != null && pv > 0 && Math.abs(pv - (Number(p.preco_venda) || 0)) > 0.005;
+  if (mudouPc) { sets.push(`PRECO_COMPRA = ${pc.toFixed(3)}`); oque.push("custo"); }
+  if (mudouPv) { sets.push(`PRECO_VENDA1 = ${pv.toFixed(2)}`); oque.push("venda"); }
+  if (mudouPc || mudouPv) { const c = mudouPc ? pc : Number(p.preco_compra) || 0, v = mudouPv ? pv : Number(p.preco_venda) || 0; if (c > 0 && v > 0) sets.push(`MARGEM = ${(Math.floor((v / c - 1) * 10000 + 1e-6) / 100).toFixed(2)}`); sets.push("ULT_ALT_PRECO = CURRENT_DATE", "ALT_ETIQUETA = 1"); }
+  const g = Number(q("g").value) || null, d = Number(q("d").value) || null, s = Number(q("s").value) || null, f = q("f").value === "" ? null : Number(q("f").value);
+  if (g && d && s && (g !== p.grupo || d !== p.departamento || s !== p.sessao)) { sets.push(`GRUPO = ${g}`, `DEPARTAMENTO = ${d}`, `SESSAO = ${s}`); oque.push("categoria"); }
+  else if (g && (g !== p.grupo) && !(d && s)) return { erro: `Loja ${l}: escolha também o departamento e a seção.` };
+  if (f != null && f !== p.familia) { sets.push(`FAMILIA = ${f}`); oque.push("família"); }
+  const ncm = document.getElementById("prNcm").value.replace(/\D/g, ""), cest = document.getElementById("prCest").value.replace(/\D/g, "");
+  if (mexeuNcm && ncm && ncm.length !== 8) return { erro: "O NCM precisa ter 8 dígitos." };
+  if (mexeuNcm && ncm && ncm !== (p.ncm || "")) { sets.push(`S_NCM = ${aspas(ncm)}`); oque.push("NCM"); }
+  if (cest) { if (cest.length !== 7) return { erro: "O CEST precisa ter 7 dígitos." }; sets.push(`S_CEST = ${aspas(cest)}`); oque.push("CEST"); }
+  const ativo = q("ativo").checked; if (ativo !== (p.ativo !== false)) { sets.push(`ATIVO = ${ativo ? 1 : 0}`); oque.push(ativo ? "ativar" : "inativar"); }
+  const id = Number(p.id_gestao), onde = `ID = ${id} AND CODIGO_BARRAS = ${aspas(p.ean)}`;
+  if (sets.length) linhas.push(`UPDATE PRODUTOS SET ${sets.join(", ")}, ULT_ALTERACAO = CURRENT_DATE, ALT_PDV = 1 WHERE ${onde};`);
+  const est = prNum(q("est").value);
+  if (est != null && Math.abs(est - (Number(p.estoque) || 0)) > 0.0005) {
+    linhas.push(`INSERT INTO HIST_ALT_ESTOQUE_MANUAL (ID_PRODUTO, F_ESTOQUE_ANTERIOR, F_ESTOQUE_NOVO, DH_OPERACAO, ID_USUARIO, ID_SUPERVISOR, ID_LOJA, S_ESTACAO) SELECT ID, ESTOQUE_ATUAL, ${est}, CURRENT_TIMESTAMP, 1, 0, 0, 'ENTRADA-NOTAS' FROM PRODUTOS WHERE ${onde} AND ESTOQUE_ATUAL <> ${est};`);
+    linhas.push(`UPDATE PRODUTOS SET ESTOQUE_ATUAL = ${est}, ULT_ALTERACAO = CURRENT_DATE, ALT_PDV = 1 WHERE ${onde};`); oque.push("estoque");
+  }
+  let mexeuAux = false;
+  for (const a of blk._novos) { linhas.push(sqlAuxiliar(a.padStart(13, "0"), p.ean)[0]); mexeuAux = true; oque.push("auxiliar +" + a); }
+  for (const a of blk._fora) { linhas.push(`DELETE FROM COD_AUXILIARES WHERE S_CODIGO = ${aspas(a)} AND ID_PRODUTO = ${id};`); mexeuAux = true; oque.push("auxiliar -" + a); }
+  if (mexeuAux) linhas.push("UPDATE DATAS SET T_ALT_COD_AUXILIARES = CURRENT_TIMESTAMP;");
+  if (!linhas.length) return null;
+  linhas.push("UPDATE DATAS SET T_ALT_PRODUTOS = CURRENT_TIMESTAMP;",
+    "SET LIST ON;", `SELECT ID, CODIGO_INTERNO, CODIGO_BARRAS, DESCRICAO, ATIVO, ESTOQUE_ATUAL, PRECO_COMPRA, PRECO_VENDA1, MARGEM, GRUPO, DEPARTAMENTO, SESSAO, FAMILIA, S_NCM, S_CEST FROM PRODUTOS WHERE ID = ${id};`);
+  return { sql: `/* AJUSTE DE PRODUTO LOJA ${l} - ${p.ean} - ${oque.join(", ")} */\r\n` + linhas.join("\r\n") + "\r\n", oque };
+}
+async function prGravar() {
+  const ed = document.getElementById("prEd"), av = document.getElementById("prAviso"), g = PR.grupo, envios = [];
+  for (const blk of ed.querySelectorAll("[data-l]")) {
+    const l = Number(blk.dataset.l); if (!blk.querySelector("[data-f=gravar]").checked) continue;
+    const r = prSql(l, blk); if (r && r.erro) { av.textContent = r.erro; return; } if (r) envios.push([l, r, blk]);
+  }
+  if (!envios.length) { av.textContent = "Nada mudou (ou nenhuma loja marcada)."; return; }
+  if (!confirm("Gravar no Gestão?\n\n" + envios.map(([l, r]) => `Loja ${l}: ${r.oque.join(", ")}`).join("\n"))) return;
+  av.textContent = "Enviando…";
+  for (const [l, r, blk] of envios) {
+    const st = blk.querySelector("[data-f=st]");
+    const { data, error } = await supa.from("fila").insert({ loja_id: l, tipo: "ajuste", titulo: ("Ajuste " + g.ean + " - " + prTxt((g[1] || g[2]).descricao)).slice(0, 110), conteudo: r.sql, status: "pendente" }).select("id").single();
+    if (error) { st.innerHTML = `<span class="chip falta">não enviou: ${escH(error.message)}</span>`; continue; }
+    st.innerHTML = `<span class="chip av">enviado — aguardando o PC da Loja ${l}…</span>`; prAcompanhar(data.id, l, st);
+  }
+  av.textContent = "";
+}
+function prAcompanhar(id, l, st) {
+  const ini = Date.now();
+  const t = setInterval(async () => {
+    const r = await supa.from("fila").select("status, resultado, aplicado_em").eq("id", id).single(); const f = r.data;
+    if (f && f.status === "aplicado") { clearInterval(t); st.innerHTML = `<span class="chip ok">gravado na Loja ${l}</span>`; msg(`Ajuste gravado no Gestão da Loja ${l}. A busca mostra os valores novos em até 5 minutos.`); setTimeout(() => cadastroDaNuvem(true), 25000); }
+    else if (f && f.status === "erro") { clearInterval(t); st.innerHTML = `<span class="chip falta" style="cursor:pointer">o Gestão da Loja ${l} recusou — toque para ver</span>`; st.firstChild.onclick = () => mostrarResultadoEnvio({ id, status: "erro" }); }
+    else if (Date.now() - ini > 45000 && st.dataset.av !== "1") { st.dataset.av = "1"; st.innerHTML = `<span class="chip av">na fila — o PC da Loja ${l} parece desligado; grava assim que ligar</span>`; }
+    if (Date.now() - ini > 30 * 60000) clearInterval(t);
+  }, 3000);
+}
+document.getElementById("prBuscar").addEventListener("click", prBuscar);
+document.getElementById("prQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); prBuscar(); } });
+// ---------- leitura de código de barras pela câmera do celular ----------
+function carregaZXing() { return new Promise((ok, ko) => { if (window.ZXing) return ok(); const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; s.onload = () => ok(); s.onerror = () => ko(new Error("não consegui baixar o leitor de código de barras")); document.head.appendChild(s); }); }
+async function lerCamera(aoLer) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return msg("Este navegador não libera a câmera para o site. Abra pelo Chrome ou Safari do celular.");
+  const cx = document.createElement("div");
+  cx.style.cssText = "position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center";
+  cx.innerHTML = `<video playsinline autoplay muted style="max-width:100%;max-height:78vh"></video><div style="color:#fff;margin:10px;text-align:center" id="camTxt">Aponte a câmera para o código de barras</div><button id="camX" style="font-size:16px;padding:8px 18px">Fechar</button>`;
+  document.body.appendChild(cx);
+  const video = cx.querySelector("video"); let stream = null, leitor = null, timer = null, fim = false;
+  const fechar = () => { fim = true; clearInterval(timer); try { if (leitor) leitor.reset(); } catch (e) {} try { if (stream) for (const t of stream.getTracks()) t.stop(); } catch (e) {} cx.remove(); };
+  const achou = txt => { const c = String(txt || "").replace(/\D/g, ""); if (fim || c.length < 8) return; fechar(); try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {} aoLer(c); };
+  cx.querySelector("#camX").onclick = fechar;
+  const pede = { video: { facingMode: { ideal: "environment" } }, audio: false };
+  try {
+    let nativo = null;
+    if ("BarcodeDetector" in window) { try { const fs = await BarcodeDetector.getSupportedFormats(), quero = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "itf"].filter(f => fs.includes(f)); if (quero.includes("ean_13")) nativo = new BarcodeDetector({ formats: quero }); } catch (e) {} }
+    if (nativo) {
+      stream = await navigator.mediaDevices.getUserMedia(pede); if (fim) return fechar();
+      video.srcObject = stream; await video.play();
+      timer = setInterval(async () => { if (fim || video.readyState < 2) return; try { const r = await nativo.detect(video); if (r && r.length) achou(r[0].rawValue); } catch (e) {} }, 180);
+    } else {
+      cx.querySelector("#camTxt").textContent = "Preparando o leitor…";
+      await carregaZXing(); if (fim) return;
+      leitor = new ZXing.BrowserMultiFormatReader();
+      await leitor.decodeFromConstraints(pede, video, res => { if (res) achou(res.getText()); });
+      cx.querySelector("#camTxt").textContent = "Aponte a câmera para o código de barras";
+    }
+  } catch (e) { fechar(); msg("Não consegui abrir a câmera: " + (e && e.name === "NotAllowedError" ? "a permissão de câmera foi negada para este site" : (e && e.message) || e)); }
+}
+document.getElementById("prCam").addEventListener("click", () => lerCamera(c => { document.getElementById("prQ").value = c; prBuscar(); }));
+document.getElementById("addCam").addEventListener("click", () => lerCamera(c => adicionarItem(c)));
+// ---------- divisão com a Loja 2 ----------
+let destAplicado = "1", destLocalEm = 0;
+function aplicarDest(d) {
+  if (!["1", "div", "ambas", "2"].includes(d)) d = "1";
+  const e = document.getElementById("gDest"); if (e.value !== d) e.value = d;
+  if (destAplicado === d) return;
+  destAplicado = d; const on = d !== "1";
+  document.body.classList.toggle("div2", on);
+  if (on && !cad2Info) carregarLoja2();
+  if (on) carregarEquiv();
+  if (itens.length) { for (const it of itens) atualizarLinha(it); totais(); desenharBoletosNota(); }
+  avisoBaixa(); lerAgente();
+}
+let cad2Info = null, listas2 = null, carregando2 = null;
+// correspondência "código interno da Loja 1 -> código do mesmo produto na Loja 2", informada uma vez e guardada
+const equiv = new Map(); let equivLida = false;
+async function carregarEquiv() {
+  if (!db || equivLida) return; equivLida = true;
+  try { const q = await db.collection("equiv").get(); for (const d of q.docs) { const x = d.data(); if (x && x.e1 && x.e2) equiv.set(x.e1, x.e2); } for (const it of itens) atualizarLinha(it); } catch (e) { equivLida = false; }
+}
+function guardarEquiv(e1, e2) {
+  e1 = String(e1).padStart(13, "0"); if (equiv.get(e1) === e2) return; equiv.set(e1, e2);
+  if (db) db.doc("equiv/" + e1).set({ e1, e2, em: new Date().toISOString() }).catch(() => {});
+}
+const destino = () => { const e = document.getElementById("gDest"); return (e && e.value) || "1"; };
+const div2On = () => destino() === "div";   // dividindo: aparecem os campos de quantidade da Loja 2
+const l2On = () => destino() !== "1";       // a Loja 2 participa: aparece a coluna de venda da Loja 2
+const destDeCfg = c => (c && (c.gDest || (c.gDiv2 ? "div" : "1"))) || "1";
+// quantas unidades de cada item vão para [Loja 1, Loja 2]
+function qLojas(it, k) {
+  const d = destino();
+  if (d === "ambas") return [k.qtdUn, k.qtdUn];
+  if (d === "2") return [0, k.qtdUn];
+  const q2 = q2De(it, k); return [k.qtdUn - q2, q2];
+}
+// unidades que vão para a Loja 2: embalagens × divisor + unidades avulsas (em branco = nada)
+const q2Bruto = it => (it.l2e || 0) * (it.div || 1) + (it.l2u || 0);
+const q2De = (it, k) => div2On() ? Math.min(k.qtdUn, q2Bruto(it)) : 0;
+async function carregarLoja2() {
+  if (!supa) return;
+  if (carregando2) return carregando2;
+  carregando2 = (async () => {
+    const { data, error } = await supa.rpc("cadastro_compacto", { p_loja: 2 });
+    if (error || !data) { msg("Não consegui carregar o cadastro da Loja 2" + (error ? ": " + error.message : "") + "."); return; }
+    cad2Info = new Map(data.produtos.map(p => [chave13(p[0]), p]));
+    for (const a of data.auxiliares || []) { const p = cad2Info.get(chave13(a[1])); if (p && !cad2Info.has(chave13(a[0]))) cad2Info.set(chave13(a[0]), p); }
+    listas2 = { grupos: data.grupos || [], deptos: data.deptos || [], sessoes: data.sessoes || [], familias: data.familias || [], data: data.data || "?" };
+    for (const it of itens) atualizarLinha(it); totais();
+  })();
+  try { await carregando2; } finally { carregando2 = null; }
+}
+// categoria na Loja 2: os números são diferentes dos da Loja 1, então casa pelo nome
+function catLoja2(it) {
+  const a = catDe(it), nm = t => semAcento(String(t || "").toUpperCase()).trim(), r = { g: 1, d: 1, s: 1, f: null, ok: false };
+  if (!listas2 || !listas) return r;
+  const nome = (l, id) => { const x = l.find(y => y[0] === id); return x ? nm(x[1]) : null; };
+  const ng = nome(listas.grupos, a.g), nd = nome(listas.deptos, a.d), ns = nome(listas.sessoes, a.s), nf = a.f != null ? nome(listas.familias, a.f) : null;
+  const g = ng && listas2.grupos.find(x => nm(x[1]) === ng);
+  const d = g && nd && (listas2.deptos.find(x => nm(x[1]) === nd && x[2] === g[0]) || listas2.deptos.find(x => nm(x[1]) === nd));
+  const s = d && ns && (listas2.sessoes.find(x => nm(x[1]) === ns && x[2] === d[0]) || listas2.sessoes.find(x => nm(x[1]) === ns));
+  if (g && d && s) { r.g = g[0]; r.d = d[0]; r.s = s[0]; r.ok = true; }
+  const f = nf && listas2.familias.find(x => nm(x[1]) === nf); if (f) r.f = f[0];
+  return r;
+}
+function totaisLojas() {
+  let un1 = 0, un2 = 0, custo1 = 0, custo2 = 0, nota = 0, nota2 = 0, excede = 0, difal2 = 0;
+  for (const it of itens) {
+    const k = calc(it), [q1, q2] = qLojas(it, k), fr = k.qtdUn > 0 ? q2 / k.qtdUn : 0, fr1 = k.qtdUn > 0 ? q1 / k.qtdUn : 0;
+    if (div2On() && q2Bruto(it) > k.qtdUn) excede++;
+    un2 += q2; un1 += q1; custo2 += k.custoItem * fr; custo1 += k.custoItem * fr1;
+    const vn = k.custoItem - k.difal; nota += vn; nota2 += vn * fr; difal2 += k.difal * fr; // boleto cobra só o que está na nota (sem o DIFAL)
+  }
+  return { un1, un2, custo1: r2(custo1), custo2: r2(custo2), fracao: nota > 0 ? nota2 / nota : 0, difal2: r2(difal2), excede };
+}
+// quanto a Loja 2 deve de cada boleto: a parte dela na nota + a parte dela no DIFAL (que a Loja 1 paga na GARE), rateada pelos boletos
+function rateioLoja2(m, bs) {
+  // quando a entrada junta várias notas (itens "NF 123 · ..." e boletos "123-001"), o rateio é feito nota por nota
+  const nfB = b => (/^(\d{3,})-/.exec(b.n || "") || [])[1] || "", nfI = it => (/^NF (\d+) ·/.exec(it.xprod || "") || [])[1] || "";
+  const porNota = bs.length && bs.every(b => nfB(b)) && itens.some(it => nfI(it));
+  const g = new Map(), grupo = k => { if (!g.has(k)) g.set(k, { nota: 0, nota2: 0, difal2: 0, bol: 0 }); return g.get(k); };
+  for (const it of itens) { const k = calc(it), q2 = qLojas(it, k)[1], fr = k.qtdUn > 0 ? q2 / k.qtdUn : 0, x = grupo(porNota ? nfI(it) : ""), vn = k.custoItem - k.difal; x.nota += vn; x.nota2 += vn * fr; x.difal2 += k.difal * fr; }
+  for (const b of bs) grupo(porNota ? nfB(b) : "").bol += aPagar(m, b);
+  let bol = 0, difal2 = 0;
+  const partes = bs.map(b => { const x = grupo(porNota ? nfB(b) : ""), v = aPagar(m, b), fr = x.nota > 0 ? x.nota2 / x.nota : 0; return r2(v * fr + (x.bol > 0 ? x.difal2 * v / x.bol : 0)); });
+  for (const x of g.values()) { bol += x.bol * (x.nota > 0 ? x.nota2 / x.nota : 0); difal2 += x.difal2; }
+  const total = bs.reduce((a, b) => a + aPagar(m, b), 0);
+  return { partes, bol: r2(bol), difal2: r2(difal2), total2: r2(bol + difal2), fracao: total > 0 ? bol / total : 0, porNota };
+}
+// guarda em cada boleto a parte da Loja 2 (p2), para aparecer na aba Boletos e nos avisos sem precisar abrir a nota
+let tP2 = null;
+function agendarPartesL2(chave, partes) {
+  clearTimeout(tP2);
+  tP2 = setTimeout(() => {
+    if (!cab || cab.chave !== chave) return; const m = metaDe(chave); if (!m || !m.boletos) return;
+    const novo = m.boletos.map((b, i) => { const v = partes ? partes[i] || 0 : 0, c = { ...b }; if (v > 0) c.p2 = v; else delete c.p2; return c; });
+    if (novo.some((b, i) => (b.p2 || 0) !== (m.boletos[i].p2 || 0))) salvarMeta(chave, { boletos: novo });
+  }, 2500);
+}
+function baixarArquivo(tipo) {
+  const q = tipo === "precos" ? sqlPrecos(1) : sqlEntrada(1);
+  if (!q) return msg("Nenhum item pronto para gerar o arquivo.");
+  baixar(`precos_gestao_${cab.manual ? "SEMNOTA_" + cab.chave.slice(1) : "NF" + cab.nnf}.txt`, q, "text/plain");
+  if (tipo !== "precos") { baixadoEm = new Date().toISOString(); avisoBaixa(); if (db) db.doc("notas/" + cab.chave).update({ baixado: baixadoEm }).catch(() => {}); salvarMemoria(); }
+}
+
+async function novaManual() {
+  const nome = document.getElementById("nomeManual").value.trim() || "Entrada sem nota";
+  const d = new Date(), p = v => String(v).padStart(2, "0");
+  const chave = `M${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  if (db) { await db.doc("notas/" + chave).set({ emit: nome, nnf: "sem nota", vNF: 0, itens: 0, criado: d.toISOString(), cfg: { ...cfgAtual(), gPct: 100, fb: 1 }, boletos: [] }); listaNotas.push({ id: chave, emit: nome, nnf: "sem nota", criado: d.toISOString(), boletos: [] }); await abrirNota(chave); }
+  else { if (unsubItens) unsubItens(); xmlTexto = ""; doc = null; cab = cabManual(chave, nome); itens = []; baixadoEm = null; envioAtual = null; envio2Atual = null; aplicarDest("1"); metaLocal = { id: chave, emit: nome, nnf: "sem nota", criado: d.toISOString(), boletos: [] }; desenhar(); redesenharTudo(); }
+  document.getElementById("addEan").focus();
+}
+function desenharNotas() {
+  const abertas = listaNotas.filter(n => !n.concluida);
+  const d = document.getElementById("notas"); d.innerHTML = abertas.length ? "<b>Notas em andamento:</b> " : "";
+  for (const n of abertas) {
+    const e = document.createElement("span"); e.className = "nota" + (cab && cab.chave === n.id ? " atual" : "");
+    const t = document.createElement("span"); t.textContent = (n.id.startsWith("M") ? `Sem nota — ${n.emit}` : `NF ${n.nnf} — ${n.emit} — ${n.itens} itens`) + (n.baixado ? " — já enviada ao Gestão" : ""); e.appendChild(t);
+    const a = document.createElement("a"); a.textContent = "abrir"; a.onclick = () => abrirNota(n.id); e.appendChild(a);
+    const x = document.createElement("a"); x.textContent = "excluir"; x.onclick = () => { if (x.dataset.ok) excluirNota(n.id); else { x.dataset.ok = "1"; x.textContent = "confirmar exclusão"; } }; e.appendChild(x);
+    d.appendChild(e);
+  }
+}
+async function excluirNota(chave) {
+  try {
+    if (cab && cab.chave === chave) { if (unsubItens) unsubItens(); if (unsubNota) unsubNota(); unsubItens = unsubNota = null; cab = null; itens = []; document.getElementById("app").style.display = "none"; }
+    for (const col of ["itens", "xml"]) { const q = await db.collection(`notas/${chave}/${col}`).get(); for (const d of q.docs) await db.doc(`notas/${chave}/${col}/${d.id}`).delete(); }
+    await db.doc("notas/" + chave).delete();
+  } catch (e) { msg("Não consegui excluir: " + (e.message || e.code)); }
+}
+// ---------- armazenamento na nuvem própria (Supabase), com a mesma interface usada pela página ----------
+let supa = null;
+function dbSupabase(cli) {
+  const ouvintes = new Set();
+  const snapDoc = (path, row) => ({ id: path.split("/").pop(), exists: !!row, data: () => row ? JSON.parse(JSON.stringify(row.dados)) : undefined, metadata: { hasPendingWrites: false, fromCache: false } });
+  const colecaoDe = path => path.split("/").slice(0, -1).join("/");
+  const erroDe = e => ({ code: (e && (e.code || e.status)) || "unavailable", message: (e && e.message) || String(e) });
+  const docRef = path => ({
+    id: path.split("/").pop(), path,
+    get: async () => { const { data, error } = await cli.from("docs").select("path,dados").eq("path", path).maybeSingle(); if (error) throw erroDe(error); return snapDoc(path, data); },
+    set: async dados => { const { error } = await cli.from("docs").upsert({ path, colecao: colecaoDe(path), dados, atualizado_em: new Date().toISOString() }); if (error) throw erroDe(error); },
+    update: async patch => {
+      const { data, error } = await cli.from("docs").select("dados").eq("path", path).maybeSingle(); if (error) throw erroDe(error);
+      if (!data) throw { code: "invalid_argument", message: "documento não existe: " + path };
+      const dados = { ...data.dados, ...patch };
+      const { error: e2 } = await cli.from("docs").update({ dados, atualizado_em: new Date().toISOString() }).eq("path", path); if (e2) throw erroDe(e2);
+    },
+    delete: async () => { const { error } = await cli.from("docs").delete().eq("path", path); if (error) throw erroDe(error); },
+    onSnapshot: (cb, erro) => {
+      const o = { tipo: "doc", path, cb, erro, ult: null };
+      ouvintes.add(o);
+      cli.from("docs").select("path,dados").eq("path", path).maybeSingle().then(({ data, error }) => { if (error) { if (erro) erro(erroDe(error)); return; } o.ult = data ? JSON.stringify(data.dados) : null; cb(snapDoc(path, data)); });
+      return () => ouvintes.delete(o);
+    },
+    collection: sub => colRef(path + "/" + sub),
+  });
+  const colRef = path => ({
+    path, doc: id => docRef(path + "/" + id),
+    get: async () => { const { data, error } = await cli.from("docs").select("path,dados").eq("colecao", path).order("path"); if (error) throw erroDe(error); return { docs: data.map(r => snapDoc(r.path, r)), size: data.length, empty: !data.length }; },
+    onSnapshot: (cb, erro) => {
+      const o = { tipo: "col", path, cb, erro, rows: new Map(), pronto: false };
+      ouvintes.add(o);
+      cli.from("docs").select("path,dados").eq("colecao", path).order("path").then(({ data, error }) => {
+        if (error) { if (erro) erro(erroDe(error)); return; }
+        o.rows = new Map(data.map(r => [r.path, r])); o.pronto = true;
+        const docs = [...o.rows.values()].map(r => snapDoc(r.path, r));
+        cb({ docs, size: docs.length, empty: !docs.length, docChanges: () => docs.map(d => ({ type: "added", doc: d })), metadata: { hasPendingWrites: false, fromCache: false } });
+      });
+      return () => ouvintes.delete(o);
+    },
+  });
+  // um canal só: cada mudança na tabela é repassada aos ouvintes do documento e da coleção
+  cli.channel("docs").on("postgres_changes", { event: "*", schema: "public", table: "docs" }, ev => {
+    const novo = ev.new && ev.new.path ? ev.new : null, path = (novo || ev.old || {}).path; if (!path) return;
+    const colecao = novo ? novo.colecao : colecaoDe(path);
+    for (const o of ouvintes) {
+      if (o.tipo === "doc" && o.path === path) { const j = novo ? JSON.stringify(novo.dados) : null; if (j === o.ult) continue; o.ult = j; o.cb(snapDoc(path, novo)); }
+      if (o.tipo === "col" && o.path === colecao && o.pronto) {
+        let ch;
+        if (!novo) { const antes = o.rows.get(path); if (!antes) continue; o.rows.delete(path); ch = { type: "removed", doc: snapDoc(path, antes) }; }
+        else { const antes = o.rows.get(path); if (antes && JSON.stringify(antes.dados) === JSON.stringify(novo.dados)) continue; o.rows.set(path, novo); ch = { type: antes ? "modified" : "added", doc: snapDoc(path, novo) }; }
+        const docs = [...o.rows.values()].map(r => snapDoc(r.path, r));
+        o.cb({ docs, size: docs.length, empty: !docs.length, docChanges: () => [ch], metadata: { hasPendingWrites: false, fromCache: false } });
+      }
+    }
+  }).subscribe(st => { if (st === "SUBSCRIBED") sync("conectado — os dois PCs veem as mesmas notas", true); else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") sync("sem conexão em tempo real; recarregue a página", false); });
+  return { doc: docRef, collection: colRef };
+}
+async function cadastroDaNuvem(silencioso) {
+  const { data, error } = await supa.rpc("cadastro_compacto", { p_loja: 1 });
+  if (error || !data) { msg("Não consegui carregar o cadastro da nuvem" + (error ? ": " + error.message : "") + "."); return; }
+  carregarCadastro(data, silencioso);
+  document.getElementById("stCad").textContent = `${data.produtos.length.toLocaleString("pt-BR")} produtos do Gestão da Loja 1, atualizados pelo agente em ${data.data}`;
+}
+async function entrarNoSistema(sessao) {
+  const r = await supa.rpc("entrar");
+  if (r.error || !r.data || !r.data.ok) {
+    document.getElementById("lgMsg").textContent = r.error ? "Erro ao entrar: " + r.error.message : "Este e-mail ainda não foi autorizado. Peça ao administrador para incluir.";
+    await supa.auth.signOut(); mostrarLogin(true); return;
+  }
+  mostrarLogin(false);
+  const u = document.getElementById("usuario"); u.innerHTML = ""; u.append(sessao.user.email); const a = document.createElement("a"); a.textContent = "sair"; a.onclick = async () => { await supa.auth.signOut(); location.reload(); }; u.appendChild(a);
+  if (r.data.admin) { const b = document.createElement("a"); b.textContent = "incluir usuário"; b.onclick = incluirUsuario; u.appendChild(b); }
+  document.getElementById("lCad").style.display = "none";
+  document.getElementById("soLocal").style.display = "none";
+  db = dbSupabase(supa);
+  await cadastroDaNuvem(false);
+  setInterval(() => cadastroDaNuvem(true), 5 * 60 * 1000);
+  ligarOuvintes();
+  lerAgente(); setInterval(lerAgente, 60000);
+}
+function incluirUsuario() {
+  const b = document.getElementById("busca"); b.style.display = "block";
+  b.innerHTML = `<b>Incluir usuário</b><br><label class="c" style="margin-top:6px">E-mail<input type="email" id="nuEmail" style="width:100%"></label><label class="c" style="margin-top:6px">Nome<input type="text" id="nuNome" style="width:100%"></label><div class="linha" style="margin-top:8px;gap:8px"><button id="nuOk">Incluir</button><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div><div id="nuMsg" class="orig" style="margin-top:6px">A pessoa cria a conta na tela de entrada com esse e-mail.</div>`;
+  b.querySelector("#bx").onclick = () => b.style.display = "none";
+  b.querySelector("#nuOk").onclick = async () => { const r = await supa.rpc("incluir_usuario", { p_email: b.querySelector("#nuEmail").value.trim(), p_nome: b.querySelector("#nuNome").value.trim() }); b.querySelector("#nuMsg").textContent = r.error ? "Erro: " + r.error.message : "Incluído."; };
+}
+function mostrarLogin(sim) {
+  document.getElementById("login").style.display = sim ? "" : "none";
+  document.getElementById("abas").style.display = sim ? "none" : "";
+  document.getElementById("principal").style.display = sim ? "none" : "";
+}
+function ligarOuvintes() {
+  const t = setTimeout(() => sync("ainda não consegui falar com o armazenamento…", false), 10000);
+  db.collection("notas").onSnapshot(s => {
+    clearTimeout(t); listaNotas = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(n => n.nnf); redesenharTudo();
+    if (!pend.size) sync("conectado — os dois PCs veem as mesmas notas", true);
+  }, e => { clearTimeout(t); sync("sem conexão com o armazenamento (" + e.code + ")", false); });
+  db.collection("validades").onSnapshot(s => { valDocs = new Map(s.docs.map(d => [d.id, d.data()])); desenharValidades(); desenharAvisos(); alertas(); }, () => {});
+}
+async function iniciar() {
+  if (window.SUPA && window.supabase) {
+    supa = window.supabase.createClient(window.SUPA.url, window.SUPA.key);
+    sync("entrando…", false);
+    const g = id => document.getElementById(id);
+    const tentar = async criar => {
+      g("lgMsg").textContent = "";
+      const email = g("lgEmail").value.trim(), password = g("lgSenha").value;
+      if (!email || password.length < 6) { g("lgMsg").textContent = "Informe o e-mail e uma senha com pelo menos 6 caracteres."; return; }
+      const r = criar ? await supa.auth.signUp({ email, password }) : await supa.auth.signInWithPassword({ email, password });
+      if (r.error) { g("lgMsg").textContent = /invalid login/i.test(r.error.message) ? "E-mail ou senha incorretos." : /already registered/i.test(r.error.message) ? "Esse e-mail já tem conta: use Entrar." : r.error.message; return; }
+      if (!r.data.session) { g("lgMsg").textContent = "Conta criada. Confirme o e-mail que acabou de receber e depois clique em Entrar."; return; }
+      await entrarNoSistema(r.data.session);
+    };
+    g("lgEntrar").onclick = () => tentar(false); g("lgCriar").onclick = () => tentar(true);
+    g("lgSenha").addEventListener("keydown", ev => { if (ev.key === "Enter") tentar(false); });
+    const { data: { session } } = await supa.auth.getSession();
+    if (session) await entrarNoSistema(session); else mostrarLogin(true);
+    return;
+  }
+  mostrarLogin(false);
+  const emb = document.getElementById("cadastro");
+  if (emb) { carregarCadastro(JSON.parse(emb.textContent)); document.getElementById("lCad").style.display = "none"; }
+  if (!(window.claude && window.claude.use)) { sync("modo local — o preenchimento fica só neste PC", false); return; }
+  [db, dl] = await Promise.all([window.claude.use("db"), window.claude.use("downloads")]);
+  if (!db) { sync("sem armazenamento compartilhado — o preenchimento fica só neste PC", false); return; }
+  document.getElementById("soLocal").style.display = "none";
+  if (dl) document.getElementById("bXml").textContent = "Gerar XML ajustado (.zip)";
+  ligarOuvintes();
+}
+async function iniciarAntigo() {
+  const t = setTimeout(() => sync("ainda não consegui falar com o armazenamento…", false), 10000);
+  db.collection("notas").onSnapshot(s => {
+    clearTimeout(t); listaNotas = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(n => n.nnf); redesenharTudo();
+    if (!pend.size) sync("conectado — os dois PCs veem as mesmas notas", true);
+  }, e => { clearTimeout(t); sync("sem conexão com o armazenamento (" + e.code + ")", false); });
+  db.collection("validades").onSnapshot(s => { valDocs = new Map(s.docs.map(d => [d.id, d.data()])); desenharValidades(); desenharAvisos(); alertas(); }, () => {});
+}
+function carregarCadastro(j, silencioso) {
+  cad = j.produtos.map(p => [p[0], p[1], tokens(p[1])]); cadTok = null; for (const i of itens) delete i.sugs;
+  cadIdx = new Map(j.produtos.map(p => [chave13(p[0]), p[1]]));
+  cadInfo = new Map(j.produtos.map(p => [chave13(p[0]), p]));
+  listas = { grupos: j.grupos || [], deptos: j.deptos || [], sessoes: j.sessoes || [], familias: j.familias || [], data: j.data || "?" };
+  cadAux = new Map((j.auxiliares || []).map(a => Array.isArray(a) ? [chave13(a[0]), a[1]] : [chave13(a), ""]));
+  listas.ultimoEanInterno = j.ultimo_ean_interno || "";
+  listas.cestPorNcm = new Map((j.ncm_cest || []).map(x => [String(x[0]).replace(/\D/g, ""), String(x[1]).replace(/\D/g, "")]));
+  document.getElementById("stCad").textContent = `${cad.length.toLocaleString("pt-BR")} produtos do cadastro do Gestão (cópia de ${j.data || "?"})`;
+  if (!itens.length) return;
+  if (!silencioso) { aplicarCadastro(); desenhar(); return; }
+  // atualização em segundo plano: só refaz os avisos das linhas, sem mexer no que está sendo digitado
+  const foco = document.activeElement, dentroDetalhe = foco && foco.closest && foco.closest("tr[id^=d]");
+  for (const it of itens) { atualizarLinha(it); if (!dentroDetalhe) desenharDetalhe(it); }
+  totais();
+}
+
+// ---------- eventos ----------
+const lerArquivo = f => new Promise((ok, erro) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = erro; r.readAsText(f, "utf-8"); });
+document.getElementById("fXml").addEventListener("change", async ev => {
+  try {
+    const texto = await lerArquivo(ev.target.files[0]);
+    if (db) { await novaNota(texto); ev.target.value = ""; return; }
+    xmlTexto = texto; const r = lerNota(xmlTexto);
+    doc = r.d; cab = r.c; itens = r.lista;
+    prefNota = new Set(itens.map(i => chave13(i.eanNota).slice(-13).slice(0, 7)));
+    await carregarMemoria(cab.cnpj);
+    metaLocal = { id: cab.chave, emit: cab.emit, nnf: cab.nnf, vNF: cab.vNF, itens: itens.length, criado: new Date().toISOString(), boletos: cab.dups };
+    let s = null; try { s = JSON.parse(localStorage.getItem("entradaxml:" + cab.chave)); } catch (e) {}
+    restaurar(s); aplicarCadastro(); desenhar(); msg(""); redesenharTudo();
+  } catch (e) { msg(e.message || "Não consegui ler esse arquivo."); }
+});
+document.getElementById("fCad").addEventListener("change", async ev => { try { carregarCadastro(JSON.parse(await lerArquivo(ev.target.files[0]))); } catch (e) { msg("Esse arquivo não é o cadastro_gestao.json."); } });
+for (const id of ["gPct", "gMk", "gArr", "gModo"]) document.getElementById(id).addEventListener("input", () => { if (itens.length) { for (const it of itens) atualizarLinha(it); totais(); guardar(); if (!db && metaLocal) metaLocal.cfg = cfgAtual(); desenharBoletosNota(); alertas(); } });
+document.getElementById("bXml").addEventListener("click", () => { const m = document.getElementById("gModo").value, nome = `${cab.chave}-ajustado-${m}`, x = gerarXml(m);
+  if (dl) baixar(nome + ".zip", zipUm(nome + ".xml", x)); else baixar(nome + ".xml", x, "application/xml"); });
+document.getElementById("bEnt").addEventListener("click", () => enviarAoGestao("entrada").catch(e => msg("Não consegui enviar: " + (e.message || e))));
+document.getElementById("lnkArq").addEventListener("click", () => { if (confirm("Baixar o arquivo da ENTRADA COMPLETA para rodar pelo atalho 'Subir precos no Gestao'?\n(Cancelar = arquivo só de preços)")) baixarArquivo("entrada"); else baixarArquivo("precos"); });
+for (const b of document.querySelectorAll(".aba")) b.addEventListener("click", () => mostrar(b.dataset.v));
+for (const id of ["fNotaTxt", "fNotaSit"]) document.getElementById(id).addEventListener("input", desenharGerencia);
+document.getElementById("fBolPagos").addEventListener("change", desenharBoletos);
+document.getElementById("fValBaixa").addEventListener("change", desenharValidades);
+document.getElementById("vaOk").addEventListener("click", lancarValidadeAvulsa);
+document.getElementById("vaEan").addEventListener("change", ev => { const p = cadInfo && cadInfo.get(chave13(ev.target.value.replace(/\D/g, ""))); if (p) document.getElementById("vaDesc").value = p[1]; });
+document.getElementById("bConcl").addEventListener("click", async () => { const m = metaDe(cab.chave); if (!m) return; const vai = !m.concluida; await salvarMeta(cab.chave, { concluida: vai ? new Date().toISOString() : null }); if (vai) { const nm = await salvarMemoria(); if (nm) msg(`Memória do fornecedor atualizada com ${nm} produto(s).`); } });
+document.getElementById("bManual").addEventListener("click", () => { const p = document.getElementById("pNome"); p.style.display = p.style.display === "none" ? "" : "none"; if (p.style.display === "") document.getElementById("nomeManual").focus(); });
+document.getElementById("bCriaManual").addEventListener("click", () => { document.getElementById("pNome").style.display = "none"; novaManual().catch(e => msg("Não consegui criar a entrada: " + (e.message || e.code))); });
+document.getElementById("addEan").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const v = ev.target.value.trim(); if (v) { adicionarItem(v); ev.target.value = ""; } } });
+document.getElementById("bAddSem").addEventListener("click", () => adicionarItem(""));
+document.getElementById("gDest").addEventListener("change", async ev => {
+  aplicarDest(ev.target.value); if (!cab) return;
+  destLocalEm = Date.now();
+  if (db) { clearTimeout(tCfg); await salvarMeta(cab.chave, { cfg: cfgAtual() }); } else { guardar(); if (metaLocal) metaLocal.cfg = cfgAtual(); }
+  ajustarBoletosLojas();
+});
+(() => { const e = document.getElementById("gBol"); let v = "1"; try { v = localStorage.getItem("entradaxml:mostrarBol") ?? "1"; } catch (x) {}
+  e.checked = v !== "0"; document.body.classList.toggle("semBol", !e.checked);
+  e.addEventListener("change", () => { document.body.classList.toggle("semBol", !e.checked); try { localStorage.setItem("entradaxml:mostrarBol", e.checked ? "1" : "0"); } catch (x) {} const st = document.getElementById("bolSeta"); if (st) st.textContent = (e.checked ? "▾" : "▸") + " Boletos desta nota"; }); })();
+(() => { const e = document.getElementById("gCod"); let v = "1"; try { v = localStorage.getItem("entradaxml:mostrarCod") ?? "1"; } catch (x) {}
+  e.checked = v !== "0"; document.body.classList.toggle("semCod", !e.checked);
+  e.addEventListener("change", () => { document.body.classList.toggle("semCod", !e.checked); try { localStorage.setItem("entradaxml:mostrarCod", e.checked ? "1" : "0"); } catch (x) {} }); })();
+document.getElementById("soPend").addEventListener("change", ev => document.body.classList.toggle("soPend", ev.target.checked));
+// busca por nome na entrada sem nota: lista do cadastro conforme digita; clicou, vira item com EAN, descrição, custo e venda
+(() => {
+  const q = document.getElementById("addNome"), l = document.getElementById("addLista"); let t = null;
+  const fechar = () => { l.style.display = "none"; l.innerHTML = ""; };
+  q.addEventListener("input", () => {
+    clearTimeout(t); const v = q.value.trim();
+    if (v.length < 2 || !cad) return fechar();
+    t = setTimeout(() => {
+      const res = ranking({ xprod: "" }, v); l.innerHTML = "";
+      if (!res.length) { l.innerHTML = `<div style="padding:6px 10px"><i>nada encontrado</i> — <a style="cursor:pointer;color:#0b57d0" id="addNovo">cadastrar "${v.replace(/</g, "&lt;")}" como produto novo</a></div>`; l.style.display = "block"; l.querySelector("#addNovo").onclick = () => { adicionarItem(""); const it = itens[itens.length - 1]; it.desc = it.xprod = v.toUpperCase().slice(0, 60); const d = document.querySelector(`#l${it.n} [data-c=desc]`); if (d) d.value = it.desc; guardar(it); q.value = ""; fechar(); }; return; }
+      for (const [sc, e, ds] of res) { const p = cadInfo.get(chave13(e)); const r = document.createElement("div"); r.style.cssText = "padding:6px 10px;cursor:pointer;border-bottom:1px solid #eef2f7"; r.innerHTML = `<span class="mono">${e}</span> ${ds.replace(/</g, "&lt;")}<br><span class="orig">custo R$ ${br(p && p[3] || 0)} · venda R$ ${br(p && p[4] || 0)} · estoque ${br(p && p[2] || 0, 0)}</span>`; r.onmousedown = ev => { ev.preventDefault(); adicionarItem(e); q.value = ""; fechar(); }; l.appendChild(r); }
+      l.style.display = "block";
+    }, 200);
+  });
+  q.addEventListener("keydown", ev => { if (ev.key === "Escape") fechar(); if (ev.key === "Enter") { ev.preventDefault(); const r = l.querySelector("div[style*=cursor]"); if (r) r.onmousedown(ev); } });
+  q.addEventListener("blur", () => setTimeout(fechar, 150));
+})();
+document.getElementById("bSql").addEventListener("click", () => enviarAoGestao("precos").catch(e => msg("Não consegui enviar: " + (e.message || e))));
+document.getElementById("bCsv").addEventListener("click", () => baixar(`precos_NF${cab.nnf}.csv`, csvPrecos(), "text/csv"));
+document.getElementById("bSalvar").addEventListener("click", () => baixar(`trabalho_NF${cab.nnf}.json`, JSON.stringify(estado()), "application/json"));
+document.getElementById("fTrab").addEventListener("change", async ev => { if (!cab) return; if (restaurar(JSON.parse(await lerArquivo(ev.target.files[0])))) { aplicarCadastro(); desenhar(); guardar(); } else msg("Esse trabalho é de outra nota."); });
+iniciar();
+</script>
+</body>
+</html>

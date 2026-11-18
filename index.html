@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="35">
+<meta name="versao" content="36">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -191,6 +191,9 @@
   <div class="painel"><div class="resumo" id="vdRes"></div></div>
   <div class="painel"><b>Por hora</b> <span class="orig">— barra cinza: mesmo dia da semana passada</span><div id="vdHoras" style="margin-top:6px"></div></div>
   <div class="painel"><b>Formas de pagamento do dia</b> <span class="orig">— entram depois do fechamento do caixa. Pix passado na maquininha e finalizado como dinheiro aparece em Dinheiro.</span><div id="vdPg" style="margin-top:6px"></div></div>
+  <div class="painel"><b>Cupons</b> <span class="orig" id="vdCpInfo"></span>
+   <div class="linha" style="margin-top:6px;gap:8px;flex-wrap:wrap"><input type="text" id="vdCpQ" placeholder="produto, código de barras ou valor (ex.: 45,50)" style="flex:1;min-width:200px;font-size:16px;padding:6px"><button id="vdCpBuscar" class="sec" title="procura o produto ou o valor nos cupons dos 60 dias anteriores ao dia escolhido">buscar em 60 dias</button><button id="vdCpLimpar" class="sec">limpar</button></div>
+   <div id="vdCp" style="margin-top:6px"></div></div>
   <div class="painel" style="overflow:auto"><b>Últimos 30 dias</b> <span class="orig">— toque num dia para abrir</span><table style="margin-top:6px"><thead><tr><th>Dia</th><th class="n">Loja 1</th><th class="n">Loja 2</th><th class="n">Total</th><th class="n">Itens</th><th style="width:40%"></th></tr></thead><tbody id="vdDias"></tbody></table></div>
  </div>
  <div id="vAvisos" style="display:none">
@@ -1572,7 +1575,7 @@ function prAcompanhar(id, l, st) {
 document.getElementById("prBuscar").addEventListener("click", prBuscar);
 document.getElementById("prQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); prBuscar(); } });
 // ---------- aba Vendas: totais por hora e por forma de pagamento que o PC de cada loja sobe do Gestão a cada 5 minutos ----------
-const VD = { vh: [], pg: [], dia: null, t: null };
+const VD = { vh: [], pg: [], dia: null, t: null, cp: [], cpBusca: null, abertos: new Set() };
 const vdIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 const vdMais = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return vdIso(d); };
 const vdSem = iso => ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(iso + "T12:00:00").getDay()];
@@ -1588,6 +1591,7 @@ async function vdCarregar() {
   if (r.error) { document.getElementById("vdRes").innerHTML = "<div>Não consegui ler as vendas: " + escH(r.error.message) + "</div>"; return; }
   VD.vh = r.data || []; VD.pg = (r2.data || []); VD.dia = dia;
   vdDesenhar();
+  vdCupons();
   clearTimeout(VD.t); if (vista === "vendas" && dia === vdIso(new Date())) VD.t = setTimeout(() => { if (vista === "vendas") vdCarregar(); }, 120000);
 }
 function vdDesenhar() {
@@ -1626,6 +1630,53 @@ function vdDesenhar() {
   document.getElementById("vdDias").innerHTML = linhas.map(x => `<tr data-d="${x.d}" style="cursor:pointer${x.d === dia ? ";background:#eef3fd" : ""}"><td>${dataBr(x.d)} <span class="orig">${vdSem(x.d)}</span></td><td class="n">${x.l1 ? br(x.l1) : "—"}</td><td class="n">${x.l2 ? br(x.l2) : "—"}</td><td class="n"><b>${x.t ? br(x.t) : "—"}</b></td><td class="n">${x.q ? br(x.q, 0) : ""}</td><td><div style="height:10px;width:${x.t / maxD * 100}%;background:#0b57d0;border-radius:3px"></div></td></tr>`).join("");
   for (const tr of document.querySelectorAll("#vdDias tr")) tr.onclick = () => { document.getElementById("vdDia").value = tr.dataset.d; vdCarregar(); window.scrollTo(0, 0); };
 }
+// ----- cupons: um por venda, lidos dos registros do Servidor PDV de cada loja -----
+const VD_CP_COLS = "loja_id, serie, coo, data, hora, pdv, total, cancelado, nfce_num, nfce_chave, itens, pgtos";
+const vdNum = t => { const m = String(t).trim().replace(/^r\$\s*/i, ""); return /^\d{1,6}([.,]\d{1,2})?$/.test(m) ? Number(m.replace(",", ".")) : null; };
+async function vdCupons() {
+  if (!supa || VD.cpBusca) return vdDesenharCupons();
+  const loja = Number(document.getElementById("vdLoja").value);
+  let q = supa.from("cupons").select(VD_CP_COLS).eq("data", VD.dia).order("hora", { ascending: false }).limit(1000);
+  if (loja) q = q.eq("loja_id", loja);
+  const r = await q; VD.cp = r.error ? [] : (r.data || []); VD.cpErro = r.error ? r.error.message : "";
+  vdDesenharCupons();
+}
+async function vdBuscarCupons() {
+  const termo = document.getElementById("vdCpQ").value.trim(); if (!termo) return;
+  const loja = Number(document.getElementById("vdLoja").value), de = vdMais(VD.dia, -60), v = vdNum(termo);
+  let q = supa.from("cupons").select(VD_CP_COLS).gte("data", de).lte("data", VD.dia).order("data", { ascending: false }).order("hora", { ascending: false }).limit(300);
+  if (loja) q = q.eq("loja_id", loja);
+  if (v != null) q = q.eq("total", v); else for (const w of termo.toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5)) q = q.ilike("busca", `%${w.replace(/[%_]/g, "")}%`);
+  document.getElementById("vdCp").innerHTML = `<span class="orig">procurando…</span>`;
+  const r = await q; VD.cpBusca = { termo, linhas: r.error ? [] : (r.data || []), erro: r.error ? r.error.message : "" };
+  vdDesenharCupons();
+}
+function vdDesenharCupons() {
+  const e = document.getElementById("vdCp"), info = document.getElementById("vdCpInfo"), termo = document.getElementById("vdCpQ").value.trim().toLowerCase(), v = vdNum(termo);
+  let lista = VD.cpBusca ? VD.cpBusca.linhas : VD.cp;
+  const validos = VD.cp.filter(c => !c.cancelado), somaV = validos.reduce((a, c) => a + Number(c.total || 0), 0);
+  if (VD.cpBusca) info.textContent = `— "${VD.cpBusca.termo}" nos 60 dias até ${dataBr(VD.dia)}: ${lista.length} cupom(ns)` + (lista.length >= 300 ? " (mostrando os 300 mais recentes)" : "");
+  else {
+    info.textContent = VD.cp.length ? `— ${validos.length} no dia · ticket médio R$ ${br(validos.length ? somaV / validos.length : 0)}` + (VD.cp.length > validos.length ? ` · ${VD.cp.length - validos.length} cancelado(s)` : "") : "";
+    if (termo) lista = lista.filter(c => v != null ? Math.abs(Number(c.total) - v) < 0.005 : termo.split(/\s+/).every(w => (c.itens || []).some(i => (String(i[1]) + " " + String(i[2])).toLowerCase().includes(w))));
+  }
+  if (VD.cpErro || (VD.cpBusca && VD.cpBusca.erro)) { e.innerHTML = `<span class="orig">Não consegui ler os cupons: ${escH(VD.cpErro || VD.cpBusca.erro)}</span>`; return; }
+  if (!lista.length) { e.innerHTML = `<span class="orig">${VD.cpBusca || termo ? "Nenhum cupom encontrado." : "Sem cupons deste dia na nuvem (os cupons sobem a cada 5 minutos; o histórico começa cerca de 3 meses atrás)."}</span>`; return; }
+  const chave = c => [c.loja_id, c.serie, c.coo, c.data].join("|");
+  e.innerHTML = `<table><thead><tr>${VD.cpBusca ? "<th>Dia</th>" : ""}<th>Hora</th><th>Loja · caixa</th><th class="n">Valor</th><th>Pagamento</th><th class="n">Itens</th><th>NFC-e</th></tr></thead><tbody>` + lista.map(c => {
+    const k = chave(c), ab = VD.abertos.has(k), its = c.itens || [], cols = VD.cpBusca ? 7 : 6;
+    const pg = (c.pgtos || []).map(p => escH(VD_MEIOS[p[0]] && p[0] !== 4 ? VD_MEIOS[p[0]] : String(p[1] || "").toLowerCase().replace(/^./, x => x.toUpperCase())) + ((c.pgtos || []).length > 1 ? " R$ " + br(Number(p[2])) : "")).join(" + ");
+    let h = `<tr data-k="${escH(k)}" style="cursor:pointer${c.cancelado ? ";color:#b3261e" : ""}">${VD.cpBusca ? `<td>${dataBr(c.data)}</td>` : ""}<td>${escH((c.hora || "").slice(0, 5))}</td><td>L${c.loja_id} · cx ${c.pdv ?? "?"}</td><td class="n"><b>R$ ${br(Number(c.total))}</b></td><td>${c.cancelado ? "CANCELADO" : pg || "—"}</td><td class="n">${its.length}</td><td>${c.nfce_num ? "nº " + escH(String(Number(c.nfce_num))) : "—"}</td></tr>`;
+    if (ab) h += `<tr><td colspan="${cols + 1}" style="background:#f6f8fb"><table><thead><tr><th class="n">Qtd</th><th>Produto</th><th>Código</th><th class="n">Unit.</th><th class="n">Total</th></tr></thead><tbody>` +
+      its.map(i => `<tr${termo && !VD.cpBusca ? "" : ""}><td class="n">${br(Number(i[3]), Number(i[3]) % 1 ? 3 : 0)}</td><td>${escH(i[2])}</td><td class="orig">${escH(i[1])}</td><td class="n">${br(Number(i[5]))}</td><td class="n">${br(Number(i[6]))}</td></tr>`).join("") +
+      `</tbody></table><div class="orig" style="margin-top:4px">cupom ${escH(c.coo)}${c.nfce_chave ? " · chave NFC-e " + escH(c.nfce_chave) : ""}</div></td></tr>`;
+    return h; }).join("") + `</tbody></table>`;
+  for (const tr of e.querySelectorAll("tr[data-k]")) tr.onclick = () => { const k = tr.dataset.k; if (VD.abertos.has(k)) VD.abertos.delete(k); else VD.abertos.add(k); vdDesenharCupons(); };
+}
+document.getElementById("vdCpQ").addEventListener("input", () => { if (!VD.cpBusca) vdDesenharCupons(); });
+document.getElementById("vdCpQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); vdBuscarCupons(); } });
+document.getElementById("vdCpBuscar").addEventListener("click", vdBuscarCupons);
+document.getElementById("vdCpLimpar").addEventListener("click", () => { document.getElementById("vdCpQ").value = ""; VD.cpBusca = null; vdCupons(); });
 document.getElementById("vdDia").addEventListener("change", vdCarregar);
 document.getElementById("vdLoja").addEventListener("change", vdCarregar);
 document.getElementById("vdHoje").addEventListener("click", () => { document.getElementById("vdDia").value = vdIso(new Date()); vdCarregar(); });

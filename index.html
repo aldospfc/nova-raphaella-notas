@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="44">
+<meta name="versao" content="45">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -1534,7 +1534,7 @@ async function prAbrir(g) {
       <label class="c" style="flex:1;min-width:240px">Descrição (até 60)<input class="desc" type="text" id="prDesc" maxlength="60" value="${escH(base.descricao || "").replace(/"/g, "&quot;")}" style="width:100%"></label>
       <label class="c">NCM<input class="p" type="text" inputmode="numeric" id="prNcm" maxlength="8" value="${escH(base.ncm || "")}" style="width:90px"></label>
       <label class="c">CEST<input class="p" type="text" inputmode="numeric" id="prCest" maxlength="7" placeholder="não mexer" style="width:90px" title="em branco não mexe no CEST do cadastro"></label>
-    </div>${difNome ? `<div class="orig">Na Loja 2 o nome hoje é: <b>${escH(g[2].descricao)}</b></div>` : ""}
+    </div>${difNome ? `<div style="margin-top:4px;background:#fff8e1;border-radius:6px;padding:6px 8px">Na Loja 2 o nome hoje é: <b>${escH(g[2].descricao)}</b><br><label style="font-weight:bold"><input type="checkbox" id="prIgualar"> usar o nome acima também na Loja 2</label> <span class="orig">— corrija o nome no campo acima se precisar; marcado, ele é gravado nas lojas que você escolher abaixo</span></div>` : ""}
     ${bloco(1)}${bloco(2)}
     <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><button id="prGravarPos" title="grava no Gestão e manda preço, custo e nome direto para os caixas da loja, sem a Carga Completa">Gravar no Gestão e enviar ao POS</button><span id="prAviso" class="orig"></span></div>
     <div class="painel" style="background:#fff8e1;margin-top:10px"><b>Validades deste produto</b> <span class="orig">— controle do nosso sistema (abas Validades e Avisos); salva na hora, não depende do botão acima</span>
@@ -1598,7 +1598,7 @@ function prValidades() {
 function prSql(l, blk) {
   const p = PR.grupo[l], q = f => blk.querySelector(`[data-f=${f}]`), sets = [], linhas = [], oque = [];
   const desc = prTxt(document.getElementById("prDesc").value);
-  const mexeuNome = desc !== prTxt(PR.descIni), mexeuNcm = document.getElementById("prNcm").value.replace(/\D/g, "") !== PR.ncmIni; // nome e NCM são campos comuns: só valem se você mexeu neles
+  const igualar = document.getElementById("prIgualar"), mexeuNome = desc !== prTxt(PR.descIni) || !!(igualar && igualar.checked), mexeuNcm = document.getElementById("prNcm").value.replace(/\D/g, "") !== PR.ncmIni; // nome e NCM são campos comuns: só valem se você mexeu neles
   if (mexeuNome && desc && desc !== prTxt(p.descricao)) { sets.push(`DESCRICAO = ${aspas(desc)}`, `DESCRICAO_RESUMIDA = ${aspas(desc.slice(0, 30))}`); oque.push("nome"); }
   const pc = prNum(q("pc").value), pv = prNum(q("pv").value), mudouPc = pc != null && pc > 0 && Math.abs(pc - (Number(p.preco_compra) || 0)) > 0.0005, mudouPv = pv != null && pv > 0 && Math.abs(pv - (Number(p.preco_venda) || 0)) > 0.005;
   if (mudouPc) { sets.push(`PRECO_COMPRA = ${pc.toFixed(3)}`); oque.push("custo"); }

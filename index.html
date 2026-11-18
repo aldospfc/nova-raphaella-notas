@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="43">
+<meta name="versao" content="44">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -182,11 +182,12 @@
   <div class="painel linha" style="gap:10px;flex-wrap:wrap;align-items:center">
    <label>Período <select id="fBolPer"><option value="">Todos</option><option value="venc">Vencidos</option><option value="hoje">Hoje</option><option value="sem">Esta semana</option><option value="psem">Próxima semana</option><option value="mes">Este mês</option><option value="pmes">Próximo mês</option><option value="dia">Um dia…</option><option value="omes">Um mês…</option><option value="faixa">Entre datas…</option></select></label>
    <input type="date" id="fBolDia" style="display:none"><input type="month" id="fBolMes" style="display:none"><span id="fBolFaixa" style="display:none"><input type="date" id="fBolDe"> até <input type="date" id="fBolAte"></span>
+   <label>Loja <select id="fBolLoja"><option value="">Todas</option><option value="1">Loja 1</option><option value="2">Loja 2</option></select></label>
    <label>Fornecedor <select id="fBolForn" style="max-width:260px"><option value="">Todos</option></select></label>
    <a id="fBolLimpar" style="cursor:pointer;color:#0b57d0;display:none">limpar filtros</a>
    <span id="fBolTot" style="margin-left:auto"></span>
   </div>
-  <div class="rolagem"><table><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
+  <div class="rolagem"><table><thead><tr><th>Vencimento</th><th>Loja</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
  </div>
  <div id="vProdutos" style="display:none">
   <div class="painel"><b>Ajustar produto no Gestão</b> <span class="orig">— sem nota: nome, custo, venda, estoque, categoria, NCM/CEST, códigos auxiliares, ativar ou inativar</span>
@@ -1203,6 +1204,8 @@ function faixaBoletos(per) {
   if (per === "faixa") return [document.getElementById("fBolDe").value || "", document.getElementById("fBolAte").value || ""];
   return ["", ""];
 }
+// de qual loja é o boleto: jogo da Loja 2 (mesmo pedido nas duas lojas ou duas notas) ou nota lançada só na Loja 2
+const lojaBoleto = x => x.b.l2 || (x.n.cfg && x.n.cfg.gDest === "2") ? 2 : 1;
 function desenharBoletos() {
   if (vista !== "boletos") return;
   const todos = todosBoletos(), abertos_ = todos.filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
@@ -1213,16 +1216,16 @@ function desenharBoletos() {
   // filtros: período (pelo vencimento) e fornecedor
   const selF = document.getElementById("fBolForn"), fornAtual = selF.value, forns = [...new Set(todos.map(x => x.n.emit || "").filter(Boolean))].sort((a, b) => a.localeCompare(b));
   if (selF.dataset.l !== forns.join("|")) { selF.dataset.l = forns.join("|"); selF.innerHTML = `<option value="">Todos</option>` + forns.map(f => `<option value="${h(f)}">${h(f)}</option>`).join(""); selF.value = forns.includes(fornAtual) ? fornAtual : ""; }
-  const per = document.getElementById("fBolPer").value, [de, ate] = faixaBoletos(per), forn = selF.value;
+  const per = document.getElementById("fBolPer").value, [de, ate] = faixaBoletos(per), forn = selF.value, lj = Number(document.getElementById("fBolLoja").value);
   document.getElementById("fBolDia").style.display = per === "dia" ? "" : "none"; document.getElementById("fBolMes").style.display = per === "omes" ? "" : "none"; document.getElementById("fBolFaixa").style.display = per === "faixa" ? "" : "none";
-  document.getElementById("fBolLimpar").style.display = per || forn ? "" : "none";
-  const lista = base.filter(x => (!forn || x.n.emit === forn) && (!per || (x.b.venc && (!de || x.b.venc >= de) && (!ate || x.b.venc <= ate) && (per !== "venc" || !x.b.pago))));
+  document.getElementById("fBolLimpar").style.display = per || forn || lj ? "" : "none";
+  const lista = base.filter(x => (!forn || x.n.emit === forn) && (!lj || lojaBoleto(x) === lj) && (!per || (x.b.venc && (!de || x.b.venc >= de) && (!ate || x.b.venc <= ate) && (per !== "venc" || !x.b.pago))));
   const abertosF = lista.filter(x => !x.b.pago);
-  document.getElementById("fBolTot").innerHTML = per || forn ? `<b>${lista.length}</b> boleto(s) no filtro · em aberto <b>R$ ${br(soma(abertosF))}</b>` + (lista.length > abertosF.length ? ` · pagos R$ ${br(soma(lista.filter(x => x.b.pago)))}` : "") + (per && de && ate && de !== ate ? ` <span class="orig">(${dataBr(de)} a ${dataBr(ate)})</span>` : "") : "";
-  if (!lista.length) tb.innerHTML = `<tr><td colspan="8"><i>${per || forn ? "Nenhum boleto nesse filtro." : db ? "Nenhum boleto em aberto." : "Sem armazenamento compartilhado, aparecem aqui só os boletos da nota aberta."}</i></td></tr>`;
+  document.getElementById("fBolTot").innerHTML = per || forn || lj ? `<b>${lista.length}</b> boleto(s) no filtro · em aberto <b>R$ ${br(soma(abertosF))}</b>` + (lista.length > abertosF.length ? ` · pagos R$ ${br(soma(lista.filter(x => x.b.pago)))}` : "") + (per && de && ate && de !== ate ? ` <span class="orig">(${dataBr(de)} a ${dataBr(ate)})</span>` : "") : "";
+  if (!lista.length) tb.innerHTML = `<tr><td colspan="9"><i>${per || forn || lj ? "Nenhum boleto nesse filtro." : db ? "Nenhum boleto em aberto." : "Sem armazenamento compartilhado, aparecem aqui só os boletos da nota aberta."}</i></td></tr>`;
   for (const x of lista) {
     const [txtS, cls] = sitBoleto(x.b), tr = document.createElement("tr");
-    tr.innerHTML = `<td>${dataBr(x.b.venc) || "-"}</td><td>${h(x.n.emit)}</td><td><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a></td><td>${h(x.b.n || x.i + 1)}</td><td class="n">${br(aPagar(x.n, x.b))}${x.b.nf && fbDe(x.n) > 1 ? '<div class="orig">meia nota</div>' : ""}</td><td class="n">${x.b.p2 ? "<b>" + br(x.b.p2) + `</b><div class="orig"><label><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : x.b.l2 ? '<span class="orig">boleto da Loja 2</span>' : ""}</td><td><span class="chip ${cls}">${txtS}</span></td><td><input type="checkbox"${x.b.pago ? " checked" : ""}></td>`;
+    tr.innerHTML = `<td>${dataBr(x.b.venc) || "-"}</td><td>${lojaBoleto(x) === 2 ? '<span class="chip" style="background:#f3f0ff">Loja 2</span>' : "Loja 1"}</td><td>${h(x.n.emit)}</td><td><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a></td><td>${h(x.b.n || x.i + 1)}</td><td class="n">${br(aPagar(x.n, x.b))}${x.b.nf && fbDe(x.n) > 1 ? '<div class="orig">meia nota</div>' : ""}</td><td class="n">${x.b.p2 ? "<b>" + br(x.b.p2) + `</b><div class="orig"><label><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : x.b.l2 ? '<span class="orig">boleto da Loja 2</span>' : ""}</td><td><span class="chip ${cls}">${txtS}</span></td><td><input type="checkbox"${x.b.pago ? " checked" : ""}></td>`;
     tr.querySelector("a").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(x.n.id); });
     tr.querySelector("input:not([data-rec])").addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { pago: ev.target.checked ? new Date().toISOString() : null }));
     const rc = tr.querySelector("[data-rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { rec: ev.target.checked ? new Date().toISOString() : null }));
@@ -1761,8 +1764,8 @@ document.getElementById("vdCpQ").addEventListener("input", () => { if (!VD.cpBus
 document.getElementById("vdCpQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); vdBuscarCupons(); } });
 document.getElementById("vdCpBuscar").addEventListener("click", vdBuscarCupons);
 document.getElementById("vdCpLimpar").addEventListener("click", () => { document.getElementById("vdCpQ").value = ""; VD.cpBusca = null; vdCupons(); });
-for (const id of ["fBolPer", "fBolDia", "fBolMes", "fBolDe", "fBolAte", "fBolForn"]) document.getElementById(id).addEventListener("change", () => desenharBoletos());
-document.getElementById("fBolLimpar").addEventListener("click", () => { document.getElementById("fBolPer").value = ""; document.getElementById("fBolForn").value = ""; desenharBoletos(); });
+for (const id of ["fBolPer", "fBolDia", "fBolMes", "fBolDe", "fBolAte", "fBolForn", "fBolLoja"]) document.getElementById(id).addEventListener("change", () => desenharBoletos());
+document.getElementById("fBolLimpar").addEventListener("click", () => { document.getElementById("fBolPer").value = ""; document.getElementById("fBolForn").value = ""; document.getElementById("fBolLoja").value = ""; desenharBoletos(); });
 document.getElementById("vdDia").addEventListener("change", vdCarregar);
 document.getElementById("vdLoja").addEventListener("change", vdCarregar);
 document.getElementById("vdHoje").addEventListener("click", () => { document.getElementById("vdDia").value = vdIso(new Date()); vdCarregar(); });

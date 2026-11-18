@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="46">
+<meta name="versao" content="47">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -524,9 +524,10 @@ function desenhar() {
       <td class="n" data-o="custoItem"></td><td class="n custo" data-o="custoUn"></td>
       <td class="n"><input class="p" type="number" min="0" step="any" data-c="mk" placeholder="${gMk()}"></td>
       <td class="n"><input class="p" type="text" inputmode="decimal" data-c="pv" style="width:64px"><div class="orig" data-o="mg"></div></td>
-      <td class="n c2" style="white-space:nowrap"><span data-o="l2in"><input class="p" type="number" min="0" step="1" data-c="l2e" style="width:46px" placeholder="emb" title="embalagens fechadas para a Loja 2"> + <input class="p" type="number" min="0" step="1" data-c="l2u" style="width:46px" placeholder="un" title="unidades avulsas para a Loja 2"></span><div data-o="e2in" style="display:none;margin-top:2px"><input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-c="ean2" style="width:118px" placeholder="cód. na Loja 2" title="o código deste item é interno da Loja 1; informe o código de barras deste produto no Gestão da Loja 2"></div><div class="orig" data-o="l2"></div></td>
+      <td class="n c2" style="white-space:nowrap"><span data-o="l2in"><input class="p" type="number" min="0" step="1" data-c="l2e" style="width:46px" placeholder="emb" title="embalagens fechadas para a Loja 2"> + <input class="p" type="number" min="0" step="1" data-c="l2u" style="width:46px" placeholder="un" title="unidades avulsas para a Loja 2"></span><div data-o="e2in" style="display:none;margin-top:2px"><input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-c="ean2" style="width:118px" placeholder="cód. na Loja 2" title="o código deste item é interno da Loja 1; informe o código de barras deste produto no Gestão da Loja 2"><br><a href="#" data-g2 style="font-size:11px" title="cria um código da casa (faixa 040) para este produto na Loja 2, sem precisar abrir o Gestão de lá">gerar código para a Loja 2</a></div><div class="orig" data-o="l2"></div></td>
       <td class="n c2"><input class="p" type="text" inputmode="decimal" data-c="pv2" style="width:64px" placeholder="igual"><div class="orig" data-o="mg2"></div></td>`;
     tb.appendChild(tr);
+    { const g2 = tr.querySelector("[data-g2]"); if (g2) g2.addEventListener("click", ev => { ev.preventDefault(); gerarLoja2(it); }); }
     for (const inp of tr.querySelectorAll("input")) {
       const c = inp.dataset.c; inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? "");
       inp.addEventListener("input", () => {
@@ -574,7 +575,7 @@ function atualizarLinha(it) {
     if (interno && !it.ean2) { const g = equiv.get(String(principalDe(it)).padStart(13, "0")), i2 = tr.querySelector("[data-c=ean2]"); if (g && i2 !== document.activeElement) { it.ean2 = g; if (i2) i2.value = g; } }
     o("l2").innerHTML = dst === "duas" ? (it.so2 ? `<span class="chip" style="background:#4b3fa3;color:#fff">só na nota da Loja 2</span><br><b>${br(q2, 0)}</b> un · custo ${br(k.custoUn, 4)}` : k2 ? `Loja 2: <b>${br(q2, 0)}</b> un<br>custo ${Math.abs(k2.custoUn - k.custoUn) > 0.00005 ? `<b title="custo diferente do da Loja 1 (${br(k.custoUn, 4)})">${br(k2.custoUn, 4)}</b>` : br(k2.custoUn, 4)}` : `<span class="orig">não veio na nota da Loja 2</span>`) : dst === "ambas" ? `<b>${br(k.qtdUn, 0)}</b> un em cada loja` : dst === "2" ? `<b>${br(k.qtdUn, 0)}</b> un, tudo na Loja 2` : bruto > k.qtdUn ? `<span class="chip falta">passa do que veio (${br(k.qtdUn, 0)})</span>` : bruto ? `Loja 2: <b>${br(q2, 0)}</b> un · Loja 1: <b>${br(k.qtdUn - q2, 0)}</b> un` : `tudo na Loja 1 (${br(k.qtdUn, 0)} un)`;
     const e1 = tr.querySelector("[data-c=l2e]"); if (e1) e1.style.visibility = it.div > 1 ? "" : "hidden";
-    if (interno && !c2_ && q2 > 0) o("l2").innerHTML += `<br><span class="chip falta" title="código interno (000000000…) é uma numeração de cada loja: na Loja 2 esse mesmo número pode ser outro produto">código interno da Loja 1 — informe o código da Loja 2, senão este item não vai para lá</span>`;
+    if (interno && !c2_ && q2 > 0) o("l2").innerHTML += `<br><span class="chip falta" title="código interno (000000000…) é uma numeração de cada loja: na Loja 2 esse mesmo número pode ser outro produto">código interno da Loja 1 — informe ou gere o código da Loja 2, senão este item não vai para lá</span>`;
     else if (interno && it.ean2 && !gtinValido(it.ean2)) o("l2").innerHTML += `<br><span class="chip falta">código da Loja 2 inválido</span>`;
     const cu2 = dst === "duas" ? (k2 ? k2.custoUn : 0) : k.custoUn;
     tr.querySelector("[data-c=pv2]").style.visibility = dst === "duas" && !k2 ? "hidden" : "";
@@ -654,6 +655,28 @@ async function gerarInterno(it) {
   try { if (db) await db.doc("contador/ean_interno").set({ ult: novo, em: new Date().toISOString() }); } catch (e) {}
   usarEan(it, novo);
   msg(`Código interno ${novo} criado para o item ${rot(it)}. Para juntar outras cores no mesmo produto, repita esse código nelas.`);
+}
+// código para o produto na Loja 2 quando o da Loja 1 é interno antigo (000000000xxxx): usa a numeração da casa (040), que não se repete
+let gerando2 = false;
+async function gerarLoja2(it) {
+  if (gerando2) return;
+  if (it.ean2 && gtinValido(it.ean2) && !confirm("Este item já tem o código " + it.ean2 + " para a Loja 2. Trocar por um novo?")) return;
+  if (!supa) return msg("Sem conexão com a nuvem para gerar o código. Tente de novo em instantes.");
+  gerando2 = true;
+  try {
+    let novo = null, erro = null;
+    for (let t = 0; t < 5 && !novo; t++) {
+      const { data, error } = await supa.rpc("proximo_ean_casa");
+      if (error || !(Number(data) > 0)) { erro = error; break; }
+      const c = eanCasa(Number(data));
+      if (!((cadIdx && cadIdx.has(chave13(c))) || (cad2Info && cad2Info.has(chave13(c))))) novo = c;
+    }
+    if (!novo) return msg("Não consegui gerar o código agora" + (erro ? " (" + erro.message + ")" : "") + ". Tente de novo.");
+    it.ean2 = novo; const i2 = document.querySelector(`#l${it.n} [data-c=ean2]`); if (i2) i2.value = novo;
+    guardarEquiv(principalDe(it), novo);
+    atualizarLinha(it); totais(); guardar(it);
+    msg(`Código ${novo} criado para o item ${rot(it)} na Loja 2. No envio ele é cadastrado lá como produto novo, e fica guardado para as próximas notas.`);
+  } finally { gerando2 = false; }
 }
 function usarAuxiliar(it, ePrincipal) {
   if (!it.ean) { it.ean = it.eanNota || ""; const i = document.querySelector(`#l${it.n} [data-c=ean]`); if (i) i.value = it.ean; }

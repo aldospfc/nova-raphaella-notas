@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="40">
+<meta name="versao" content="41">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -550,7 +550,7 @@ function atualizarLinha(it) {
     const cu2 = dst === "duas" ? (k2 ? k2.custoUn : 0) : k.custoUn;
     tr.querySelector("[data-c=pv2]").style.visibility = dst === "duas" && !k2 ? "hidden" : "";
     tr.classList.toggle("so2", dst === "duas" && !!it.so2);
-    o("mg2").innerHTML = (cu2 > 0 ? `margem ${br((1 - cu2 / v2) * 100, 1)}%` : "") + (!cad2Info ? "<br>carregando Loja 2…" : !it.ean ? "" : p2 ? `<br><span title="como está no Gestão da Loja 2 hoje">hoje L2: venda <b>${br(p2[4] ?? 0)}</b> · est. ${br(p2[2] ?? 0, 0)}</span>` : (bruto ? `<br><span class="chip novo" style="padding:0 4px">novo na Loja 2</span>` + (catLoja2(it).ok ? "" : ` <span class="chip av" style="padding:0 4px" title="não achei na Loja 2 uma categoria com o mesmo nome; o produto entra na categoria padrão de lá">categoria padrão</span>`) : ""));
+    o("mg2").innerHTML = (cu2 > 0 && v2 > 0 ? `<span title="markup = quanto o preço de venda está acima do custo: (venda ÷ custo − 1). Margem sobre a venda: ${br((1 - cu2 / v2) * 100, 1)}%">markup ${br((v2 / cu2 - 1) * 100, 1)}%</span>` : "") + (!cad2Info ? "<br>carregando Loja 2…" : !it.ean ? "" : p2 ? `<br><span title="como está no Gestão da Loja 2 hoje">hoje L2: venda <b>${br(p2[4] ?? 0)}</b> · est. ${br(p2[2] ?? 0, 0)}</span>` : (bruto ? `<br><span class="chip novo" style="padding:0 4px">novo na Loja 2</span>` + (catLoja2(it).ok ? "" : ` <span class="chip av" style="padding:0 4px" title="não achei na Loja 2 uma categoria com o mesmo nome; o produto entra na categoria padrão de lá">categoria padrão</span>`) : ""));
   }
   const pj = infoDe(it);
   { // nome que está hoje no Gestão e opção de trocar pelo nome digitado
@@ -563,7 +563,7 @@ function atualizarLinha(it) {
       const un = e.querySelector("[data-un]"); if (un) un.addEventListener("click", () => { it.desc = atual.slice(0, 60); it.descTocada = true; it.an = 0; const i = tr.querySelector("[data-c=desc]"); if (i) i.value = it.desc; atualizarLinha(it); guardar(it); });
     }
   }
-  o("mg").innerHTML = `margem ${br(k.margem, 1)}%` + (it.pv != null ? " · preço fixado" : "") +
+  o("mg").innerHTML = (k.custoUn > 0 && k.venda > 0 ? `<span title="markup = quanto o preço de venda está acima do custo: (venda ÷ custo − 1). Margem sobre a venda: ${br(k.margem, 1)}%">markup ${br((k.venda / k.custoUn - 1) * 100, 1)}%</span>` : "markup —") + (it.pv != null ? " · preço fixado" : "") +
     (pj && pj[2] != null ? `<br><span title="como está no Gestão hoje">hoje: custo <b>${br(pj[3] ?? 0)}</b> · venda <b>${br(pj[4] ?? 0)}</b> · est. ${br(pj[2], 0)}</span>` +
       (pj[4] > 0 && Math.abs(k.venda - pj[4]) >= 0.01 ? ` <span class="chip ${k.venda > pj[4] ? "av" : "ok"}" style="padding:0 4px">venda ${k.venda > pj[4] ? "sobe" : "cai"} ${br(Math.abs(k.venda / pj[4] - 1) * 100, 0)}%</span>` : "") : "");
   const duv = duvidaDivisor(it.xprod, it.div);

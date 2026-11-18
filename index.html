@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="39">
+<meta name="versao" content="40">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -103,6 +103,7 @@
     <div class="linha">
       <label class="c">Abrir uma nota nova (XML da NF-e)<input type="file" id="fXml" accept=".xml"></label>
       <button id="bManual" class="sec">Nova entrada sem nota</button>
+      <button id="bRom" class="sec" title="a IA lê o romaneio, pedido ou DANFE (PDF ou fotos), confere os totais e abre como entrada sem XML para você revisar">Entrada por romaneio (PDF ou foto)</button><input type="file" id="fRom" accept="application/pdf,image/*" multiple style="display:none">
       <label class="c" id="lCad">Cadastro do Gestão (cadastro_gestao.json)<input type="file" id="fCad" accept=".json"></label>
       <span id="stCad" class="orig"></span>
       <span id="stSync" class="chip av">conectando…</span>
@@ -143,6 +144,7 @@
       <label class="c" style="display:inline-flex">Reabrir trabalho<input type="file" id="fTrab" accept=".json"></label></span>
     </div>
     <div class="painel"><div class="resumo" id="tot"></div><div id="avisos" class="aviso" style="margin-top:6px"></div></div>
+    <div class="painel" id="romInfo" style="display:none;background:#fffbea"></div>
     <div class="painel" id="pBol"></div>
     <div class="painel linha" id="pAdd" style="display:none">
       <label class="c">Adicionar item: bipe ou digite o código de barras e aperte Enter<input type="text" id="addEan" class="mono" inputmode="numeric" maxlength="14" style="width:230px"></label>
@@ -1035,7 +1037,7 @@ async function abrirNota(chave, texto) {
     if (meta && meta.boletos === undefined && cab.dups && cab.dups.length) salvarMeta(chave, { boletos: cab.dups });
     else if (meta && meta.boletos && cab.dups && cab.dups.length && !meta.boletos.some(b => b.nf)) { const ns = new Set(cab.dups.map(d => d.n)); salvarMeta(chave, { boletos: meta.boletos.map(b => ns.has(b.n) ? { ...b, nf: 1 } : { ...b }) }); }
     prefNota = new Set(itens.map(i => chave13(i.eanNota).slice(-13).slice(0, 7)));
-    aplicarCadastro(); desenhar(); msg(""); avisoBaixa(); redesenharTudo(); desenharPar();
+    aplicarCadastro(); desenhar(); msg(""); avisoBaixa(); redesenharTudo(); desenharPar(); desenharRom();
     unsubItens = db.collection(`notas/${chave}/itens`).onSnapshot(s => {
       for (const c of s.docChanges()) {
         if (c.type !== "removed") { if (!c.doc.metadata.hasPendingWrites) aplicarRemoto(c.doc.data()); }
@@ -1728,6 +1730,82 @@ document.getElementById("vdLoja").addEventListener("change", vdCarregar);
 document.getElementById("vdHoje").addEventListener("click", () => { document.getElementById("vdDia").value = vdIso(new Date()); vdCarregar(); });
 document.getElementById("vdAnt").addEventListener("click", () => { const e = document.getElementById("vdDia"); e.value = vdMais(e.value || vdIso(new Date()), -1); vdCarregar(); });
 document.getElementById("vdProx").addEventListener("click", () => { const e = document.getElementById("vdDia"); e.value = vdMais(e.value || vdIso(new Date()), 1); vdCarregar(); });
+// ---------- entrada por romaneio: a IA lê o PDF ou as fotos e a tela abre como entrada sem XML, já conferida contra os totais impressos ----------
+const romB64 = f => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = () => ko(new Error("não consegui ler " + f.name)); r.readAsDataURL(f); });
+async function romArquivo(f) {
+  if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) { if (f.size > 12e6) throw new Error("o PDF passa de 12 MB; envie em partes"); return { tipo: "application/pdf", dados: await romB64(f) }; }
+  if (!/^image\//.test(f.type)) throw new Error("arquivo não aceito: " + f.name + " (use PDF ou foto)");
+  // foto: reduz para no máximo 2200 px no lado maior e converte para JPEG (mais leve e mais barato de ler)
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error("não consegui abrir a imagem " + f.name)); i.src = url; });
+    const e = Math.min(1, 2200 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+    c.width = Math.round(img.width * e); c.height = Math.round(img.height * e); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return { tipo: "image/jpeg", dados: c.toDataURL("image/jpeg", 0.88).split(",")[1] };
+  } finally { URL.revokeObjectURL(url); }
+}
+// confere o que a IA leu contra o que está impresso no rodapé do documento
+function romConferir(d, its) {
+  const n = v => (v == null || v === "" || isNaN(Number(v))) ? null : Number(v), T = d.totais || {};
+  const tot = x => n(x.vtotal) != null ? n(x.vtotal) : r2((n(x.qtd) || 0) * (n(x.vun) || 0));
+  const prod = r2(its.reduce((a, x) => a + tot(x), 0)), ipi = r2(its.reduce((a, x) => a + (n(x.ipi) || 0), 0)), st = r2(its.reduce((a, x) => a + (n(x.st) || 0), 0)), q = r2(its.reduce((a, x) => a + (n(x.qtd) || 0), 0));
+  const bol = r2((d.boletos || []).reduce((a, b) => a + (n(b.valor) || 0), 0)), geral = r2(prod + ipi + st + (n(T.frete) || 0) - (n(T.desconto) || 0));
+  const l = [], poe = (rot, lido, imp, casas) => l.push({ rot, lido, imp: n(imp), ok: n(imp) == null ? null : Math.abs(lido - n(imp)) <= (casas === 0 ? 0.001 : 0.05) });
+  poe("Soma dos itens", prod, T.produtos); if (ipi || n(T.ipi)) poe("Soma do IPI", ipi, T.ipi); if (st || n(T.st)) poe("Soma do ICMS-ST", st, T.st);
+  poe("Total do documento", geral, T.total); poe("Soma das quantidades", q, T.quantidade, 0);
+  if ((d.boletos || []).length) poe("Soma dos boletos", bol, T.total);
+  // linhas em que quantidade × unitário não fecha com o total da própria linha
+  const linhas = its.map((x, i) => ({ i: i + 1, d: String(x.desc || "").slice(0, 40), dif: n(x.vtotal) != null && n(x.vun) != null ? r2(n(x.qtd) * n(x.vun) - n(x.vtotal)) : 0 })).filter(x => Math.abs(x.dif) > 0.05);
+  return { l, linhas };
+}
+async function entradaPorRomaneio(files) {
+  if (!supa || !db) return msg("Entre no sistema para usar a leitura de romaneio.");
+  if (!files.length) return;
+  if (files.length > 10) return msg("Envie no máximo 10 arquivos por vez.");
+  msg("Lendo o romaneio com a IA… pode levar de 20 segundos a 2 minutos. Não feche a página.");
+  const arquivos = []; for (const f of files) arquivos.push(await romArquivo(f));
+  const { data, error } = await supa.functions.invoke("romaneio", { body: { arquivos } });
+  if (error) { let m = error.message || String(error); try { const j = await error.context.json(); if (j && j.msg) m = j.msg; } catch (e) {} return msg("Não consegui ler o romaneio: " + m); }
+  if (!data || !data.ok) return msg("Não consegui ler o romaneio: " + ((data && data.msg) || "resposta vazia"));
+  const d = data.dados || {}, its = (d.itens || []).filter(x => x && String(x.desc || "").trim() && Number(x.qtd) > 0);
+  if (!its.length) return msg("A IA não encontrou linhas de produto nesse documento. Confira se a foto está nítida e inteira.");
+  const conf = romConferir(d, its), dt = new Date(), p2 = v => String(v).padStart(2, "0");
+  const chave = `M${dt.getFullYear()}${p2(dt.getMonth() + 1)}${p2(dt.getDate())}-${p2(dt.getHours())}${p2(dt.getMinutes())}${p2(dt.getSeconds())}`;
+  const nome = ((d.fornecedor || "Romaneio") + (d.numero ? " " + d.numero : "")).replace(/\s+/g, " ").trim().slice(0, 60);
+  const boletos = (d.boletos || []).filter(b => Number(b.valor) > 0).map((b, i) => ({ n: String(b.n || String(i + 1).padStart(3, "0")).slice(0, 20), venc: /^\d{4}-\d{2}-\d{2}$/.test(b.venc || "") ? b.venc : "", valor: r2(Number(b.valor)), pago: null }));
+  const rom = { tipo: d.tipo || "", numero: d.numero || "", data: d.data || "", linhas: its.length, conf: conf.l, difLinhas: conf.linhas.slice(0, 30), obs: (d.obs || []).map(x => String(x).slice(0, 300)).slice(0, 20), cortado: !!data.cortado, arquivos: files.length };
+  await db.doc("notas/" + chave).set({ emit: nome, nnf: "sem nota", vNF: 0, itens: its.length, criado: dt.toISOString(), cfg: { ...cfgAtual(), gPct: 100, fb: 1, gDest: "1" }, boletos, rom });
+  listaNotas.push({ id: chave, emit: nome, nnf: "sem nota", criado: dt.toISOString(), boletos, rom });
+  const base = Date.now() * 10;
+  for (const [i, x] of its.entries()) {
+    const qtd = Number(x.qtd), vun = Number(x.vun) > 0 ? Number(x.vun) : (Number(x.vtotal) > 0 ? Number(x.vtotal) / qtd : 0), xprod = String(x.desc).replace(/\s+/g, " ").trim().slice(0, 120);
+    const it = itemManual({ n: base + i, xprod, qtd, vun: Math.round(vun * 1e6) / 1e6, vipi: r2(Number(x.ipi) || 0), vst: r2(Number(x.st) || 0), cod: String(x.cod || "").slice(0, 30) });
+    it.div = Number(x.emb) > 1 ? Math.round(Number(x.emb)) : (sugerirDivisor(xprod) || 1);
+    it.desc = limparDescricao(xprod, it.div);
+    const e = String(x.ean || "").replace(/\D/g, ""); if (e && gtinValido(e) && it.div === 1) it.ean = e; // código de barras da caixa não serve para a unidade
+    await db.doc(`notas/${chave}/itens/${idItem(it.n)}`).set(estadoItem(it));
+  }
+  await abrirNota(chave);
+  const ruins = conf.l.filter(c => c.ok === false).length;
+  msg(`Romaneio lido: ${its.length} linha(s). ` + (ruins ? `ATENÇÃO: ${ruins} conferência(s) não bateram — veja o quadro amarelo antes de enviar.` : "As conferências que deu para fazer bateram. Revise os itens, o divisor e os preços antes de enviar."));
+}
+function desenharRom() {
+  const e = document.getElementById("romInfo"); if (!e) return;
+  const m = cab && metaDe(cab.chave), r = m && m.rom;
+  if (!r) { e.style.display = "none"; e.innerHTML = ""; return; }
+  const linha = c => `<tr><td>${escH(c.rot)}</td><td class="n">${br(Number(c.lido))}</td><td class="n">${c.imp == null ? '<span class="orig">não aparece no documento</span>' : br(Number(c.imp))}</td><td>${c.ok == null ? "—" : c.ok ? '<span class="chip ok">bate</span>' : `<span class="chip falta">diferença de ${br(Math.abs(Number(c.lido) - Number(c.imp)))}</span>`}</td></tr>`;
+  e.style.display = "";
+  e.innerHTML = `<b>Entrada lida de romaneio pela IA</b> <span class="orig">— ${r.linhas} linha(s)${r.numero ? " · documento " + escH(r.numero) : ""}${r.data ? " · " + escH(dataBr(r.data)) : ""}. Confira com o papel antes de enviar: a leitura pode errar.</span>` +
+    `<table style="margin-top:6px;max-width:640px"><thead><tr><th>Conferência</th><th class="n">Lido pela IA</th><th class="n">Impresso</th><th></th></tr></thead><tbody>${(r.conf || []).map(linha).join("")}</tbody></table>` +
+    ((r.difLinhas || []).length ? `<div style="margin-top:6px"><b>Linhas em que quantidade × unitário não fecha com o total da linha:</b> ${r.difLinhas.map(x => `nº ${x.i} ${escH(x.d)} (${br(x.dif)})`).join("; ")}</div>` : "") +
+    (r.cortado ? `<div style="margin-top:6px"><span class="chip falta">a leitura foi cortada: o documento é grande demais para uma vez só; faltam itens no fim</span></div>` : "") +
+    ((r.obs || []).length ? `<div style="margin-top:6px"><b>Observações da leitura:</b><ul style="margin:4px 0 0 18px;padding:0">${r.obs.map(o => `<li>${escH(o)}</li>`).join("")}</ul></div>` : "");
+}
+document.getElementById("bRom").addEventListener("click", () => document.getElementById("fRom").click());
+document.getElementById("fRom").addEventListener("change", async ev => {
+  const fs = [...ev.target.files]; ev.target.value = "";
+  try { await entradaPorRomaneio(fs); } catch (e) { msg("Não consegui ler o romaneio: " + (e.message || e)); }
+});
 // ---------- leitura de código de barras pela câmera do celular ----------
 function carregaZXing() { return new Promise((ok, ko) => { if (window.ZXing) return ok(); const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; s.onload = () => ok(); s.onerror = () => ko(new Error("não consegui baixar o leitor de código de barras")); document.head.appendChild(s); }); }
 async function lerCamera(aoLer) {

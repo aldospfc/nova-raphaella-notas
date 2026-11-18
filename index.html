@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="38">
+<meta name="versao" content="39">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -39,6 +39,8 @@
   body.semBol #lBol, body.semBol #bAddBol { display: none; }
   td.cc { font-size: 13px; white-space: nowrap; }
   .c2 { display: none; background: #f3f0ff; }
+  tr.so2 td:not(.c2) { background: #faf8ff; }
+  tr.so2 td:first-child { box-shadow: inset 4px 0 0 #4b3fa3; }
   body.div2 .c2 { display: table-cell; }
   th.c2 { background: #4b3fa3 !important; color: #fff !important; }
   th.c2 small { color: #e3defc; font-weight: normal; }
@@ -122,7 +124,8 @@
       <label class="c">Acréscimo padrão sobre o custo (%)<input type="number" id="gMk" value="100" min="0" step="5" style="width:80px"></label>
       <label class="c">Arredondar venda para<select id="gArr"><option value="0">centavos</option><option value="0.1">R$ 0,10</option><option value="0.5" selected>R$ 0,50</option><option value="1">R$ 1,00</option></select></label>
       <label class="c">O que vai no XML<select id="gModo"><option value="A">A — só destrinchar (valores da nota)</option><option value="B">B — custo final embutido (IPI e DIFAL dentro do valor)</option></select></label>
-      <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option></select></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option><option value="duas">Duas notas: uma de cada loja</option></select></label>
+      <label class="c" id="lXml2" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="pedidos diferentes do mesmo fornecedor para as duas lojas: abra aqui a nota da Loja 2 e trabalhe as duas na mesma tela. Cada loja fica com a quantidade e o custo da sua própria nota.">Juntar a nota da Loja 2 <input type="file" id="fXml2" accept=".xml" style="max-width:190px"></label><span id="parInfo" class="orig"></span>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a coluna com o código / referência do produto no fornecedor"><input type="checkbox" id="gCod" style="width:18px;height:18px" checked> Mostrar código / referência</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
       <button id="bXml">Gerar XML ajustado</button>
@@ -352,7 +355,7 @@ function removerItem(it) {
   itens = itens.filter(x => x !== it); pend.delete(it.n); desenhar();
   if (db) { db.doc(`notas/${cab.chave}/itens/${idItem(it.n)}`).delete().catch(() => {}); const v = `${cab.chave}_${idItem(it.n)}`; if (valDocs.has(v)) db.doc("validades/" + v).delete().catch(() => {}); } else guardar();
 }
-const rot = it => it.m ? itens.indexOf(it) + 1 : it.n;
+const rot = it => it.m ? itens.indexOf(it) + 1 : it.so2 ? "L2·" + (it.n - 5000) : it.n;
 
 // ---------- leitura da nota ----------
 function lerNota(texto) {
@@ -534,15 +537,18 @@ function atualizarLinha(it) {
   if (iMk !== document.activeElement) iMk.value = it.pv != null ? k.acresc.toFixed(1) : (it.mk ?? "");
   iPv.style.fontWeight = it.pv != null ? "bold" : "";
   if (l2On()) {
-    const dst = destino(), q2 = qLojas(it, k)[1], bruto = dst === "div" ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
+    const dst = destino(), q2 = qLojas(it, k)[1], k2 = dst === "duas" ? calcL(it, 2) : null, bruto = dst === "div" ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
     o("l2in").style.display = dst === "div" ? "" : "none";
     o("e2in").style.display = interno ? "" : "none";
     if (interno && !it.ean2) { const g = equiv.get(String(principalDe(it)).padStart(13, "0")), i2 = tr.querySelector("[data-c=ean2]"); if (g && i2 !== document.activeElement) { it.ean2 = g; if (i2) i2.value = g; } }
-    o("l2").innerHTML = dst === "ambas" ? `<b>${br(k.qtdUn, 0)}</b> un em cada loja` : dst === "2" ? `<b>${br(k.qtdUn, 0)}</b> un, tudo na Loja 2` : bruto > k.qtdUn ? `<span class="chip falta">passa do que veio (${br(k.qtdUn, 0)})</span>` : bruto ? `Loja 2: <b>${br(q2, 0)}</b> un · Loja 1: <b>${br(k.qtdUn - q2, 0)}</b> un` : `tudo na Loja 1 (${br(k.qtdUn, 0)} un)`;
+    o("l2").innerHTML = dst === "duas" ? (it.so2 ? `<span class="chip" style="background:#4b3fa3;color:#fff">só na nota da Loja 2</span><br><b>${br(q2, 0)}</b> un · custo ${br(k.custoUn, 4)}` : k2 ? `Loja 2: <b>${br(q2, 0)}</b> un<br>custo ${Math.abs(k2.custoUn - k.custoUn) > 0.00005 ? `<b title="custo diferente do da Loja 1 (${br(k.custoUn, 4)})">${br(k2.custoUn, 4)}</b>` : br(k2.custoUn, 4)}` : `<span class="orig">não veio na nota da Loja 2</span>`) : dst === "ambas" ? `<b>${br(k.qtdUn, 0)}</b> un em cada loja` : dst === "2" ? `<b>${br(k.qtdUn, 0)}</b> un, tudo na Loja 2` : bruto > k.qtdUn ? `<span class="chip falta">passa do que veio (${br(k.qtdUn, 0)})</span>` : bruto ? `Loja 2: <b>${br(q2, 0)}</b> un · Loja 1: <b>${br(k.qtdUn - q2, 0)}</b> un` : `tudo na Loja 1 (${br(k.qtdUn, 0)} un)`;
     const e1 = tr.querySelector("[data-c=l2e]"); if (e1) e1.style.visibility = it.div > 1 ? "" : "hidden";
     if (interno && !c2_ && q2 > 0) o("l2").innerHTML += `<br><span class="chip falta" title="código interno (000000000…) é uma numeração de cada loja: na Loja 2 esse mesmo número pode ser outro produto">código interno da Loja 1 — informe o código da Loja 2, senão este item não vai para lá</span>`;
     else if (interno && it.ean2 && !gtinValido(it.ean2)) o("l2").innerHTML += `<br><span class="chip falta">código da Loja 2 inválido</span>`;
-    o("mg2").innerHTML = (k.custoUn > 0 ? `margem ${br((1 - k.custoUn / v2) * 100, 1)}%` : "") + (!cad2Info ? "<br>carregando Loja 2…" : !it.ean ? "" : p2 ? `<br><span title="como está no Gestão da Loja 2 hoje">hoje L2: venda <b>${br(p2[4] ?? 0)}</b> · est. ${br(p2[2] ?? 0, 0)}</span>` : (bruto ? `<br><span class="chip novo" style="padding:0 4px">novo na Loja 2</span>` + (catLoja2(it).ok ? "" : ` <span class="chip av" style="padding:0 4px" title="não achei na Loja 2 uma categoria com o mesmo nome; o produto entra na categoria padrão de lá">categoria padrão</span>`) : ""));
+    const cu2 = dst === "duas" ? (k2 ? k2.custoUn : 0) : k.custoUn;
+    tr.querySelector("[data-c=pv2]").style.visibility = dst === "duas" && !k2 ? "hidden" : "";
+    tr.classList.toggle("so2", dst === "duas" && !!it.so2);
+    o("mg2").innerHTML = (cu2 > 0 ? `margem ${br((1 - cu2 / v2) * 100, 1)}%` : "") + (!cad2Info ? "<br>carregando Loja 2…" : !it.ean ? "" : p2 ? `<br><span title="como está no Gestão da Loja 2 hoje">hoje L2: venda <b>${br(p2[4] ?? 0)}</b> · est. ${br(p2[2] ?? 0, 0)}</span>` : (bruto ? `<br><span class="chip novo" style="padding:0 4px">novo na Loja 2</span>` + (catLoja2(it).ok ? "" : ` <span class="chip av" style="padding:0 4px" title="não achei na Loja 2 uma categoria com o mesmo nome; o produto entra na categoria padrão de lá">categoria padrão</span>`) : ""));
   }
   const pj = infoDe(it);
   { // nome que está hoje no Gestão e opção de trocar pelo nome digitado
@@ -679,7 +685,7 @@ function desenharDetalhe(it) {
 }
 function totais() {
   let custo = 0, difal = 0, semEan = 0, novos = 0, un = 0;
-  for (const it of itens) { const k = calc(it); custo += k.custoItem; difal += k.difal; un += k.qtdUn; if (!it.ean || !gtinValido(it.ean)) semEan++; else if (cad && !it.aux && !buscaEan(it.ean)) novos++; }
+  for (const it of itens) { const k = calc(it); if (!(duasOn() && it.so2)) { custo += k.custoItem; difal += k.difal; un += k.qtdUn; } if (!it.ean || !gtinValido(it.ean)) semEan++; else if (cad && !it.aux && !buscaEan(it.ean)) novos++; }
   const base = cab.manual ? 0 : cab.vNF, ac = base ? (custo / base - 1) * 100 : 0;
   document.getElementById("tot").innerHTML =
     `<div><small>Itens</small><b>${itens.length}</b></div><div><small>Revisados</small><b>${itens.filter(i => i.rev).length} de ${itens.length}</b></div><div><small>Unidades</small><b>${br(un, 0)}</b></div>` +
@@ -825,7 +831,8 @@ function sqlPrecos(loja) {
     const ePr = codLoja(it, loja);
     if (!ePr || !it.ean || !gtinValido(it.ean) || visto.has(ePr)) continue;
     if (it.jg) continue;
-    const k = calc(it), custo = Math.round(k.custoUn * 1000) / 1000, venda = loja === 2 ? (it.pv2 ?? k.venda) : k.venda;
+    const k = calc(it), kL = calcL(it, loja); if (!kL) continue; // duas notas: o item não veio na nota desta loja
+    const custo = Math.round(kL.custoUn * 1000) / 1000, venda = loja === 2 ? (it.pv2 ?? k.venda) : k.venda;
     if (!(custo > 0) || !(venda > 0)) continue;
     if (loja === 2 && !(qLojas(it, k)[1] > 0) && it.pv2 == null) continue;
     if (loja === 1 && destino() === "2") continue; // na Loja 2 só mexe no que foi dividido ou teve preço digitado
@@ -900,7 +907,8 @@ function sqlEntrada(loja) {
     if (comAux) auxs.push([it.ean.padStart(13, "0"), ePr.padStart(13, "0")]);
     const qL = qLojas(it, k)[loja - 1]; if (!(qL > 0)) { if (comAux) auxs.pop(); continue; }
     itensDoEnvio[loja].push(it.n);
-    const vL = k.custoItem * qL / k.qtdUn, venL = loja === 2 ? (it.pv2 ?? k.venda) : k.venda, ecL = loja === 1 ? (it.ec ?? null) : null;
+    const kL = calcL(it, loja); if (!kL) { if (comAux) auxs.pop(); itensDoEnvio[loja].pop(); continue; }
+    const vL = duasOn() ? kL.custoItem : k.custoItem * qL / k.qtdUn, venL = loja === 2 ? (it.pv2 ?? k.venda) : k.venda, ecL = loja === 1 ? (it.ec ?? null) : null;
     const a = mapa.get(ePr);
     if (a) { a.qtd += qL; a.valor += vL; if (a.ec == null) a.ec = ecL; if (a.it.aux && !it.aux) a.it = it; }
     else mapa.set(ePr, { it, qtd: qL, valor: vL, venda: venL, ec: ecL });
@@ -1007,12 +1015,17 @@ function aplicarRemoto(g) {
 async function abrirNota(chave, texto) {
   try {
     if (unsubItens) unsubItens(); if (unsubNota) unsubNota(); unsubItens = unsubNota = null; pend.clear();
-    const meta = listaNotas.find(n => n.id === chave);
+    let meta = listaNotas.find(n => n.id === chave);
+    if (!meta && db) { try { const sd = await db.doc("notas/" + chave).get(); if (sd.exists) { meta = { id: chave, ...sd.data() }; listaNotas.push(meta); } } catch (e) {} }
     if (chave.startsWith("M")) { xmlTexto = ""; doc = null; cab = cabManual(chave, (meta && meta.emit) || "Entrada sem nota"); itens = []; }
     else {
     if (!texto) { const q = await db.collection(`notas/${chave}/xml`).get(); texto = q.docs.map(d => d.data().t).join(""); }
     if (!texto) return msg("Essa nota ainda está sendo enviada pelo outro PC. Tente de novo em instantes.");
     xmlTexto = texto; const r = lerNota(texto); doc = r.d; cab = r.c; itens = r.lista;
+    if (meta && meta.par) { // nota da Loja 2 trabalhada junto
+      const q2 = await db.collection(`notas/${chave}/xml2`).get(), t2 = q2.docs.map(d => d.data().t).slice(0, meta.par.partes || 999).join("");
+      if (t2) { juntarLoja2(itens, lerNota(t2).lista); cab.par = meta.par; }
+    }
     await carregarMemoria(cab.cnpj);
     }
     baixadoEm = (meta && meta.baixado) || null; envioAtual = (meta && meta.envio) || null; envio2Atual = (meta && meta.envio2) || null;
@@ -1022,7 +1035,7 @@ async function abrirNota(chave, texto) {
     if (meta && meta.boletos === undefined && cab.dups && cab.dups.length) salvarMeta(chave, { boletos: cab.dups });
     else if (meta && meta.boletos && cab.dups && cab.dups.length && !meta.boletos.some(b => b.nf)) { const ns = new Set(cab.dups.map(d => d.n)); salvarMeta(chave, { boletos: meta.boletos.map(b => ns.has(b.n) ? { ...b, nf: 1 } : { ...b }) }); }
     prefNota = new Set(itens.map(i => chave13(i.eanNota).slice(-13).slice(0, 7)));
-    aplicarCadastro(); desenhar(); msg(""); avisoBaixa(); redesenharTudo();
+    aplicarCadastro(); desenhar(); msg(""); avisoBaixa(); redesenharTudo(); desenharPar();
     unsubItens = db.collection(`notas/${chave}/itens`).onSnapshot(s => {
       for (const c of s.docChanges()) {
         if (c.type !== "removed") { if (!c.doc.metadata.hasPendingWrites) aplicarRemoto(c.doc.data()); }
@@ -1038,6 +1051,39 @@ async function abrirNota(chave, texto) {
       for (const it of itens) atualizarLinha(it); totais();
     }, () => {});
   } catch (e) { msg("Não consegui abrir a nota: " + (e.message || e.code)); }
+}
+// pedidos diferentes para as duas lojas: junta a nota da Loja 2 à nota (da Loja 1) que está aberta
+async function juntarNotaLoja2(texto) {
+  if (!cab || cab.manual || !db) return msg("Abra primeiro a nota da Loja 1; depois junte a da Loja 2.");
+  const r = lerNota(texto), ch = r.c.chave, chave = cab.chave;
+  if (!/^\d{44}$/.test(ch)) throw new Error("Não achei a chave de 44 dígitos da NF-e nesse arquivo.");
+  if (ch === chave) return msg('Esse é o mesmo XML que já está aberto. Para o mesmo pedido nas duas lojas, escolha "As duas lojas".');
+  sync("enviando a nota da Loja 2…", false);
+  const partes = []; for (let i = 0; i < texto.length; i += 100000) partes.push(texto.slice(i, i + 100000));
+  for (let i = 0; i < partes.length; i++) await db.doc(`notas/${chave}/xml2/p${String(i).padStart(3, "0")}`).set({ t: partes[i] });
+  const m = metaDe(chave) || {}, fica = (m.boletos || []).filter(b => !b.l2 || b.pago), novos = r.c.dups.map(d => ({ ...d, n: (d.n || "") + " L2", l2: 1 }));
+  destLocalEm = Date.now();
+  await salvarMeta(chave, { par: { chave: ch, nnf: r.c.nnf, vNF: r.c.vNF, emit: r.c.emit, partes: partes.length }, cfg: { ...cfgAtual(), gDest: "duas" }, boletos: [...fica, ...novos] });
+  destAplicado = null;
+  await abrirNota(chave);
+  const nB = itens.filter(i => i.so2).length, nAB = itens.filter(i => i.b).length;
+  msg(`Notas juntas: ${nAB} produto(s) nas duas notas, ${itens.length - nAB - nB} só na Loja 1 e ${nB} só na Loja 2. Cada loja entra com a quantidade e o custo da sua nota.`);
+}
+async function separarNotaLoja2() {
+  if (!cab || !cab.par) return;
+  if (!confirm("Tirar a nota da Loja 2 desta tela?\n\nO que você preencheu nos itens que são só da Loja 2 deixa de aparecer. Os boletos da Loja 2 ainda não pagos saem da lista.")) return;
+  const chave = cab.chave, m = metaDe(chave) || {};
+  destLocalEm = Date.now();
+  await salvarMeta(chave, { par: null, cfg: { ...cfgAtual(), gDest: "1" }, boletos: (m.boletos || []).filter(b => !b.l2 || b.pago) });
+  destAplicado = null;
+  await abrirNota(chave);
+}
+function desenharPar() {
+  const e = document.getElementById("parInfo"); if (!e) return;
+  const p = cab && cab.par;
+  document.getElementById("lXml2").style.display = cab && !cab.manual && db ? "" : "none";
+  e.innerHTML = p ? `junto: <b>NF ${escH(p.nnf)}</b> da Loja 2 (R$ ${br(Number(p.vNF) || 0)}) · <a id="parTira" style="cursor:pointer;color:#0b57d0">tirar</a>` : (duasOn() ? "escolha o XML da nota da Loja 2 ao lado" : "");
+  const a = document.getElementById("parTira"); if (a) a.onclick = () => separarNotaLoja2().catch(x => msg("Não consegui: " + (x.message || x)));
 }
 async function novaNota(texto) {
   const r = lerNota(texto), chave = r.c.chave;
@@ -1104,7 +1150,7 @@ function ajustarBoletosLojas() {
   if (!cab) return; const m = metaDe(cab.chave); if (!m) return;
   const bs = m.boletos || [], tem = bs.some(b => b.l2);
   if (destino() === "ambas" && !tem && bs.length) { salvarMeta(cab.chave, { cfg: cfgAtual(), boletos: [...bs, ...bs.map(b => ({ ...b, n: (b.n || "") + " L2", l2: 1, pago: null }))] }); msg("Boletos duplicados: um jogo para cada loja."); }
-  else if (destino() !== "ambas" && tem) { const fica = bs.filter(b => !b.l2 || b.pago); salvarMeta(cab.chave, { cfg: cfgAtual(), boletos: fica }); if (fica.length !== bs.length) msg("Boletos da Loja 2 (ainda não pagos) removidos."); }
+  else if (!["ambas", "duas"].includes(destino()) && tem) { const fica = bs.filter(b => !b.l2 || b.pago); salvarMeta(cab.chave, { cfg: cfgAtual(), boletos: fica }); if (fica.length !== bs.length) msg("Boletos da Loja 2 (ainda não pagos) removidos."); }
 }
 function desenharBoletosNota() {
   const p = document.getElementById("pBol"); if (!p || !cab) return;
@@ -1314,7 +1360,7 @@ async function enviarAoGestao(tipo, comPos) {
   if (tipo !== "precos" && falta && !confirm(`${falta} item(ns) vão ficar de fora por falta de código de barras válido ou quantidade.\nEnviar os demais?`)) return;
   if (tipo !== "precos" && dois) {
     const t = totaisLojas(); if (t.excede) return msg(`${t.excede} item(ns) com mais unidades para a Loja 2 do que vieram na nota. Corrija antes de enviar.`);
-    if (!confirm(`${dst === "ambas" ? "Entrada INTEIRA nas duas lojas" : dst === "2" ? "Entrada só na Loja 2" : "Dividir a entrada"}:\n\nLoja 1: ${br(t.un1, 0)} unidades (R$ ${br(t.custo1)})\nLoja 2: ${br(t.un2, 0)} unidades (R$ ${br(t.custo2)})\n\n${dst === "2" ? "Enviar para a Loja 2?" : "Enviar para as duas lojas?"}`)) return;
+    if (!confirm(`${dst === "duas" ? "Duas notas: cada loja recebe a quantidade e o custo da sua nota" : dst === "ambas" ? "Entrada INTEIRA nas duas lojas" : dst === "2" ? "Entrada só na Loja 2" : "Dividir a entrada"}:\n\nLoja 1: ${br(t.un1, 0)} unidades (R$ ${br(t.custo1)})\nLoja 2: ${br(t.un2, 0)} unidades (R$ ${br(t.custo2)})\n\n${dst === "2" ? "Enviar para a Loja 2?" : "Enviar para as duas lojas?"}`)) return;
   }
   const base = ((tipo === "precos" ? "Precos " : "Entrada ") + (cab.manual ? "sem nota" : "NF " + cab.nnf) + " - " + semAcento(cab.emit)).slice(0, 110);
   msg("Enviando…");
@@ -1716,7 +1762,7 @@ document.getElementById("addCam").addEventListener("click", () => lerCamera(c =>
 // ---------- divisão com a Loja 2 ----------
 let destAplicado = "1", destLocalEm = 0;
 function aplicarDest(d) {
-  if (!["1", "div", "ambas", "2"].includes(d)) d = "1";
+  if (!["1", "div", "ambas", "2", "duas"].includes(d)) d = "1";
   const e = document.getElementById("gDest"); if (e.value !== d) e.value = d;
   if (destAplicado === d) return;
   destAplicado = d; const on = d !== "1";
@@ -1742,8 +1788,28 @@ const div2On = () => destino() === "div";   // dividindo: aparecem os campos de 
 const l2On = () => destino() !== "1";       // a Loja 2 participa: aparece a coluna de venda da Loja 2
 const destDeCfg = c => (c && (c.gDest || (c.gDiv2 ? "div" : "1"))) || "1";
 // quantas unidades de cada item vão para [Loja 1, Loja 2]
+// modo "duas notas": cada loja tem a sua nota. it.b = os valores do mesmo produto na nota da Loja 2; it.so2 = item que só veio na nota da Loja 2
+const duasOn = () => destino() === "duas";
+const ladoB = it => ({ ...it, qtd: it.b.qtd, vun: it.b.vun, vprod: it.b.vprod, vdesc: it.b.vdesc, vfrete: it.b.vfrete, voutro: it.b.voutro, vipi: it.b.vipi, vst: it.b.vst, fd: it.b.fd });
+// cálculo (quantidade e custo) do item para uma loja; null = o item não é dessa loja
+function calcL(it, loja) {
+  if (!duasOn()) return calc(it);
+  if (loja === 2) return it.so2 ? calc(it) : it.b ? calc(ladoB(it)) : null;
+  return it.so2 ? null : calc(it);
+}
+function juntarLoja2(lista, listaB) {
+  const livre = new Set(lista), porEan = new Map(), porCod = new Map();
+  for (const a of lista) { if (gtinValido(a.eanNota || "")) { const k = chave13(a.eanNota); if (!porEan.has(k)) porEan.set(k, []); porEan.get(k).push(a); } if (a.cod) { if (!porCod.has(a.cod)) porCod.set(a.cod, []); porCod.get(a.cod).push(a); } }
+  const acha = l => (l || []).find(a => livre.has(a));
+  for (const b of listaB) {
+    const a = (gtinValido(b.eanNota || "") && acha(porEan.get(chave13(b.eanNota)))) || (b.cod && acha(porCod.get(b.cod))) || null;
+    if (a) { livre.delete(a); a.b = { n: b.n, qtd: b.qtd, vun: b.vun, vprod: b.vprod, vdesc: b.vdesc, vfrete: b.vfrete, voutro: b.voutro, vipi: b.vipi, vst: b.vst, fd: b.fd }; }
+    else { b.n = 5000 + b.n; b.so2 = true; lista.push(b); }
+  }
+}
 function qLojas(it, k) {
   const d = destino();
+  if (d === "duas") { const k2 = calcL(it, 2); return [it.so2 ? 0 : k.qtdUn, k2 ? k2.qtdUn : 0]; }
   if (d === "ambas") return [k.qtdUn, k.qtdUn];
   if (d === "2") return [0, k.qtdUn];
   const q2 = q2De(it, k); return [k.qtdUn - q2, q2];
@@ -1779,6 +1845,10 @@ function catLoja2(it) {
 }
 function totaisLojas() {
   let un1 = 0, un2 = 0, custo1 = 0, custo2 = 0, nota = 0, nota2 = 0, excede = 0, difal2 = 0;
+  if (duasOn()) {
+    for (const it of itens) { const k1 = calcL(it, 1), k2 = calcL(it, 2); if (k1) { un1 += k1.qtdUn; custo1 += k1.custoItem; } if (k2) { un2 += k2.qtdUn; custo2 += k2.custoItem; } }
+    return { un1, un2, custo1: r2(custo1), custo2: r2(custo2), fracao: 0, difal2: 0, excede: 0 };
+  }
   for (const it of itens) {
     const k = calc(it), [q1, q2] = qLojas(it, k), fr = k.qtdUn > 0 ? q2 / k.qtdUn : 0, fr1 = k.qtdUn > 0 ? q1 / k.qtdUn : 0;
     if (div2On() && q2Bruto(it) > k.qtdUn) excede++;
@@ -2032,8 +2102,12 @@ document.getElementById("bManual").addEventListener("click", () => { const p = d
 document.getElementById("bCriaManual").addEventListener("click", () => { document.getElementById("pNome").style.display = "none"; novaManual().catch(e => msg("Não consegui criar a entrada: " + (e.message || e.code))); });
 document.getElementById("addEan").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const v = ev.target.value.trim(); if (v) { adicionarItem(v); ev.target.value = ""; } } });
 document.getElementById("bAddSem").addEventListener("click", () => adicionarItem(""));
+document.getElementById("fXml2").addEventListener("change", async ev => {
+  const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+  try { await juntarNotaLoja2(await lerArquivo(f)); } catch (e) { msg("Não consegui juntar a nota da Loja 2: " + (e.message || e)); }
+});
 document.getElementById("gDest").addEventListener("change", async ev => {
-  aplicarDest(ev.target.value); if (!cab) return;
+  aplicarDest(ev.target.value); desenharPar(); if (!cab) return;
   destLocalEm = Date.now();
   if (db) { clearTimeout(tCfg); await salvarMeta(cab.chave, { cfg: cfgAtual() }); } else { guardar(); if (metaLocal) metaLocal.cfg = cfgAtual(); }
   ajustarBoletosLojas();

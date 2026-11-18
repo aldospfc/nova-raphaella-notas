@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="45">
+<meta name="versao" content="46">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -54,6 +54,25 @@
   td input.ean { width: 128px; }
   td input.p { width: 52px; text-align: right; }
   .orig { color: var(--cinza); font-size: 11px; margin-top: 2px; }
+  /* boletos em cartões */
+  .bgrupo { display: flex; align-items: baseline; gap: 10px; margin: 16px 2px 8px; }
+  .bgrupo b { font-size: 15px; } .bgrupo span { color: var(--cinza); font-size: 12px; } .bgrupo i { margin-left: auto; font-style: normal; font-weight: 600; }
+  .bcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+  .bcard { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px 10px 16px; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
+  .bcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: #94a3b8; }
+  .bcard.falta::before { background: #dc2626; } .bcard.av::before { background: #f59e0b; } .bcard.novo::before { background: #4f46e5; } .bcard.ok::before { background: #16a34a; }
+  .bcard.ok { opacity: .72; }
+  .bcard .topo { display: flex; align-items: center; gap: 8px; }
+  .bcard .dia { font-size: 19px; font-weight: 700; line-height: 1; } .bcard .sem { color: var(--cinza); font-size: 12px; }
+  .bcard .forn { font-weight: 600; font-size: 14px; line-height: 1.25; }
+  .bcard .det { color: var(--cinza); font-size: 12px; }
+  .bcard .val { font-size: 20px; font-weight: 700; }
+  .bcard .pe { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
+  .bcard .pagar { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--borda); border-radius: 999px; padding: 4px 12px; font-size: 12px; cursor: pointer; background: #f8fafc; user-select: none; }
+  .bcard .pagar:hover { background: #eef2f7; } .bcard .pagar input { width: 15px; height: 15px; margin: 0; }
+  .bcard .l2 { background: #f3f0ff; border-radius: 8px; padding: 5px 8px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+  .bvista { display: inline-flex; border: 1px solid var(--borda); border-radius: 999px; overflow: hidden; }
+  .bvista a { padding: 4px 12px; font-size: 12px; cursor: pointer; color: inherit; text-decoration: none; } .bvista a.on { background: #1e2a5a; color: #fff; }
   .chip { display: inline-block; font-size: 11px; border-radius: 9px; padding: 1px 7px; margin-top: 3px; }
   .chip.ok { background: #dcfce7; color: var(--ok); }
   .chip.novo { background: #e0e7ff; color: #3730a3; }
@@ -185,9 +204,11 @@
    <label>Loja <select id="fBolLoja"><option value="">Todas</option><option value="1">Loja 1</option><option value="2">Loja 2</option></select></label>
    <label>Fornecedor <select id="fBolForn" style="max-width:260px"><option value="">Todos</option></select></label>
    <a id="fBolLimpar" style="cursor:pointer;color:#0b57d0;display:none">limpar filtros</a>
+   <span class="bvista" title="como mostrar a lista"><a data-bv="cards">Cartões</a><a data-bv="tabela">Tabela</a></span>
    <span id="fBolTot" style="margin-left:auto"></span>
   </div>
-  <div class="rolagem"><table><thead><tr><th>Vencimento</th><th>Loja</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
+  <div id="bolCards"></div>
+  <div class="rolagem" id="bolTabela"><table><thead><tr><th>Vencimento</th><th>Loja</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
  </div>
  <div id="vProdutos" style="display:none">
   <div class="painel"><b>Ajustar produto no Gestão</b> <span class="orig">— sem nota: nome, custo, venda, estoque, categoria, NCM/CEST, códigos auxiliares, ativar ou inativar</span>
@@ -1222,6 +1243,33 @@ function desenharBoletos() {
   const lista = base.filter(x => (!forn || x.n.emit === forn) && (!lj || lojaBoleto(x) === lj) && (!per || (x.b.venc && (!de || x.b.venc >= de) && (!ate || x.b.venc <= ate) && (per !== "venc" || !x.b.pago))));
   const abertosF = lista.filter(x => !x.b.pago);
   document.getElementById("fBolTot").innerHTML = per || forn || lj ? `<b>${lista.length}</b> boleto(s) no filtro · em aberto <b>R$ ${br(soma(abertosF))}</b>` + (lista.length > abertosF.length ? ` · pagos R$ ${br(soma(lista.filter(x => x.b.pago)))}` : "") + (per && de && ate && de !== ate ? ` <span class="orig">(${dataBr(de)} a ${dataBr(ate)})</span>` : "") : "";
+  let bv = "cards"; try { bv = localStorage.getItem("entradaxml:bolVista") || "cards"; } catch (e) {}
+  for (const a of document.querySelectorAll(".bvista a")) a.classList.toggle("on", a.dataset.bv === bv);
+  const cx = document.getElementById("bolCards"); cx.innerHTML = ""; cx.style.display = bv === "cards" ? "" : "none"; document.getElementById("bolTabela").style.display = bv === "cards" ? "none" : "";
+  if (bv === "cards") {
+    if (!lista.length) cx.innerHTML = `<div class="painel"><i>${per || forn || lj ? "Nenhum boleto nesse filtro." : "Nenhum boleto em aberto."}</i></div>`;
+    // grupos: vencidos, hoje, esta semana, próxima semana e depois mês a mês
+    const [s1, s2] = faixaBoletos("sem"), [p1, p2] = faixaBoletos("psem"), hojeIso = faixaBoletos("hoje")[0], MES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"], SEM = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+    const grupoDe = x => { const v = x.b.venc || ""; if (x.b.pago) return ["z" + v.slice(0, 7), "Pagos" + (v ? " · " + MES[Number(v.slice(5, 7)) - 1] + " " + v.slice(0, 4) : "")]; if (!v) return ["zz", "Sem vencimento"]; if (v < hojeIso) return ["a", "Vencidos"]; if (v === hojeIso) return ["b", "Hoje"]; if (v <= s2) return ["c", "Esta semana"]; if (v >= p1 && v <= p2) return ["d", "Próxima semana"]; return ["m" + v.slice(0, 7), MES[Number(v.slice(5, 7)) - 1] + " " + v.slice(0, 4)]; };
+    const grupos = new Map(); for (const x of lista) { const [k, rot] = grupoDe(x); if (!grupos.has(k)) grupos.set(k, { rot, l: [] }); grupos.get(k).l.push(x); }
+    for (const k of [...grupos.keys()].sort()) {
+      const g = grupos.get(k), cab_ = document.createElement("div"); cab_.className = "bgrupo";
+      cab_.innerHTML = `<b>${g.rot}</b><span>${g.l.length} boleto${g.l.length > 1 ? "s" : ""}</span><i>R$ ${br(soma(g.l))}</i>`; cx.appendChild(cab_);
+      const grade = document.createElement("div"); grade.className = "bcards"; cx.appendChild(grade);
+      for (const x of g.l) {
+        const [txtS, cls] = sitBoleto(x.b), c = document.createElement("div"), v = x.b.venc || "", l2_ = lojaBoleto(x) === 2; c.className = "bcard " + cls;
+        c.innerHTML = `<div class="topo"><span class="dia">${v ? v.slice(8, 10) + "/" + v.slice(5, 7) : "—"}</span><span class="sem">${v ? SEM[new Date(v + "T12:00:00").getDay()] : ""}</span><span class="chip ${cls}" style="margin:0 0 0 auto">${txtS}</span></div>` +
+          `<div class="forn">${h(x.n.emit)}</div><div class="det"><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a> · parcela ${h(x.b.n || x.i + 1)} · <span${l2_ ? ' style="color:#4b3fa3;font-weight:600"' : ""}>Loja ${l2_ ? 2 : 1}</span>${x.b.nf && fbDe(x.n) > 1 ? " · meia nota" : ""}</div>` +
+          (x.b.p2 ? `<div class="l2"><span>Loja 2 me paga <b>R$ ${br(x.b.p2)}</b></span><label style="margin-left:auto"><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : "") +
+          `<div class="pe"><span class="val">R$ ${br(aPagar(x.n, x.b))}</span><label class="pagar"><input type="checkbox" data-pago="1"${x.b.pago ? " checked" : ""}> ${x.b.pago ? "pago" : "marcar pago"}</label></div>`;
+        c.querySelector("a").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(x.n.id); });
+        c.querySelector("[data-pago]").addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { pago: ev.target.checked ? new Date().toISOString() : null }));
+        const rc = c.querySelector("[data-rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { rec: ev.target.checked ? new Date().toISOString() : null }));
+        grade.appendChild(c);
+      }
+    }
+    return;
+  }
   if (!lista.length) tb.innerHTML = `<tr><td colspan="9"><i>${per || forn || lj ? "Nenhum boleto nesse filtro." : db ? "Nenhum boleto em aberto." : "Sem armazenamento compartilhado, aparecem aqui só os boletos da nota aberta."}</i></td></tr>`;
   for (const x of lista) {
     const [txtS, cls] = sitBoleto(x.b), tr = document.createElement("tr");
@@ -1765,6 +1813,7 @@ document.getElementById("vdCpQ").addEventListener("keydown", ev => { if (ev.key 
 document.getElementById("vdCpBuscar").addEventListener("click", vdBuscarCupons);
 document.getElementById("vdCpLimpar").addEventListener("click", () => { document.getElementById("vdCpQ").value = ""; VD.cpBusca = null; vdCupons(); });
 for (const id of ["fBolPer", "fBolDia", "fBolMes", "fBolDe", "fBolAte", "fBolForn", "fBolLoja"]) document.getElementById(id).addEventListener("change", () => desenharBoletos());
+for (const a of document.querySelectorAll(".bvista a")) a.addEventListener("click", () => { try { localStorage.setItem("entradaxml:bolVista", a.dataset.bv); } catch (e) {} desenharBoletos(); });
 document.getElementById("fBolLimpar").addEventListener("click", () => { document.getElementById("fBolPer").value = ""; document.getElementById("fBolForn").value = ""; document.getElementById("fBolLoja").value = ""; desenharBoletos(); });
 document.getElementById("vdDia").addEventListener("change", vdCarregar);
 document.getElementById("vdLoja").addEventListener("change", vdCarregar);

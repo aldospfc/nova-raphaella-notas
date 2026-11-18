@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="42">
+<meta name="versao" content="43">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -179,6 +179,13 @@
  </div>
  <div id="vBoletos" style="display:none">
   <div class="painel linha"><div class="resumo" id="resBol"></div><label style="margin-left:auto"><input type="checkbox" id="fBolPagos"> mostrar pagos</label></div>
+  <div class="painel linha" style="gap:10px;flex-wrap:wrap;align-items:center">
+   <label>Período <select id="fBolPer"><option value="">Todos</option><option value="venc">Vencidos</option><option value="hoje">Hoje</option><option value="sem">Esta semana</option><option value="psem">Próxima semana</option><option value="mes">Este mês</option><option value="pmes">Próximo mês</option><option value="dia">Um dia…</option><option value="omes">Um mês…</option><option value="faixa">Entre datas…</option></select></label>
+   <input type="date" id="fBolDia" style="display:none"><input type="month" id="fBolMes" style="display:none"><span id="fBolFaixa" style="display:none"><input type="date" id="fBolDe"> até <input type="date" id="fBolAte"></span>
+   <label>Fornecedor <select id="fBolForn" style="max-width:260px"><option value="">Todos</option></select></label>
+   <a id="fBolLimpar" style="cursor:pointer;color:#0b57d0;display:none">limpar filtros</a>
+   <span id="fBolTot" style="margin-left:auto"></span>
+  </div>
   <div class="rolagem"><table><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
  </div>
  <div id="vProdutos" style="display:none">
@@ -1179,14 +1186,40 @@ function todosBoletos() {
   const out = []; for (const n of fonteNotas()) (n.boletos || []).forEach((b, i) => out.push({ n, i, b }));
   return out.sort((x, y) => (x.b.venc || "9999").localeCompare(y.b.venc || "9999"));
 }
+// intervalo de vencimento [de, até] (AAAA-MM-DD) para o filtro de período dos boletos; semana = segunda a domingo
+function faixaBoletos(per) {
+  const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const hj = new Date(); hj.setHours(12, 0, 0, 0);
+  const mais = n => { const d = new Date(hj); d.setDate(d.getDate() + n); return d; }, seg = -((hj.getDay() + 6) % 7);
+  const mes = (a, m) => [iso(new Date(a, m, 1, 12)), iso(new Date(a, m + 1, 0, 12))];
+  if (per === "venc") return ["", iso(mais(-1))];
+  if (per === "hoje") return [iso(hj), iso(hj)];
+  if (per === "sem") return [iso(mais(seg)), iso(mais(seg + 6))];
+  if (per === "psem") return [iso(mais(seg + 7)), iso(mais(seg + 13))];
+  if (per === "mes") return mes(hj.getFullYear(), hj.getMonth());
+  if (per === "pmes") return mes(hj.getFullYear(), hj.getMonth() + 1);
+  if (per === "dia") { const v = document.getElementById("fBolDia").value || iso(hj); return [v, v]; }
+  if (per === "omes") { const v = document.getElementById("fBolMes").value; if (!/^\d{4}-\d{2}$/.test(v)) return mes(hj.getFullYear(), hj.getMonth()); return mes(Number(v.slice(0, 4)), Number(v.slice(5)) - 1); }
+  if (per === "faixa") return [document.getElementById("fBolDe").value || "", document.getElementById("fBolAte").value || ""];
+  return ["", ""];
+}
 function desenharBoletos() {
   if (vista !== "boletos") return;
   const todos = todosBoletos(), abertos_ = todos.filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
   const venc = abertos_.filter(x => dias(x.b.venc) < 0), s7 = abertos_.filter(x => { const d = dias(x.b.venc); return d >= 0 && d <= 7; }), s30 = abertos_.filter(x => { const d = dias(x.b.venc); return d > 7 && d <= 30; });
   document.getElementById("resBol").innerHTML = `<div><small>Vencidos</small><b>${venc.length} · R$ ${br(soma(venc))}</b></div><div><small>Próximos 7 dias</small><b>${s7.length} · R$ ${br(soma(s7))}</b></div><div><small>De 8 a 30 dias</small><b>${s30.length} · R$ ${br(soma(s30))}</b></div><div><small>Total em aberto</small><b>${abertos_.length} · R$ ${br(soma(abertos_))}</b></div>` + (todos.some(x => x.b.p2 && !x.b.rec) ? `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="soma da parte da Loja 2 nos boletos em que ela ainda não te pagou"><small>Loja 2 tem a me pagar</small><b>R$ ${br(todos.reduce((a, x) => a + (x.b.p2 && !x.b.rec ? x.b.p2 : 0), 0))}</b></div>` : "");
   const tb = document.getElementById("tbBol"); tb.innerHTML = "";
-  const lista = document.getElementById("fBolPagos").checked ? todos : todos.filter(x => !x.b.pago || (x.b.p2 && !x.b.rec)); // boleto pago continua na lista enquanto a Loja 2 não acertar a parte dela
-  if (!lista.length) tb.innerHTML = `<tr><td colspan="8"><i>${db ? "Nenhum boleto em aberto." : "Sem armazenamento compartilhado, aparecem aqui só os boletos da nota aberta."}</i></td></tr>`;
+  const base = document.getElementById("fBolPagos").checked ? todos : todos.filter(x => !x.b.pago || (x.b.p2 && !x.b.rec)); // boleto pago continua na lista enquanto a Loja 2 não acertar a parte dela
+  // filtros: período (pelo vencimento) e fornecedor
+  const selF = document.getElementById("fBolForn"), fornAtual = selF.value, forns = [...new Set(todos.map(x => x.n.emit || "").filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (selF.dataset.l !== forns.join("|")) { selF.dataset.l = forns.join("|"); selF.innerHTML = `<option value="">Todos</option>` + forns.map(f => `<option value="${h(f)}">${h(f)}</option>`).join(""); selF.value = forns.includes(fornAtual) ? fornAtual : ""; }
+  const per = document.getElementById("fBolPer").value, [de, ate] = faixaBoletos(per), forn = selF.value;
+  document.getElementById("fBolDia").style.display = per === "dia" ? "" : "none"; document.getElementById("fBolMes").style.display = per === "omes" ? "" : "none"; document.getElementById("fBolFaixa").style.display = per === "faixa" ? "" : "none";
+  document.getElementById("fBolLimpar").style.display = per || forn ? "" : "none";
+  const lista = base.filter(x => (!forn || x.n.emit === forn) && (!per || (x.b.venc && (!de || x.b.venc >= de) && (!ate || x.b.venc <= ate) && (per !== "venc" || !x.b.pago))));
+  const abertosF = lista.filter(x => !x.b.pago);
+  document.getElementById("fBolTot").innerHTML = per || forn ? `<b>${lista.length}</b> boleto(s) no filtro · em aberto <b>R$ ${br(soma(abertosF))}</b>` + (lista.length > abertosF.length ? ` · pagos R$ ${br(soma(lista.filter(x => x.b.pago)))}` : "") + (per && de && ate && de !== ate ? ` <span class="orig">(${dataBr(de)} a ${dataBr(ate)})</span>` : "") : "";
+  if (!lista.length) tb.innerHTML = `<tr><td colspan="8"><i>${per || forn ? "Nenhum boleto nesse filtro." : db ? "Nenhum boleto em aberto." : "Sem armazenamento compartilhado, aparecem aqui só os boletos da nota aberta."}</i></td></tr>`;
   for (const x of lista) {
     const [txtS, cls] = sitBoleto(x.b), tr = document.createElement("tr");
     tr.innerHTML = `<td>${dataBr(x.b.venc) || "-"}</td><td>${h(x.n.emit)}</td><td><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a></td><td>${h(x.b.n || x.i + 1)}</td><td class="n">${br(aPagar(x.n, x.b))}${x.b.nf && fbDe(x.n) > 1 ? '<div class="orig">meia nota</div>' : ""}</td><td class="n">${x.b.p2 ? "<b>" + br(x.b.p2) + `</b><div class="orig"><label><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : x.b.l2 ? '<span class="orig">boleto da Loja 2</span>' : ""}</td><td><span class="chip ${cls}">${txtS}</span></td><td><input type="checkbox"${x.b.pago ? " checked" : ""}></td>`;
@@ -1728,6 +1761,8 @@ document.getElementById("vdCpQ").addEventListener("input", () => { if (!VD.cpBus
 document.getElementById("vdCpQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); vdBuscarCupons(); } });
 document.getElementById("vdCpBuscar").addEventListener("click", vdBuscarCupons);
 document.getElementById("vdCpLimpar").addEventListener("click", () => { document.getElementById("vdCpQ").value = ""; VD.cpBusca = null; vdCupons(); });
+for (const id of ["fBolPer", "fBolDia", "fBolMes", "fBolDe", "fBolAte", "fBolForn"]) document.getElementById(id).addEventListener("change", () => desenharBoletos());
+document.getElementById("fBolLimpar").addEventListener("click", () => { document.getElementById("fBolPer").value = ""; document.getElementById("fBolForn").value = ""; desenharBoletos(); });
 document.getElementById("vdDia").addEventListener("change", vdCarregar);
 document.getElementById("vdLoja").addEventListener("change", vdCarregar);
 document.getElementById("vdHoje").addEventListener("click", () => { document.getElementById("vdDia").value = vdIso(new Date()); vdCarregar(); });

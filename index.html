@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="57">
+<meta name="versao" content="58">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -2385,6 +2385,8 @@ function orDesenharEd() {
       <div class="linha" style="gap:6px;flex-wrap:wrap">
         <button class="sec" id="orImp" title="abre a versão para imprimir ou salvar em PDF">Imprimir / PDF</button>
         <button class="sec" id="orZap" title="copia o texto e abre o WhatsApp do cliente">Texto p/ WhatsApp</button>
+        <button class="sec" id="orZapPdf" title="gera o PDF e abre o compartilhamento do celular para mandar no WhatsApp; no computador, baixa o PDF">PDF no WhatsApp</button>
+        <button class="sec" id="orCam" title="ler o código de barras com a câmera">📷 Bipar</button>
         <button class="sec" id="orDup" title="cria uma cópia deste orçamento">Duplicar</button>
         <button class="sec" id="orFecharB">Fechar</button>
       </div>
@@ -2419,7 +2421,8 @@ function orDesenharEd() {
   g("orLoja").addEventListener("change", ev => { o.loja = Number(ev.target.value); orSalvar(); orRepreco(); });
   g("orBuscarB").addEventListener("click", () => orBuscar());
   g("orQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); orBuscar(true); } });
-  g("orImp").addEventListener("click", orImprimir); g("orZap").addEventListener("click", orWhats); g("orFecharB").addEventListener("click", orFechar);
+  g("orImp").addEventListener("click", orImprimir); g("orZap").addEventListener("click", orWhats); g("orZapPdf").addEventListener("click", orPdfWhats); g("orFecharB").addEventListener("click", orFechar);
+  g("orCam").addEventListener("click", () => lerCamera(c => { const q = document.getElementById("orQ"); if (q) { q.value = c; orBuscar(true); } }));
   g("orDup").addEventListener("click", () => { const num = Math.max(0, ...[...OR.docs.values()].map(x => Number(x.num) || 0)) + 1; const n = { ...JSON.parse(JSON.stringify(o)), id: Date.now().toString(36), num, status: "aberto", criado: new Date().toISOString(), validade: orMaisDias(orCfg().validade_dias) }; OR.docs.set(n.id, n); OR.atual = n; orSalvar(true); orDesenharEd(); orDesenharLista(); });
   for (const b of ed.querySelectorAll("[data-st]")) b.addEventListener("click", () => { o.status = b.dataset.st; if (o.status === "venda") o.vendaEm = new Date().toISOString(); orSalvar(true); orDesenharEd(); orDesenharLista(); });
   g("orExcluir").addEventListener("click", ev => { ev.preventDefault(); if (!confirm(`Excluir o orçamento nº ${o.num}?`)) return; db.doc("orcamentos/" + o.id).delete().catch(() => {}); OR.docs.delete(o.id); OR.atual = null; ed.style.display = "none"; orDesenharLista(); });
@@ -2500,9 +2503,8 @@ async function orWhats() {
   if (o.status === "aberto") { o.status = "enviado"; orSalvar(true); orDesenharEd(); orDesenharLista(); }
   window.open(url, "_blank");
 }
-function orImprimir() {
-  const o = OR.atual; if (!o) return;
-  const c = orCfg(), sub = orSub(o), tot = orTotal(o), pg = orPagamento(tot, c);
+function orHtmlDoc(o, modo) { // modo "print" (janela com window.print) ou "pdf" (html2pdf: rodapé fixo vira estático)
+  const c = orCfg(), sub = orSub(o), tot = orTotal(o), pg = orPagamento(tot, c), pdf = modo === "pdf";
   const logo = `<span class="lg"><i style="background:#C35078"></i><i style="background:#B83D50"></i><i style="background:#7AAB30"></i><i style="background:#3A8DA6"></i></span><span class="nome">Nova Raphaella</span>`;
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Orçamento nº ${o.num} — Nova Raphaella</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
@@ -2528,9 +2530,10 @@ function orImprimir() {
  .pag div { display: flex; justify-content: space-between; padding: 3px 0; font-size: 9.5pt; }
  .pag b { color: #C35078; }
  .obs { margin-top: 14px; font-size: 9.5pt; } .obs b { color: #1B2D4B; }
- .rod { position: fixed; bottom: 0; left: 0; right: 0; border-top: 0.5px solid #ddd; padding-top: 5px; font-size: 8pt; color: #1B2D4B; font-weight: 700; display: flex; justify-content: space-between; }
+ .rod { position: ${pdf ? "static" : "fixed"}; bottom: 0; left: 0; right: 0; border-top: 0.5px solid #ddd; padding-top: 5px; font-size: 8pt; color: #1B2D4B; font-weight: 700; display: flex; justify-content: space-between; ${pdf ? "margin-top:24px" : ""} }
  .rod span { color: #555; font-weight: 400; }
- .espaco { height: 60px; }
+ .espaco { height: 60px; ${pdf ? "display:none" : ""} }
+ tr { page-break-inside: avoid; } .pag, .obs { page-break-inside: avoid; }
  @media screen { body { max-width: 760px; margin: 20px auto; padding: 0 16px; } .rod { position: static; margin-top: 30px; } .espaco { display: none; } }
 </style></head><body>
 <div class="top"><div>${logo}</div><div class="meta">Emitido em ${new Date().toLocaleDateString("pt-BR")}<br>Válido até ${orData(o.validade) || "—"}<br>Orçamento nº ${o.num} · Loja ${o.loja}</div></div>
@@ -2545,11 +2548,48 @@ ${o.obs ? `<div class="obs"><b>Observações: </b>${escH(o.obs).replace(/\n/g, "
 <div class="obs"><b>Validade: </b>${escH(c.obs_padrao)}</div>
 <div class="espaco"></div>
 <div class="rod"><div>${escH(c.rodape_loja1)}<br>${escH(c.rodape_loja2)}</div><div style="text-align:right"><span>${escH(c.rodape_site)}</span><br><span>orçamento nº ${o.num}</span></div></div>
-<script>window.addEventListener("load", () => { (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 300)); });<\/script>
+${pdf ? "" : `<script>window.addEventListener("load", () => { (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 300)); });<\/script>`}
 </body></html>`;
+  return html;
+}
+function orImprimir() {
+  const o = OR.atual; if (!o) return;
+  const html = orHtmlDoc(o, "print");
   const w = window.open("", "_blank"); if (!w) return msg("O navegador bloqueou a janela de impressão; permita pop-ups para este site.");
   w.document.open(); w.document.write(html); w.document.close();
   if (o.status === "aberto") { o.status = "enviado"; orSalvar(true); orDesenharEd(); orDesenharLista(); }
+}
+// PDF gerado no próprio navegador (html2pdf) e compartilhado pela folha de compartilhamento do celular (WhatsApp); no computador, baixa o arquivo
+function carregaHtml2pdf() { return new Promise((ok, ko) => { if (window.html2pdf) return ok(); const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"; s.onload = () => ok(); s.onerror = () => ko(new Error("não consegui baixar o gerador de PDF")); document.head.appendChild(s); }); }
+function carregaNunito() { if (document.getElementById("fNunito")) return; const l = document.createElement("link"); l.id = "fNunito"; l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"; document.head.appendChild(l); }
+async function orPdfBlob(o) {
+  carregaNunito(); await carregaHtml2pdf();
+  try { if (document.fonts) await Promise.race([document.fonts.load("900 16px Nunito").then(() => document.fonts.load("400 10px Nunito")), new Promise(r => setTimeout(r, 2500))]); } catch (_e) {}
+  const html = orHtmlDoc(o, "pdf"), css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "", corpo = (html.match(/<body>([\s\S]*?)<\/body>/) || [])[1] || "";
+  const host = document.createElement("div"); host.style.cssText = "position:fixed;left:-20000px;top:0;width:794px;background:#fff;z-index:-1";
+  host.innerHTML = `<style>${css.replace(/@page[^}]*}/g, "").replace(/body \{/g, ".orpdf {")}</style><div class="orpdf" style="padding:0;margin:0;max-width:none">${corpo}</div>`;
+  document.body.appendChild(host);
+  try {
+    return await html2pdf().set({ margin: [15, 15, 15, 15], filename: `Orcamento-${o.num}.pdf`, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: "#fff", windowWidth: 794 }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } }).from(host.firstElementChild.nextElementSibling).outputPdf("blob");
+  } finally { host.remove(); }
+}
+async function orPdfWhats() {
+  const o = OR.atual; if (!o) return;
+  const b = document.getElementById("orZapPdf"); if (b) { b.disabled = true; b.textContent = "gerando PDF…"; }
+  try {
+    const blob = await orPdfBlob(o), nome = `Orcamento-${o.num}-NovaRaphaella.pdf`, file = new File([blob], nome, { type: "application/pdf" });
+    const texto = `Orçamento nº ${o.num} da Nova Raphaella${o.cliente ? " para " + o.cliente : ""} — total ${orBrl(orTotal(o))}. Válido até ${orData(o.validade)}.`;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: `Orçamento nº ${o.num}`, text: texto }); } catch (e) { if (e && e.name === "AbortError") return; throw e; }
+    } else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+      try { await navigator.clipboard.writeText(texto); } catch (_e) {}
+      msg("Este navegador não compartilha arquivos direto: o PDF foi baixado; anexe-o na conversa do WhatsApp (o texto de resumo já está copiado).");
+      const tel = (o.tel || "").replace(/\D/g, ""); if (tel) window.open("https://wa.me/" + (tel.length <= 11 ? "55" + tel : tel), "_blank");
+    }
+    if (o.status === "aberto") { o.status = "enviado"; orSalvar(true); orDesenharEd(); orDesenharLista(); }
+  } catch (e) { msg("Não consegui gerar o PDF: " + ((e && e.message) || e)); }
+  finally { const b2 = document.getElementById("orZapPdf"); if (b2) { b2.disabled = false; b2.textContent = "PDF no WhatsApp"; } }
 }
 function orDesenharCfg() {
   const b = document.getElementById("orCfgBox"), c = orCfg();

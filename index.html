@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="58">
+<meta name="versao" content="59">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -2570,7 +2570,7 @@ async function orPdfBlob(o) {
   host.innerHTML = `<style>${css.replace(/@page[^}]*}/g, "").replace(/body \{/g, ".orpdf {")}</style><div class="orpdf" style="padding:0;margin:0;max-width:none">${corpo}</div>`;
   document.body.appendChild(host);
   try {
-    return await html2pdf().set({ margin: [15, 15, 15, 15], filename: `Orcamento-${o.num}.pdf`, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: "#fff", windowWidth: 794 }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } }).from(host.firstElementChild.nextElementSibling).outputPdf("blob");
+    return await html2pdf().set({ margin: [15, 15, 15, 15], filename: `Orcamento-${o.num}.pdf`, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: "#fff" }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } }).from(host.firstElementChild.nextElementSibling).outputPdf("blob");
   } finally { host.remove(); }
 }
 async function orPdfWhats() {

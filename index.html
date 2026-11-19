@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="60">
+<meta name="versao" content="61">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -128,7 +128,7 @@
   <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
 </div>
 <nav id="abas" style="display:none">
-  <button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button>
+  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button>
   <span id="alertas"></span>
 </nav>
 <main id="principal" style="display:none">
@@ -274,6 +274,7 @@
   </div>
   <div id="olEd" class="painel" style="display:none"></div>
  </div>
+ <div id="vHoje" style="display:none"><div class="painel"><b>Painel do dia</b> <span class="orig">— vendas, boletos, validades e pendências das duas lojas; atualiza sozinho a cada 2 minutos</span><div id="hjPainel" style="margin-top:8px"><span class="orig">carregando…</span></div></div></div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
   <div class="painel"><b>Validades vencidas e dos próximos 30 dias</b><div id="avVal" style="margin-top:6px"></div></div>
@@ -1270,14 +1271,15 @@ async function salvarMeta(chave, patch) {
   if (db) { try { await db.doc("notas/" + chave).update(patch); } catch (e) { msg("Não consegui salvar (" + ((e && e.code) || "erro") + ")."); } } else if (cab) guardar();
   redesenharTudo();
 }
-function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); }
+function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 function mostrar(v) {
   vista = v;
-  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   redesenharTudo();
   if (v === "vendas") vdCarregar();
   if (v === "orcamentos") orDesenharLista();
+  if (v === "hoje") { hjDesenhar(); hjCarregar(); }
 }
 const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
   : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
@@ -2318,6 +2320,7 @@ async function entrarNoSistema(sessao) {
   setInterval(() => cadastroDaNuvem(true), 5 * 60 * 1000);
   ligarOuvintes();
   lerAgente(); setInterval(lerAgente, 60000);
+  if (window.innerWidth < 800 && !location.hash) mostrar("hoje"); // no celular, abre no painel do dia
 }
 function incluirUsuario() {
   const b = document.getElementById("busca"); b.style.display = "block";
@@ -2386,6 +2389,7 @@ function orDesenharLista() {
       ${o.tel ? `<div class="orig">WhatsApp ${escH(o.tel)}</div>` : ""}
     </div>`; }).join("") + `</div>`;
   for (const c of el.querySelectorAll(".bcard")) c.addEventListener("click", () => orAbrir(c.dataset.id));
+  if (typeof hjDesenhar === "function") hjDesenhar();
 }
 function orDesenharEd() {
   const o = OR.atual, ed = document.getElementById("orEd"); if (!o) { ed.style.display = "none"; return; }
@@ -2968,6 +2972,78 @@ function olLigar() {
   db.collection("orc_listas").onSnapshot(s => { const id = OL.atual && OL.atual.id; OL.listas = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (id && OL.listas.has(id)) OL.listas.set(id, OL.atual); olDesenharLista(); }, () => {});
   document.getElementById("olNova").addEventListener("click", olNova);
   document.getElementById("olCatLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("olCat"); if (b.style.display === "none") { b.style.display = ""; olDesenharCat(); } else b.style.display = "none"; });
+}
+// ===================== Hoje (painel do dia) =====================
+// Resumo do dia nas duas lojas: vendas (hoje, ontem, média 7 dias), boletos, validades, orçamentos abertos, notas em andamento e situação dos agentes.
+const HJ = { vendas: null, t: null, carregando: false };
+async function hjCarregar() {
+  if (!supa || HJ.carregando) return; HJ.carregando = true;
+  try {
+    const hojeIso = vdIso(new Date()), de = vdMais(hojeIso, -8);
+    const r = await supa.from("vendas_hora").select("loja_id, data, valor, qtd, atualizado_em").eq("oper", "V").gte("data", de).lte("data", hojeIso).limit(5000);
+    const porDia = {}; let ult = null;
+    for (const v of r.data || []) { const k = v.loja_id + "|" + v.data; porDia[k] = (porDia[k] || 0) + (Number(v.valor) || 0); if (!ult || (v.atualizado_em || "") > ult) ult = v.atualizado_em; }
+    HJ.vendas = { porDia, ult, hojeIso };
+    await lerAgente();
+  } catch (e) { console.warn("hoje", e); }
+  HJ.carregando = false; hjDesenhar();
+  clearTimeout(HJ.t); if (vista === "hoje") HJ.t = setTimeout(() => { if (vista === "hoje") hjCarregar(); }, 120000);
+}
+function hjDesenhar() {
+  const el = document.getElementById("hjPainel"); if (!el || vista !== "hoje") return;
+  const V = HJ.vendas, h = V ? V.hojeIso : vdIso(new Date()), ontem = vdMais(h, -1);
+  const vd = (l, d) => (V && V.porDia[l + "|" + d]) || 0;
+  const media7 = l => { let s = 0, n = 0; for (let i = 1; i <= 7; i++) { const d = vdMais(h, -i); if (V && V.porDia[l + "|" + d] != null) { s += V.porDia[l + "|" + d]; n++; } } return n ? s / n : 0; };
+  const semana = l => { const d = vdMais(h, -7); return vd(l, d); };
+  const cardVenda = l => { const hj = vd(l, h), m = media7(l), sp = semana(l), on = agenteInfo && agenteInfo[l] && agenteInfo[l].online;
+    return `<div class="bcard" style="border-left:5px solid ${l === 1 ? "#3A8DA6" : "#C35078"}"><div class="linha" style="justify-content:space-between"><b>Loja ${l} — vendas de hoje</b>${agenteInfo && agenteInfo[l] ? `<span class="chip ${on ? "ok" : "av"}" style="padding:0 6px" title="PC da loja">${on ? "PC online" : "PC sem contato"}</span>` : ""}</div>
+      <div style="font-size:26px;font-weight:900;color:#1B2D4B">${orBrl(hj)}</div>
+      <div class="orig">ontem ${orBrl(vd(l, ontem))} · ${["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(h + "T12:00:00").getDay()]} passado ${orBrl(sp)} · média 7 dias ${orBrl(m)}${m > 0 && hj > 0 ? ` <span class="chip ${hj >= m ? "ok" : "av"}" style="padding:0 5px">${hj >= m ? "+" : ""}${br((hj / m - 1) * 100, 0)}% vs média</span>` : ""}</div></div>`; };
+  const bol = todosBoletos().filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
+  const bv = bol.filter(x => dias(x.b.venc) < 0), bh = bol.filter(x => dias(x.b.venc) === 0), b7 = bol.filter(x => { const d = dias(x.b.venc); return d > 0 && d <= 7; });
+  const l2rec = bol.filter(x => x.b.p2 > 0 && !x.b.rec && dias(x.b.venc) <= 0), l2soma = l2rec.reduce((a, x) => a + (Number(x.b.p2) || 0), 0);
+  const val = listaValidades().filter(v => !v.baixa), vv = val.filter(v => dias(v.val) < 0), v30 = val.filter(v => { const d = dias(v.val); return d >= 0 && d <= 30; });
+  const orcs = [...OR.docs.values()].filter(o => o.status === "aberto" || o.status === "enviado"), orcTot = orcs.reduce((a, o) => a + orTotal(o), 0), orcVenc = orcs.filter(o => o.validade && o.validade < h);
+  const listas = [...OL.listas.values()].filter(L => L.status === "aberto" || L.status === "enviado");
+  const nts = fonteNotas().filter(n => !n.concluida), ntsErro = nts.filter(n => (n.envio && n.envio.status === "erro") || (n.envio2 && n.envio2.status === "erro"));
+  const lk = (txt, v) => `<a href="#" data-v="${v}" style="color:#0b57d0">${txt}</a>`;
+  el.innerHTML = `
+    <div class="bcards" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${cardVenda(1)}${cardVenda(2)}</div>
+    <div class="bcards" style="margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <div class="bcard"><b>Boletos</b>
+        ${bv.length ? `<div><span class="chip falta">${bv.length} vencido${bv.length > 1 ? "s" : ""}</span> ${orBrl(soma(bv))}</div>` : ""}
+        ${bh.length ? `<div><span class="chip av">${bh.length} vence${bh.length > 1 ? "m" : ""} hoje</span> ${orBrl(soma(bh))}</div>` : ""}
+        <div>${b7.length} nos próximos 7 dias · ${orBrl(soma(b7))}</div>
+        ${l2rec.length ? `<div class="orig" title="parte da Loja 2 em boletos já vencidos ou de hoje que ainda não está marcada como recebida">Loja 2 me deve ${orBrl(l2soma)} (${l2rec.length} boleto${l2rec.length > 1 ? "s" : ""})</div>` : ""}
+        ${!bv.length && !bh.length && !b7.length ? `<div class="orig">nada vencendo nesta semana</div>` : ""}
+        <div>${lk("ver boletos →", "boletos")}</div></div>
+      <div class="bcard"><b>Validades</b>
+        ${vv.length ? `<div><span class="chip falta">${vv.length} vencido${vv.length > 1 ? "s" : ""}</span></div>` : ""}
+        <div>${v30.length} vence${v30.length === 1 ? "" : "m"} em 30 dias</div>
+        ${!vv.length && !v30.length ? `<div class="orig">nada perto de vencer</div>` : ""}
+        <div>${lk("ver validades →", "validades")}</div></div>
+      <div class="bcard"><b>Orçamentos</b>
+        <div>${orcs.length} em aberto · ${orBrl(orcTot)}${orcVenc.length ? ` <span class="chip av">${orcVenc.length} passaram da validade</span>` : ""}</div>
+        <div>${listas.length} lista${listas.length === 1 ? "" : "s"} escolar${listas.length === 1 ? "" : "es"} em andamento</div>
+        <div>${lk("ver orçamentos →", "orcamentos")}</div></div>
+      <div class="bcard"><b>Notas de entrada</b>
+        <div>${nts.length} em andamento${ntsErro.length ? ` · <span class="chip falta">${ntsErro.length} com erro no envio</span>` : ""}</div>
+        <div class="orig">${V && V.ult ? "vendas atualizadas " + new Date(V.ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "vendas: carregando…"}</div>
+        <div>${lk("ver notas →", "notas")}</div></div>
+    </div>
+    <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button class="sec" id="hjZap" title="abre o WhatsApp com o resumo pronto para mandar (escolha o contato ou o grupo)">Mandar resumo no WhatsApp</button><button class="sec" id="hjAtu">Atualizar</button></div>`;
+  for (const a of el.querySelectorAll("a[data-v]")) a.addEventListener("click", ev => { ev.preventDefault(); mostrar(a.dataset.v); });
+  el.querySelector("#hjAtu").addEventListener("click", () => { HJ.vendas = null; hjDesenhar(); hjCarregar(); });
+  el.querySelector("#hjZap").addEventListener("click", () => {
+    const T = [`*Nova Raphaella — resumo de ${new Date(h + "T12:00:00").toLocaleDateString("pt-BR")}*`, ""];
+    for (const l of [1, 2]) T.push(`Loja ${l}: vendas de hoje ${orBrl(vd(l, h))} (ontem ${orBrl(vd(l, ontem))}, média 7 dias ${orBrl(media7(l))})`);
+    T.push("", `Boletos: ${bv.length} vencidos (${orBrl(soma(bv))}), ${bh.length} hoje (${orBrl(soma(bh))}), ${b7.length} nos próximos 7 dias (${orBrl(soma(b7))})`);
+    for (const x of [...bv, ...bh, ...b7].slice(0, 12)) T.push(`• ${dataBr(x.b.venc)} ${x.n.emit || ""} ${x.b.n ? "parc. " + x.b.n : ""} ${orBrl(aPagar(x.n, x.b))}${x.b.p2 > 0 ? ` (Loja 2: ${orBrl(x.b.p2)})` : ""}`);
+    T.push("", `Validades: ${vv.length} vencidas, ${v30.length} em 30 dias`);
+    for (const v of [...vv, ...v30].slice(0, 10)) T.push(`• ${dataBr(v.val)} ${v.desc} (${br(v.qtd || 0, 0)} un, Loja ${v.loja || "?"})`);
+    T.push("", `Orçamentos em aberto: ${orcs.length} (${orBrl(orcTot)}) · Notas em andamento: ${nts.length}`);
+    window.open("https://wa.me/?text=" + encodeURIComponent(T.join("\n")), "_blank");
+  });
 }
 function orLigar() {
   if (!db) return;

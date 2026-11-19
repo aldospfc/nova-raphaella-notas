@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="50">
+<meta name="versao" content="51">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -1165,6 +1165,11 @@ let listaNotas = [], baixadoEm = null, metaLocal = null, valDocs = new Map(), vi
 const hoje = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
 const dias = iso => iso ? Math.round((new Date(iso.slice(0, 10) + "T00:00:00") - hoje()) / 86400000) : NaN;
 const dataBr = iso => !iso ? "" : iso.length > 10 ? new Date(iso).toLocaleDateString("pt-BR") : iso.split("-").reverse().join("/");
+// campos numéricos (markup, margem, qtd...) só mudam digitando: a rodinha / rolagem do mouse em cima deles não altera o valor
+document.addEventListener("wheel", ev => {
+  const t = ev.target;
+  if (t && t.tagName === "INPUT" && t.type === "number" && document.activeElement === t) { ev.preventDefault(); t.blur(); }
+}, { passive: false });
 const pnum = t => { const v = parseFloat(String(t).replace(/\./g, "").replace(",", ".")); return v > 0 ? r2(v) : 0; };
 const h = t => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const fonteNotas = () => db ? listaNotas : (metaLocal ? [metaLocal] : []);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="54">
+<meta name="versao" content="56">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -55,6 +55,16 @@
   #tb [data-o=mg], #tb [data-o=mg2], #tb [data-o=l2] { white-space: normal; max-width: 170px; margin-left: auto; }
   .sugs div { margin-top: 2px; } .sugs a { cursor: pointer; color: #0b57d0; }  /* colunas de número só do tamanho do conteúdo; a sobra vai para a descrição */
   tr.duvida td { background: #fff7e6; }
+  /* cor da linha pelo estado do item: azul claro = preço definido e nada faltando; vermelho claro = falta algo para ir ao Gestão */
+  #histBox { position: fixed; right: 12px; bottom: 12px; width: min(560px, 96vw); max-height: 70vh; overflow: auto; background: #fff; border: 1px solid #b9c6d8; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.18); z-index: 50; padding: 10px 12px; font-size: 12px; }
+  #histBox table { font-size: 12px; } #histBox th { position: static; }
+  #histBox .sobe { color: #b42318; } #histBox .cai { color: #067647; }
+  tr.pok td { background: #e3eefc; }
+  tr.pok td input.p, tr.pok td input.desc, tr.pok td input.ean { background: #f4f8ff; }
+  tr.falta td { background: #fde8e8; }
+  tr.falta td input.p, tr.falta td input.desc, tr.falta td input.ean { background: #fff5f5; }
+  tr.falta td input.p.def { background: #e6f6e6; }
+  tr.rev td, tr.rev.pok td, tr.rev.falta td { background: #a9c8ee; }
   td input.desc { width: 100%; min-width: 250px; }
   td input.ean { width: 128px; }
   td input.p { width: 52px; text-align: right; }
@@ -137,6 +147,7 @@
       <button id="bCriaManual">Criar entrada</button>
     </div>
     <div id="msg" class="aviso" style="margin-top:6px"></div>
+    <div id="histBox" style="display:none"></div>
     <div id="notas" style="margin-top:8px"></div>
   </div>
 
@@ -148,7 +159,7 @@
       <label class="c">% na nota (padrão)<input type="number" id="gPct" value="100" min="1" max="100" step="1" style="width:80px"></label>
       <label class="c">Acréscimo padrão sobre o custo (%)<input type="number" id="gMk" value="100" min="0" step="5" style="width:80px"></label>
       <label class="c">Arredondar venda para<select id="gArr"><option value="0">centavos</option><option value="0.1">R$ 0,10</option><option value="0.5" selected>R$ 0,50</option><option value="1">R$ 1,00</option></select></label>
-      <span class="c" style="font-size:11px;color:#556" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido · <a href="#" id="bAceitarSug" title="transforma a sugestão de todos os itens pendentes em preço definido, para eles poderem ir ao Gestão">aceitar preços sugeridos</a></span>
+      <span class="c" style="font-size:11px;color:#556" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido · <a href="#" id="bAceitarSug" title="transforma a sugestão de todos os itens pendentes em preço definido, para eles poderem ir ao Gestão">aceitar preços sugeridos</a> · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
       <label class="c">O que vai no XML<select id="gModo"><option value="A">A — só destrinchar (valores da nota)</option><option value="B">B — custo final embutido (IPI e DIFAL dentro do valor)</option></select></label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option><option value="duas">Duas notas: uma de cada loja</option></select></label>
       <label class="c" id="lXml2" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="pedidos diferentes do mesmo fornecedor para as duas lojas: abra aqui a nota da Loja 2 e trabalhe as duas na mesma tela. Cada loja fica com a quantidade e o custo da sua própria nota.">Juntar a nota da Loja 2 <input type="file" id="fXml2" accept=".xml" style="max-width:190px"></label><span id="parInfo" class="orig"></span>
@@ -605,11 +616,21 @@ function atualizarLinha(it) {
       const un = e.querySelector("[data-un]"); if (un) un.addEventListener("click", () => { it.desc = atual.slice(0, 60); it.descTocada = true; it.an = 0; const i = tr.querySelector("[data-c=desc]"); if (i) i.value = it.desc; atualizarLinha(it); guardar(it); });
     }
   }
-  o("mg").innerHTML = (k.custoUn > 0 && k.venda > 0 ? `<span title="markup = quanto o preço de venda está acima do custo: (venda ÷ custo − 1). Margem sobre a venda: ${br(k.margem, 1)}%">markup ${br((k.venda / k.custoUn - 1) * 100, 1)}%</span>` : "markup —") + (it.pv != null ? " · preço fixado" : "") +
+  o("mg").innerHTML = (k.custoUn > 0 && k.venda > 0 ? `<span title="markup = quanto o preço de venda está acima do custo: (venda ÷ custo − 1). Margem sobre a venda: ${br(k.margem, 1)}%">markup ${br((k.venda / k.custoUn - 1) * 100, 1)}%</span>` : "markup —") + (it.pv != null ? " · preço fixado" : "") + (it.ean && gtinValido(it.ean) ? ` · <a href="#" data-hp style="color:#0b57d0" title="todas as mudanças de custo e venda deste produto, nas duas lojas">histórico de preços</a>` : "") +
     (pj && pj[2] != null ? `<br><span title="como está no Gestão hoje">hoje: custo <b>${br(pj[3] ?? 0)}</b> · venda <b>${br(pj[4] ?? 0)}</b> · est. ${br(pj[2], 0)}</span>` +
       (pj[4] > 0 && Math.abs(k.venda - pj[4]) >= 0.01 ? ` <span class="chip ${k.venda > pj[4] ? "av" : "ok"}" style="padding:0 4px">venda ${k.venda > pj[4] ? "sobe" : "cai"} ${br(Math.abs(k.venda / pj[4] - 1) * 100, 0)}%</span>` : "") : "");
+  { const a = o("mg").querySelector("[data-hp]"); if (a) a.addEventListener("click", ev => { ev.preventDefault(); mostrarHistPrecos(it.ean, it.desc || it.xprod); }); }
   const duv = duvidaDivisor(it.xprod, it.div);
   tr.classList.toggle("duvida", !!duv); tr.classList.toggle("rev", !!it.rev);
+  { // cor da linha: falta (vermelho) quando algo impede o envio; pronta (azul) quando o preço foi definido e não falta nada
+    const novo = it.ean && cad && !it.aux && !buscaEan(it.ean);
+    const faltas = [];
+    if (!it.ean || !gtinValido(it.ean)) faltas.push("código de barras"); if (!(k.qtdUn > 0)) faltas.push("quantidade"); if (!(k.custoUn > 0)) faltas.push("custo");
+    if (novo && (!it.ncm || it.ncm.length < 8)) faltas.push("NCM"); if (novo && !(it.desc || it.xprod || "").trim()) faltas.push("descrição");
+    const falta = !it.jg && !(it.e1 || it.e2) && faltas.length > 0;
+    tr.classList.toggle("falta", falta); tr.classList.toggle("pok", !falta && !it.jg && precoDefinido(it) && k.venda > 0);
+    tr.title = falta ? "falta: " + faltas.join(", ") : "";
+  }
   let h = "";
   if (!it.ean) h = `<span class="chip falta">sem EAN — vai como SEM GTIN</span> <a data-gi="1" style="cursor:pointer;color:#0b57d0" title="cria um código de barras da casa (faixa 040), com numeração única para as duas lojas. Antes era igual ao botão do Gestão (000000000 + número)">gerar código da casa</a>`;
   else if (!gtinValido(it.ean)) h = `<span class="chip falta">EAN inválido (dígito verificador)</span>`;
@@ -866,6 +887,29 @@ function gerarXml(modo) {
   return saida;
 }
 function msg(t) { document.getElementById("msg").textContent = t || ""; }
+// histórico de preços: tabela precos_hist na nuvem (gatilho registra toda mudança de custo/venda que o agente traz do Gestão; "inicial" = preço vigente quando o histórico começou, com a data da última alteração registrada no Gestão)
+const HP_ORIG = { inicial: "ponto de partida", gestao: "Gestão", site: "este site", cadastro: "cadastro novo" };
+async function histPrecos(ean) {
+  if (!supa || !ean) return [];
+  const e13 = chave13(ean), alt = String(ean).replace(/^0+/, "");
+  try {
+    const r = await supa.from("precos_hist").select("loja_id,data,data_gestao,custo_ant,custo,venda_ant,venda,origem,descricao").in("ean", [...new Set([ean, e13, alt])]).order("data", { ascending: false }).limit(200);
+    return r.data || [];
+  } catch (e) { console.warn("histórico de preços", e); return []; }
+}
+function histHtml(linhas) {
+  if (!linhas.length) return `<div class="orig">Sem registro de preço para este código.</div>`;
+  const dt = x => { const d = new Date(x); return isNaN(d) ? "" : d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
+  const var_ = (a, b) => a != null && b != null && Number(a) > 0 && Math.abs(b - a) >= 0.005 ? ` <span class="${b > a ? "sobe" : "cai"}">(${b > a ? "+" : ""}${br((b / a - 1) * 100, 1)}%)</span>` : "";
+  return `<table><tr><th>Quando</th><th>Loja</th><th class="n">Custo</th><th class="n">Venda</th><th>Origem</th></tr>` + linhas.map(h => `<tr><td>${h.origem === "inicial" ? (h.data_gestao ? dataBr(h.data_gestao) + " <span class='orig'>(últ. alteração no Gestão)</span>" : "antes de 19/11/2026") : dt(h.data)}</td><td>Loja ${h.loja_id}</td><td class="n">${h.custo_ant != null ? `<span class="orig">${br(h.custo_ant, 3)} →</span> ` : ""}${br(h.custo ?? 0, 3)}${var_(h.custo_ant, h.custo)}</td><td class="n">${h.venda_ant != null ? `<span class="orig">${br(h.venda_ant)} →</span> ` : ""}<b>${br(h.venda ?? 0)}</b>${var_(h.venda_ant, h.venda)}</td><td>${HP_ORIG[h.origem] || h.origem || ""}</td></tr>`).join("") + `</table>`;
+}
+async function mostrarHistPrecos(ean, nome) {
+  const b = document.getElementById("histBox"); b.style.display = "";
+  b.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b>Histórico de preços</b> <a href="#" data-x style="color:#0b57d0">fechar ✕</a></div><div class="orig mono">${escH(ean)}</div><div>${escH(nome || "")}</div><div style="margin-top:6px">carregando…</div>`;
+  b.querySelector("[data-x]").addEventListener("click", ev => { ev.preventDefault(); b.style.display = "none"; });
+  const linhas = await histPrecos(ean);
+  b.lastElementChild.innerHTML = histHtml(linhas) + `<div class="orig" style="margin-top:6px">Mudanças feitas no Gestão aparecem em até 5 minutos (quando o agente traz o cadastro).</div>`;
+}
 async function baixar(nome, conteudo, tipo) {
   if (!dl) { // arquivo aberto direto do computador: download normal
     const a = document.createElement("a");
@@ -1666,7 +1710,9 @@ async function prAbrir(g) {
         <label class="c">Quantidade<input type="number" id="prValQtd" min="0" step="1" style="width:80px"></label>
         <label class="c">Loja<select id="prValLoja">${g[1] ? "<option>Loja 1</option>" : ""}${g[2] ? "<option>Loja 2</option>" : ""}</select></label>
         <button id="prValOk">Lançar validade</button>
-      </div></div></div>`;
+      </div></div>
+    <div class="painel" style="background:#eef3fb;margin-top:10px"><b>Histórico de preços</b> <span class="orig">— custo e venda nas duas lojas; mudanças feitas no Gestão aparecem em até 5 minutos</span><div id="prHist" style="margin-top:6px">carregando…</div></div></div>`;
+  histPrecos(base.ean).then(h => { const d = ed.querySelector("#prHist"); if (d) d.innerHTML = histHtml(h); });
   prValidades();
   ed.querySelector("#prValOk").onclick = () => {
     const val = ed.querySelector("#prValData").value, qtd = parseFloat(ed.querySelector("#prValQtd").value) || 0;

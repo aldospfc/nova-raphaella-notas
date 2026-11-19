@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="53">
+<meta name="versao" content="54">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -148,7 +148,7 @@
       <label class="c">% na nota (padrão)<input type="number" id="gPct" value="100" min="1" max="100" step="1" style="width:80px"></label>
       <label class="c">Acréscimo padrão sobre o custo (%)<input type="number" id="gMk" value="100" min="0" step="5" style="width:80px"></label>
       <label class="c">Arredondar venda para<select id="gArr"><option value="0">centavos</option><option value="0.1">R$ 0,10</option><option value="0.5" selected>R$ 0,50</option><option value="1">R$ 1,00</option></select></label>
-      <span class="c" style="font-size:11px;color:#556" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido</span>
+      <span class="c" style="font-size:11px;color:#556" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido · <a href="#" id="bAceitarSug" title="transforma a sugestão de todos os itens pendentes em preço definido, para eles poderem ir ao Gestão">aceitar preços sugeridos</a></span>
       <label class="c">O que vai no XML<select id="gModo"><option value="A">A — só destrinchar (valores da nota)</option><option value="B">B — custo final embutido (IPI e DIFAL dentro do valor)</option></select></label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option><option value="duas">Duas notas: uma de cada loja</option></select></label>
       <label class="c" id="lXml2" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="pedidos diferentes do mesmo fornecedor para as duas lojas: abra aqui a nota da Loja 2 e trabalhe as duas na mesma tela. Cada loja fica com a quantidade e o custo da sua própria nota.">Juntar a nota da Loja 2 <input type="file" id="fXml2" accept=".xml" style="max-width:190px"></label><span id="parInfo" class="orig"></span>
@@ -578,8 +578,8 @@ function atualizarLinha(it) {
   const iPv = tr.querySelector("[data-c=pv]"), iMk = tr.querySelector("[data-c=mk]");
   if (iPv !== document.activeElement) iPv.value = br(k.venda);
   if (iMk !== document.activeElement) iMk.value = it.pv != null ? k.acresc.toFixed(1) : (it.mk ?? "");
-  iPv.classList.toggle("def", it.pv != null); iPv.classList.toggle("sug", it.pv == null);
-  iPv.title = it.pv != null ? "preço definido por você (apague para voltar ao sugerido)" : "preço SUGERIDO pelo markup" + (it.mk != null ? " deste item" : " geral do topo") + " — ainda não foi definido; digite para fixar";
+  iPv.classList.toggle("def", precoDefinido(it)); iPv.classList.toggle("sug", !precoDefinido(it));
+  iPv.title = it.pv != null ? "preço definido por você (apague para voltar ao sugerido)" : it.mk != null ? "preço definido pelo markup que você digitou neste item" : "preço SUGERIDO pelo markup geral do topo — NÃO vai para o Gestão até você digitar o preço (ou aceitar os sugeridos)";
   if (l2On()) {
     const dst = destino(), q2 = qLojas(it, k)[1], k2 = dst === "duas" ? calcL(it, 2) : null, bruto = dst === "div" ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
     o("l2in").style.display = dst === "div" ? "" : "none";
@@ -689,6 +689,13 @@ async function gerarLoja2(it) {
     atualizarLinha(it); totais(); guardar(it);
     msg(`Código ${novo} criado para o item ${rot(it)} na Loja 2. No envio ele é cadastrado lá como produto novo, e fica guardado para as próximas notas.`);
   } finally { gerando2 = false; }
+}
+function aceitarSugeridos() {
+  const lista = itens.filter(i => !i.jg && !i.e1 && !i.e2 && !precoDefinido(i) && calc(i).venda > 0);
+  if (!lista.length) return msg("Nenhum item com preço só sugerido.");
+  if (!confirm(`${lista.length} item(ns) vão ficar com o preço sugerido como preço definido.\n\nConfirmar?`)) return;
+  for (const it of lista) { it.pv = r2(calc(it).venda); atualizarLinha(it); guardar(it); }
+  totais(); msg(`${lista.length} preço(s) definidos.`);
 }
 function usarAuxiliar(it, ePrincipal) {
   if (!it.ean) { it.ean = it.eanNota || ""; const i = document.querySelector(`#l${it.n} [data-c=ean]`); if (i) i.value = it.ean; }
@@ -890,6 +897,8 @@ function csvPrecos() {
 // ---------- preços para o Gestão ----------
 // O Gestão, ao mudar preço na tela, grava em PRODUTOS: PRECO_COMPRA, PRECO_VENDA1, MARGEM, ULT_ALT_PRECO, ULT_ALTERACAO,
 // e marca DATAS.T_ALT_PRODUTOS. O histórico de preços, o último preço de compra e o custo médio saem dos gatilhos do próprio banco.
+// preço "definido": digitado no item (pv) ou com markup próprio do item (mk). Só a sugestão do markup geral NÃO vai para o Gestão (pedido do Aldo, 19/11/2026)
+const precoDefinido = it => it.pv != null || it.mk != null;
 function sqlPrecos(loja) {
   loja = loja || 1; posDoEnvio[loja] = [];
   const linhas = [], eans = [], visto = new Set();
@@ -897,6 +906,7 @@ function sqlPrecos(loja) {
     const ePr = codLoja(it, loja);
     if (!ePr || !it.ean || !gtinValido(it.ean) || visto.has(ePr)) continue;
     if (it.jg) continue;
+    if (!precoDefinido(it)) continue; // preço só sugerido: fica de fora
     const k = calc(it), kL = calcL(it, loja); if (!kL) continue; // duas notas: o item não veio na nota desta loja
     const custo = Math.round(kL.custoUn * 1000) / 1000, venda = loja === 2 ? (it.pv2 ?? k.venda) : k.venda;
     if (!(custo > 0) || !(venda > 0)) continue;
@@ -967,6 +977,7 @@ function sqlEntrada(loja) {
     if (!it.ean || !gtinValido(it.ean)) continue;
     if (it.jg) continue; // já lançado no Gestão por fora do sistema
     if (it["e" + loja]) continue; // já enviado a esta loja por aqui (envio em partes)
+    if (!precoDefinido(it)) continue; // preço só sugerido: fica de fora
     const k = calc(it); if (!(k.qtdUn > 0) || !(k.custoUn > 0) || !(k.venda > 0)) continue;
     const ePr = codLoja(it, loja); if (!ePr) continue;
     const comAux = it.aux && ePr === principalDe(it);
@@ -1492,10 +1503,13 @@ async function enviarAoGestao(tipo, comPos) {
   const q1 = dst === "2" ? null : gera(1), q2 = dois ? gera(2) : null;
   if (!q1 && !q2 && tipo !== "precos" && itens.some(i => i.e1 || i.e2)) return msg("Nada pendente para enviar: os itens prontos já foram enviados. Os que faltam precisam de código de barras válido, quantidade, custo e preço de venda.");
   if (!q1 && !q2 && tipo !== "precos") { // diz o que falta em cada item, em vez de uma mensagem genérica
-    const faltas = itens.filter(i => !i.jg && !i.e1 && !i.e2).map(i => { const k = calc(i), f = []; if (!i.ean) f.push("código de barras"); else if (!gtinValido(i.ean)) f.push("código de barras válido"); if (!(k.qtdUn > 0)) f.push("quantidade"); if (!(k.custoUn > 0)) f.push("custo (valor unitário)"); if (!(k.venda > 0)) f.push("preço de venda"); return f.length ? `item ${rot(i)}: falta ${f.join(", ")}` : null; }).filter(Boolean);
+    const faltas = itens.filter(i => !i.jg && !i.e1 && !i.e2).map(i => { const k = calc(i), f = []; if (!i.ean) f.push("código de barras"); else if (!gtinValido(i.ean)) f.push("código de barras válido"); if (!(k.qtdUn > 0)) f.push("quantidade"); if (!(k.custoUn > 0)) f.push("custo (valor unitário)"); if (!(k.venda > 0)) f.push("preço de venda"); else if (!precoDefinido(i)) f.push("preço de venda definido (está só a sugestão em cinza)"); return f.length ? `item ${rot(i)}: falta ${f.join(", ")}` : null; }).filter(Boolean);
     if (faltas.length) return msg("Nenhum item pronto para enviar — " + faltas.slice(0, 4).join("; ") + (faltas.length > 4 ? `; e mais ${faltas.length - 4} item(ns)` : "") + ".");
   }
+  const semPreco = itens.filter(i => !i.jg && !i.e1 && !i.e2 && i.ean && gtinValido(i.ean) && calc(i).venda > 0 && !precoDefinido(i)).length;
+  if (!q1 && !q2 && semPreco) return msg(`Nada enviado: ${semPreco} item(ns) estão com o preço de venda só SUGERIDO (cinza). Digite o preço de cada um, ou use "aceitar preços sugeridos" se a sugestão estiver boa.`);
   if (!q1 && !q2) return msg(tipo === "precos" ? "Nenhum item com EAN de unidade válido para subir preço." : "Nenhum item pronto: cada item precisa de código de barras válido, quantidade, custo e preço de venda.");
+  if (semPreco && !confirm(`${semPreco} item(ns) estão com o preço de venda só SUGERIDO (cinza) e vão ficar DE FORA deste envio.\n\nEnviar só os itens com preço definido?`)) return;
   if (comPos) { await lerAgente(); for (const [l, q] of [[1, q1], [2, q2]]) if (q && !posPronto(l)) return msg(semPos(l)); }
   const m = metaDe(cab.chave) || {};
   // envio anterior com erro: os comandos não são tudo-ou-nada, então parte (inclusive o estoque) pode ter sido gravada
@@ -1952,6 +1966,7 @@ function desenharRom() {
     ((r.obs || []).length ? `<div style="margin-top:6px"><b>Observações da leitura:</b><ul style="margin:4px 0 0 18px;padding:0">${r.obs.map(o => `<li>${escH(o)}</li>`).join("")}</ul></div>` : "");
 }
 document.getElementById("bRom").addEventListener("click", () => document.getElementById("fRom").click());
+document.getElementById("bAceitarSug").addEventListener("click", ev => { ev.preventDefault(); aceitarSugeridos(); });
 document.getElementById("fRom").addEventListener("change", async ev => {
   const fs = [...ev.target.files]; ev.target.value = "";
   try { await entradaPorRomaneio(fs); } catch (e) { msg("Não consegui ler o romaneio: " + (e.message || e)); }

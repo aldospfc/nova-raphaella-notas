@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="59">
+<meta name="versao" content="60">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -261,6 +261,18 @@
     <div id="orLista" style="margin-top:8px"></div>
   </div>
   <div id="orEd" class="painel" style="display:none"></div>
+  <div class="painel" style="margin-top:10px">
+    <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><b>Listas escolares</b> <span class="orig">— a IA lê a lista (foto, PDF ou texto), casa cada item com o catálogo e monta 3 opções de preço</span></div>
+      <div class="linha" style="gap:8px;align-items:center">
+        <button id="olNova">Nova lista escolar</button>
+        <a href="#" id="olCatLink" style="font-size:12px" title="itens genéricos e os produtos de cada faixa (Econômica, Recomendada, Premium)">catálogo de itens</a>
+      </div>
+    </div>
+    <div id="olCat" style="display:none;margin-top:8px"></div>
+    <div id="olLista" style="margin-top:8px"></div>
+  </div>
+  <div id="olEd" class="painel" style="display:none"></div>
  </div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
@@ -2562,15 +2574,16 @@ function orImprimir() {
 // PDF gerado no próprio navegador (html2pdf) e compartilhado pela folha de compartilhamento do celular (WhatsApp); no computador, baixa o arquivo
 function carregaHtml2pdf() { return new Promise((ok, ko) => { if (window.html2pdf) return ok(); const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"; s.onload = () => ok(); s.onerror = () => ko(new Error("não consegui baixar o gerador de PDF")); document.head.appendChild(s); }); }
 function carregaNunito() { if (document.getElementById("fNunito")) return; const l = document.createElement("link"); l.id = "fNunito"; l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"; document.head.appendChild(l); }
-async function orPdfBlob(o) {
+const orPdfBlob = o => htmlParaPdf(orHtmlDoc(o, "pdf"), `Orcamento-${o.num}.pdf`);
+async function htmlParaPdf(html, nomeArq) {
   carregaNunito(); await carregaHtml2pdf();
   try { if (document.fonts) await Promise.race([document.fonts.load("900 16px Nunito").then(() => document.fonts.load("400 10px Nunito")), new Promise(r => setTimeout(r, 2500))]); } catch (_e) {}
-  const html = orHtmlDoc(o, "pdf"), css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "", corpo = (html.match(/<body>([\s\S]*?)<\/body>/) || [])[1] || "";
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "", corpo = (html.match(/<body>([\s\S]*?)<\/body>/) || [])[1] || "";
   const host = document.createElement("div"); host.style.cssText = "position:fixed;left:-20000px;top:0;width:794px;background:#fff;z-index:-1";
   host.innerHTML = `<style>${css.replace(/@page[^}]*}/g, "").replace(/body \{/g, ".orpdf {")}</style><div class="orpdf" style="padding:0;margin:0;max-width:none">${corpo}</div>`;
   document.body.appendChild(host);
   try {
-    return await html2pdf().set({ margin: [15, 15, 15, 15], filename: `Orcamento-${o.num}.pdf`, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: "#fff" }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } }).from(host.firstElementChild.nextElementSibling).outputPdf("blob");
+    return await html2pdf().set({ margin: [15, 15, 15, 15], filename: nomeArq, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: "#fff" }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } }).from(host.firstElementChild.nextElementSibling).outputPdf("blob");
   } finally { host.remove(); }
 }
 async function orPdfWhats() {
@@ -2607,13 +2620,354 @@ function orDesenharCfg() {
       <label class="c" style="flex:1;min-width:260px">Rodapé Loja 2<input type="text" data-c="rodape_loja2" value="${orA(c.rodape_loja2)}"></label>
       <label class="c">Site<input type="text" data-c="rodape_site" value="${orA(c.rodape_site)}" style="width:180px"></label>
     </div>
-    <label class="c" style="margin-top:6px">Frase de validade (PDF e WhatsApp)<input type="text" data-c="obs_padrao" value="${orA(c.obs_padrao)}"></label></div>`;
+    <label class="c" style="margin-top:6px">Frase de validade (PDF e WhatsApp)<input type="text" data-c="obs_padrao" value="${orA(c.obs_padrao)}"></label>
+    <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:6px">
+      <label class="c" style="flex:1;min-width:260px">Listas escolares: itens que NÃO vendemos (um por linha)<textarea data-c="nao_vendemos" rows="3">${escH(c.nao_vendemos ?? OL_NV_PADRAO)}</textarea></label>
+      <label class="c" style="flex:1;min-width:260px">Frase para esses itens ({itens} vira a lista)<input type="text" data-c="msg_nao_vendemos" value="${orA(c.msg_nao_vendemos || "Não trabalhamos com: {itens}.")}"></label>
+    </div></div>`;
   for (const i of b.querySelectorAll("[data-c]")) i.addEventListener("change", () => {
     const k = i.dataset.c, v = i.type === "number" ? (parseFloat(i.value) || 0) : i.value;
     OR.cfg = { ...orCfg(), [k]: v };
     db.doc("config/orcamento").set(OR.cfg).catch(e => msg("Não consegui salvar as condições (" + (e.code || e.message) + ")."));
     if (OR.atual) orDesenharEd();
   });
+}
+// ===================== Listas escolares (orçamento em 3 faixas) =====================
+// Catálogo de itens genéricos em docs "orc_genericos/<id>" ({nome, categoria, palavras, unidade, ativo, faixas:{eco:[ean], rec:[ean], pre:[ean]}});
+// produtos de cada faixa são códigos de barras do cadastro vivo (preço e estoque vêm da tabela produtos da loja escolhida).
+// Listas lidas ficam em "orc_listas/<id>". Leitura da lista: função de borda "lista_escolar" (IA).
+const OL = { gen: new Map(), listas: new Map(), atual: null, precos: {}, salvarT: null, catSel: null, catQ: "", busca: null };
+const OL_FAIXAS = [["eco", "Econômica"], ["rec", "Recomendada"], ["pre", "Premium"]];
+const OL_COR = { eco: "#3A8DA6", rec: "#C35078", pre: "#1B2D4B" };
+const OL_LEG = { eco: "menor preço que cumpre a lista", rec: "marcas boas, custo-benefício", pre: "as marcas mais pedidas" };
+const OL_VIZ = { eco: ["eco", "rec", "pre"], rec: ["rec", "eco", "pre"], pre: ["pre", "rec", "eco"] };
+const OL_NV_PADRAO = "livro didático\nlivro paradidático\napostila\nuniforme\ncamiseta\ntênis\nnovelo de lã\nbiscuit\nescova de dente\ncreme dental\ntoalha\nlenço umedecido\nfralda\nfoto 3x4\ncopo\ngarrafa térmica\nfantasia";
+const olNorm = s => semAcento(String(s || "")).toLowerCase().replace(/\s+/g, " ").trim();
+const olTermosNV = () => String(orCfg().nao_vendemos ?? OL_NV_PADRAO).split(/[\n,]/).map(t => t.trim()).filter(Boolean);
+const olGenOrdenados = () => [...OL.gen.values()].filter(g => g.ativo !== false).sort((a, b) => (a.categoria || "").localeCompare(b.categoria || "") || a.nome.localeCompare(b.nome));
+const olEanKey = e => chave13(String(e || "").replace(/\D/g, ""));
+
+// preços do cadastro para um conjunto de EANs (cache por loja)
+async function olPrecos(loja, eans) {
+  const cache = OL.precos[loja] || (OL.precos[loja] = new Map());
+  const falta = [...new Set(eans.map(olEanKey).filter(e => e && !cache.has(e)))];
+  for (let i = 0; i < falta.length && supa; i += 150) {
+    const lote = falta.slice(i, i + 150), cands = [...new Set(lote.flatMap(e => [e, e.replace(/^0+/, "")]))];
+    const r = await supa.from("produtos").select("ean,descricao,preco_venda,estoque,ativo").eq("loja_id", loja).in("ean", cands);
+    for (const p of r.data || []) cache.set(olEanKey(p.ean), { desc: p.descricao, pv: r2(Number(p.preco_venda) || 0), est: p.estoque != null ? Number(p.estoque) : null, ativo: p.ativo !== false });
+    for (const e of lote) if (!cache.has(e)) cache.set(e, null);
+  }
+  return cache;
+}
+// produto da faixa para esta turma: rodízio entre os produtos com estoque; sem estoque na faixa, usa a faixa vizinha; só em último caso um produto sem estoque
+function olEscolher(g, faixa, cache, semente) {
+  for (const exigeEst of [true, false]) for (const f of OL_VIZ[faixa]) {
+    const lista = (g.faixas && g.faixas[f] || []).map(e => ({ ean: olEanKey(e), p: cache.get(olEanKey(e)) })).filter(x => x.p && x.p.ativo && x.p.pv > 0 && (!exigeEst || x.p.est == null || x.p.est > 0));
+    if (lista.length) { const x = lista[semente % lista.length]; return { ean: x.ean, nome: x.p.desc, unit: x.p.pv, faixaUsada: f, semEstoque: !(x.p.est == null || x.p.est > 0) }; }
+  }
+  return null;
+}
+async function olCalc(L) {
+  const eans = []; for (const it of L.itens) { const g = it.gid && OL.gen.get(it.gid); if (g) for (const f of ["eco", "rec", "pre"]) eans.push(...(g.faixas && g.faixas[f] || [])); }
+  const cache = await olPrecos(L.loja || 1, eans), semente = Math.max(0, (parseInt(L.turma, 10) || 1) - 1), nv = olTermosNV().map(olNorm);
+  const linhas = [], pendentes = [], naoVendemos = [], totais = { eco: 0, rec: 0, pre: 0 };
+  for (const it of L.itens) {
+    if (it.status === "nao_vendemos" || nv.some(t => t && olNorm(it.descricao).includes(t))) { naoVendemos.push(it); continue; }
+    const g = it.gid && OL.gen.get(it.gid); if (!g) { pendentes.push({ ...it, motivo: "sem item do catálogo" }); continue; }
+    const qtd = Number(it.qtd) > 0 ? Number(it.qtd) : 1, linha = { descricao: it.descricao, generico: g.nome, qtd, faixas: {} }; let faltou = false;
+    for (const [f] of OL_FAIXAS) { const p = olEscolher(g, f, cache, semente); if (p) { linha.faixas[f] = { ...p, total: r2(p.unit * qtd) }; totais[f] = r2(totais[f] + p.unit * qtd); } else { linha.faixas[f] = null; faltou = true; } }
+    if (faltou) pendentes.push({ ...it, motivo: `"${g.nome}" ainda não tem produto cadastrado nas faixas` }); else linhas.push(linha);
+  }
+  return { linhas, totais, pendentes, naoVendemos };
+}
+// ---------- listas: CRUD ----------
+function olNova() {
+  const num = Math.max(0, ...[...OL.listas.values()].map(o => Number(o.num) || 0)) + 1;
+  const L = { id: "L" + Date.now().toString(36), num, escola: "", serie: "", turma: "", ano: new Date().getFullYear() + 1, loja: 1, cliente: "", tel: "", validade: orMaisDias(orCfg().validade_dias), itens: [], status: "aberto", criado: new Date().toISOString() };
+  OL.listas.set(L.id, L); OL.atual = L; olSalvar(true); olDesenharEd(); olDesenharLista();
+}
+function olSalvar(agora) {
+  const L = OL.atual; if (!L || !db) return; clearTimeout(OL.salvarT);
+  const f = () => { L.alterado = new Date().toISOString(); const { id, ...dados } = L; db.doc("orc_listas/" + id).set(dados).catch(e => msg("Não consegui salvar a lista (" + (e.code || e.message) + ").")); };
+  if (agora) f(); else OL.salvarT = setTimeout(f, 700);
+}
+function olAbrir(id) { const L = OL.listas.get(id); if (!L) return; OL.atual = L; olDesenharEd(); document.getElementById("olEd").scrollIntoView({ behavior: "smooth", block: "start" }); }
+function olDesenharLista() {
+  const el = document.getElementById("olLista"); if (!el) return;
+  const lista = [...OL.listas.values()].sort((a, b) => (b.criado || "").localeCompare(a.criado || ""));
+  if (!lista.length) { el.innerHTML = `<div class="orig">Nenhuma lista ainda. Clique em "Nova lista escolar" e mande a foto da lista.</div>`; return; }
+  el.innerHTML = `<div class="bcards">` + lista.map(L => { const [st, cls] = OR_STATUS[L.status] || OR_STATUS.aberto, ok = L.itens.filter(i => i.status === "ok").length, pend = L.itens.filter(i => i.status === "pendente").length;
+    return `<div class="bcard" data-id="${L.id}" style="cursor:pointer"><div class="linha" style="justify-content:space-between"><b>Lista ${L.num} · ${escH(L.escola || "(escola?)")} · ${escH(L.serie || "")}</b><span class="chip ${cls}">${st}</span></div>
+      <div class="orig">${escH(L.cliente || "")}${L.cliente ? " · " : ""}Loja ${L.loja} · ${L.itens.length} itens (${ok} casados${pend ? `, <span style="color:#b42318">${pend} pendentes</span>` : ""}) · ${L.criado ? new Date(L.criado).toLocaleDateString("pt-BR") : ""}</div>
+      ${L.totais ? `<div style="font-weight:bold;color:#1B2D4B">${OL_FAIXAS.map(([f, n]) => `${n.slice(0, 3)} ${orBrl(L.totais[f])}`).join(" · ")}</div>` : ""}</div>`; }).join("") + `</div>`;
+  for (const c of el.querySelectorAll(".bcard")) c.addEventListener("click", () => olAbrir(c.dataset.id));
+}
+function olSelGen(sel) {
+  let h = `<option value="">— escolher item do catálogo —</option><option value="__nv" ${sel === "__nv" ? "selected" : ""}>não vendemos</option>`, cat = null;
+  for (const g of olGenOrdenados()) { if (g.categoria !== cat) { if (cat !== null) h += `</optgroup>`; cat = g.categoria; h += `<optgroup label="${orA(cat || "Outros")}">`; } h += `<option value="${g.id}" ${sel === g.id ? "selected" : ""}>${escH(g.nome)}</option>`; }
+  if (cat !== null) h += `</optgroup>`; return h;
+}
+async function olDesenharEd() {
+  const L = OL.atual, ed = document.getElementById("olEd"); if (!L) { ed.style.display = "none"; return; }
+  ed.style.display = "";
+  const [st, cls] = OR_STATUS[L.status] || OR_STATUS.aberto;
+  ed.innerHTML = `
+    <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><b style="font-size:16px">Lista escolar ${L.num}</b> <span class="chip ${cls}">${st}</span></div>
+      <div class="linha" style="gap:6px;flex-wrap:wrap">
+        <button class="sec" id="olImp">Imprimir / PDF</button><button class="sec" id="olZap">Texto p/ WhatsApp</button><button class="sec" id="olZapPdf">PDF no WhatsApp</button><button class="sec" id="olFecharB">Fechar</button>
+      </div></div>
+    <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:8px;align-items:flex-end">
+      <label class="c">Escola<input type="text" data-k="escola" value="${orA(L.escola)}" style="width:220px"></label>
+      <label class="c">Série / ano<input type="text" data-k="serie" value="${orA(L.serie)}" style="width:120px" placeholder="ex.: 3º ano"></label>
+      <label class="c" title="número da turma: turmas diferentes recebem marcas diferentes quando a faixa tem mais de um produto">Turma nº<input type="number" data-k="turma" value="${orA(L.turma)}" style="width:60px" min="1"></label>
+      <label class="c">Loja (preços)<select data-k="loja"><option value="1" ${L.loja == 1 ? "selected" : ""}>Loja 1</option><option value="2" ${L.loja == 2 ? "selected" : ""}>Loja 2</option></select></label>
+      <label class="c">Cliente<input type="text" data-k="cliente" value="${orA(L.cliente)}" style="width:160px"></label>
+      <label class="c">WhatsApp<input type="tel" data-k="tel" value="${orA(L.tel)}" style="width:130px"></label>
+      <label class="c">Válido até<input type="date" data-k="validade" value="${L.validade || ""}"></label>
+    </div>
+    <div class="painel" style="background:#f6f8fb;margin-top:8px">
+      <div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <label class="c">Foto(s) ou PDF da lista<input type="file" id="olArq" multiple accept="image/*,application/pdf"></label>
+        <label class="c" style="flex:1;min-width:220px">ou cole o texto da lista<textarea id="olTxt" rows="2" placeholder="1 caderno brochura 96 fls&#10;2 lápis preto…"></textarea></label>
+        <button id="olLer" title="manda para a IA ler e casar com o catálogo">Ler lista com a IA</button>
+      </div>
+      <div id="olLerMsg" class="orig" style="margin-top:4px"></div>
+    </div>
+    <div id="olItens" style="margin-top:8px"></div>
+    <div id="olResumo" style="margin-top:8px"></div>
+    <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center"><span class="orig">Situação:</span>
+      ${Object.entries(OR_STATUS).map(([k, [n]]) => `<button class="sec" data-st="${k}" ${L.status === k ? "disabled" : ""}>${n}</button>`).join(" ")}
+      <a href="#" id="olExcluir" style="margin-left:auto;color:#b42318;font-size:12px">excluir lista</a></div>`;
+  for (const i of ed.querySelectorAll("[data-k]")) i.addEventListener(i.tagName === "SELECT" ? "change" : "input", () => { const k = i.dataset.k; L[k] = k === "loja" ? Number(i.value) : i.value; olSalvar(); if (k === "loja" || k === "turma") olDesenharResumo(); });
+  ed.querySelector("#olLer").addEventListener("click", olLer);
+  ed.querySelector("#olImp").addEventListener("click", () => olImprimir(false)); ed.querySelector("#olZapPdf").addEventListener("click", () => olImprimir(true));
+  ed.querySelector("#olZap").addEventListener("click", olWhats);
+  ed.querySelector("#olFecharB").addEventListener("click", () => { olSalvar(true); OL.atual = null; ed.style.display = "none"; olDesenharLista(); });
+  for (const b of ed.querySelectorAll("[data-st]")) b.addEventListener("click", () => { L.status = b.dataset.st; olSalvar(true); olDesenharEd(); olDesenharLista(); });
+  ed.querySelector("#olExcluir").addEventListener("click", ev => { ev.preventDefault(); if (!confirm(`Excluir a lista ${L.num}?`)) return; db.doc("orc_listas/" + L.id).delete().catch(() => {}); OL.listas.delete(L.id); OL.atual = null; ed.style.display = "none"; olDesenharLista(); });
+  olDesenharItens(); olDesenharResumo();
+}
+function olDesenharItens() {
+  const L = OL.atual, el = document.getElementById("olItens"); if (!L || !el) return;
+  if (!L.itens.length) { el.innerHTML = `<div class="orig">Ainda sem itens: leia a lista com a IA ou <a href="#" id="olAddManual">adicione um item à mão</a>.</div>`; el.querySelector("#olAddManual").addEventListener("click", ev => { ev.preventDefault(); L.itens.push({ descricao: "", qtd: 1, gid: null, status: "pendente" }); olSalvar(); olDesenharItens(); }); return; }
+  el.innerHTML = `<div style="overflow:auto"><table><thead><tr><th>Item da lista</th><th class="n">Qtd</th><th>Item do catálogo</th><th></th></tr></thead><tbody>` + L.itens.map((it, n) => {
+    const cls = it.status === "ok" ? "pok" : it.status === "nao_vendemos" ? "" : "falta";
+    return `<tr class="${cls}" data-n="${n}"><td><input type="text" data-k="descricao" value="${orA(it.descricao)}" style="width:100%;min-width:200px"></td>
+      <td class="n"><input type="number" data-k="qtd" min="0" step="0.5" value="${it.qtd}" style="width:60px;text-align:right"></td>
+      <td><select data-k="gid" style="max-width:320px">${olSelGen(it.status === "nao_vendemos" ? "__nv" : it.gid)}</select>
+        ${it.status === "pendente" && it.proposta ? `<div class="orig">sugestão da IA: criar <b>${escH(it.proposta.nome)}</b> <a href="#" data-prop style="color:#0b57d0">criar no catálogo</a></div>` : ""}
+        ${it.status === "nao_vendemos" ? `<div class="orig">vai na mensagem como item que não vendemos</div>` : ""}</td>
+      <td><a href="#" data-rm style="color:#b42318">✕</a></td></tr>`; }).join("") + `</tbody></table></div><a href="#" id="olAddManual" style="font-size:12px">+ adicionar item à mão</a>`;
+  for (const tr of el.querySelectorAll("tr[data-n]")) {
+    const it = L.itens[Number(tr.dataset.n)];
+    for (const i of tr.querySelectorAll("[data-k]")) i.addEventListener("change", () => {
+      const k = i.dataset.k;
+      if (k === "gid") { if (i.value === "__nv") { it.gid = null; it.status = "nao_vendemos"; } else { it.gid = i.value || null; it.status = it.gid ? "ok" : "pendente"; } }
+      else if (k === "qtd") it.qtd = Math.max(0, parseFloat(i.value) || 0); else it[k] = i.value;
+      olSalvar(); olDesenharItens(); olDesenharResumo();
+    });
+    const pr = tr.querySelector("[data-prop]"); if (pr) pr.addEventListener("click", async ev => { ev.preventDefault(); const g = await olCriarGen(it.proposta); if (g) { for (const x of L.itens) if (x.status === "pendente" && x.proposta && olNorm(x.proposta.nome) === olNorm(it.proposta.nome)) { x.gid = g.id; x.status = "ok"; } olSalvar(); olDesenharItens(); olDesenharResumo(); msg(`"${g.nome}" criado no catálogo; agora cadastre os produtos das faixas dele (link "catálogo de itens").`); } });
+    tr.querySelector("[data-rm]").addEventListener("click", ev => { ev.preventDefault(); L.itens.splice(Number(tr.dataset.n), 1); olSalvar(); olDesenharItens(); olDesenharResumo(); });
+  }
+  el.querySelector("#olAddManual").addEventListener("click", ev => { ev.preventDefault(); L.itens.push({ descricao: "", qtd: 1, gid: null, status: "pendente" }); olSalvar(); olDesenharItens(); });
+}
+async function olDesenharResumo() {
+  const L = OL.atual, el = document.getElementById("olResumo"); if (!L || !el) return;
+  if (!L.itens.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<span class="orig">calculando…</span>`;
+  const c = await olCalc(L); if (OL.atual !== L) return;
+  L.totais = c.totais; olSalvar();
+  const cfg = orCfg(), pg = {}; for (const [f] of OL_FAIXAS) pg[f] = orPagamento(c.totais[f], cfg);
+  el.innerHTML = `<div class="bcards" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${OL_FAIXAS.map(([f, n]) => `<div class="bcard" style="border-color:${OL_COR[f]};${f === "rec" ? `background:${OL_COR[f]};color:#fff` : ""}"><div style="font-weight:bold">${n.toUpperCase()}${f === "rec" ? " · a mais pedida" : ""}</div><div style="font-size:22px;font-weight:900">${orBrl(c.totais[f])}</div><div style="font-size:11px;opacity:.85">${OL_LEG[f]}<br>${orBrl(pg[f].avista)} à vista${pg[f].n > 1 ? ` · ${pg[f].n}× de ${orBrl(pg[f].parcela)}` : ""}</div>
+    <button class="sec" data-escolhe="${f}" style="margin-top:4px;${f === "rec" ? "background:#fff;color:#C35078" : ""}" title="cria um orçamento comum com os produtos desta opção, para fechar a venda">cliente escolheu esta</button></div>`).join("")}</div>
+    ${c.linhas.length ? `<div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Item</th><th class="n">Qtd</th>${OL_FAIXAS.map(([f, n]) => `<th class="n" style="background:${OL_COR[f]}">${n}</th>`).join("")}</tr></thead><tbody>${c.linhas.map(l => `<tr><td>${escH(l.descricao)}<div class="orig" style="font-size:10px">${escH(l.generico)}</div></td><td class="n">${br(l.qtd, 0)}</td>${OL_FAIXAS.map(([f]) => { const x = l.faixas[f]; return `<td class="n" style="color:${OL_COR[f]}"><b>${orBrl(x.total)}</b><div class="orig" style="font-size:10px">${br(l.qtd, 0)} × ${orBrl(x.unit)}<br>${escH(x.nome || "")}${x.faixaUsada !== f ? " <i>(da faixa " + x.faixaUsada + ")</i>" : ""}</div></td>`; }).join("")}</tr>`).join("")}</tbody></table></div>` : ""}
+    ${c.pendentes.length ? `<div class="chip falta" style="margin-top:6px;display:block">Confirmamos na hora (${c.pendentes.length}): ${c.pendentes.map(p => escH(p.descricao) + (p.motivo ? ` <span class="orig">(${escH(p.motivo)})</span>` : "")).join("; ")}</div>` : ""}
+    ${c.naoVendemos.length ? `<div class="chip av" style="margin-top:6px;display:block">Não vendemos (${c.naoVendemos.length}): ${c.naoVendemos.map(p => escH(p.descricao)).join(", ")}</div>` : ""}`;
+  for (const b of el.querySelectorAll("[data-escolhe]")) b.addEventListener("click", () => olVirarOrcamento(b.dataset.escolhe, c));
+  OL.ultCalc = c;
+}
+async function olLer() {
+  const L = OL.atual; if (!L || !supa) return;
+  const files = [...document.getElementById("olArq").files], texto = document.getElementById("olTxt").value.trim(), m = document.getElementById("olLerMsg");
+  if (!files.length && !texto) { m.textContent = "Escolha a foto/PDF da lista ou cole o texto."; return; }
+  if (files.length > 10) { m.textContent = "No máximo 10 arquivos por vez."; return; }
+  m.textContent = "Lendo a lista com a IA… (20 s a 2 min)";
+  try {
+    const arquivos = []; for (const f of files) arquivos.push(await romArquivo(f));
+    const catalogo = olGenOrdenados().map(g => ({ id: g.id, nome: g.nome, categoria: g.categoria, palavras: g.palavras }));
+    const { data, error } = await supa.functions.invoke("lista_escolar", { body: { arquivos, texto, catalogo, nao_vendemos: olTermosNV() } });
+    if (error) { let mm = error.message || String(error); try { const j = await error.context.json(); if (j && j.msg) mm = j.msg; } catch (_e) {} throw new Error(mm); }
+    if (!data || !data.ok) throw new Error((data && data.msg) || "resposta vazia");
+    const novos = (data.itens || []).map(i => ({ descricao: i.descricao, qtd: i.quantidade, gid: i.gid, status: i.status, proposta: i.proposta || null }));
+    if (!novos.length) throw new Error("a IA não encontrou itens; confira se a foto está nítida e inteira");
+    L.itens = L.itens.filter(i => i.descricao).concat(novos);
+    if (!L.escola && data.escola) L.escola = data.escola; if (!L.serie && data.serie) L.serie = data.serie;
+    L.textoOrig = texto || null; olSalvar(true); olDesenharEd();
+    const pend = novos.filter(i => i.status === "pendente").length;
+    document.getElementById("olLerMsg").textContent = `${novos.length} itens lidos; ${novos.filter(i => i.status === "ok").length} casados com o catálogo${pend ? `, ${pend} para você escolher o item (ou criar no catálogo)` : ""}.`;
+  } catch (e) { m.textContent = "Não consegui ler a lista: " + ((e && e.message) || e); }
+}
+function olVirarOrcamento(f, c) {
+  const L = OL.atual; if (!L || !c) return;
+  const num = Math.max(0, ...[...OR.docs.values()].map(x => Number(x.num) || 0)) + 1, nomeF = Object.fromEntries(OL_FAIXAS)[f];
+  const itens = c.linhas.map(l => { const x = l.faixas[f]; return { ean: x.ean, desc: x.nome || l.generico, qtd: l.qtd, pv: x.unit, pvCad: x.unit, est: null }; });
+  const o = { id: Date.now().toString(36), num, cliente: L.cliente || "", tel: L.tel || "", loja: L.loja || 1, validade: L.validade || orMaisDias(orCfg().validade_dias), itens, descPct: 0, status: "aberto", criado: new Date().toISOString(),
+    obs: `Lista escolar${L.escola ? " — " + L.escola : ""}${L.serie ? " · " + L.serie : ""} · opção ${nomeF}` + (c.pendentes.length ? `\nConfirmar na loja: ${c.pendentes.map(p => p.descricao).join(", ")}` : ""), lista: L.id };
+  OR.docs.set(o.id, o); OR.atual = o; orSalvar(true); L.escolhida = f; olSalvar(true);
+  orDesenharEd(); orDesenharLista(); document.getElementById("orEd").scrollIntoView({ behavior: "smooth", block: "start" });
+  msg(`Orçamento nº ${num} criado com a opção ${nomeF}; ajuste o que precisar e gere o PDF.`);
+}
+function olTexto(L, c) {
+  const cfg = orCfg(), pg = {}; for (const [f] of OL_FAIXAS) pg[f] = orPagamento(c.totais[f], cfg);
+  const T = [`Olá! Aqui é a Nova Raphaella. Segue o orçamento da lista${L.escola ? ` da ${L.escola}` : ""}${L.serie ? ` – ${L.serie}` : ""}:`, "",
+    `1) Econômica: *${orBrl(c.totais.eco)}*`, `2) Recomendada: *${orBrl(c.totais.rec)}* ← a que mais sai (marcas boas, custo-benefício)`, `3) Premium: *${orBrl(c.totais.pre)}*`, "",
+    "A quantidade é a mesma nas três; muda a marca dos itens principais."];
+  if (c.pendentes.length) T.push("", "Ficaram de fora (confirmamos preço na hora): " + c.pendentes.map(p => p.descricao).join(", ") + ".");
+  if (c.naoVendemos.length) T.push("", String(cfg.msg_nao_vendemos || "Não trabalhamos com: {itens}.").replace("{itens}", c.naoVendemos.map(p => p.descricao).join(", ")));
+  T.push("", `Formas de pagamento (${br(cfg.desc_avista, 0)}% dinheiro/Pix/débito · ${br(cfg.desc_credito, 0)}% crédito à vista · ${br(cfg.desc_parcelado, 0)}% em até ${Math.floor(cfg.max_parcelas)}×):`);
+  for (const [f, n] of OL_FAIXAS) T.push(`• ${n}: ${orBrl(pg[f].avista)} à vista · ${orBrl(pg[f].credito)} no crédito${pg[f].n > 1 ? ` · ${pg[f].n}× de ${orBrl(pg[f].parcela)}` : ""}`);
+  T.push("", `Válido até ${orData(L.validade)}. Quer reservar ou prefere retirar na loja?`);
+  return T.join("\n");
+}
+async function olWhats() {
+  const L = OL.atual; if (!L) return; const c = OL.ultCalc || await olCalc(L), t = olTexto(L, c);
+  try { await navigator.clipboard.writeText(t); msg("Texto copiado."); } catch (_e) {}
+  const tel = (L.tel || "").replace(/\D/g, ""); if (L.status === "aberto") { L.status = "enviado"; olSalvar(true); olDesenharEd(); olDesenharLista(); }
+  window.open("https://wa.me/" + (tel ? (tel.length <= 11 ? "55" + tel : tel) : "") + "?text=" + encodeURIComponent(t), "_blank");
+}
+function olHtmlDoc(L, c, modo) {
+  const cfg = orCfg(), pdf = modo === "pdf", pg = {}; for (const [f] of OL_FAIXAS) pg[f] = orPagamento(c.totais[f], cfg);
+  const logo = `<span class="lg"><i style="background:#C35078"></i><i style="background:#B83D50"></i><i style="background:#7AAB30"></i><i style="background:#3A8DA6"></i></span><span class="nome">Nova Raphaella</span>`;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Orçamento lista escolar — ${escH(L.escola)} — ${escH(L.serie)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+ @page { size: A4; margin: 15mm; }
+ body { font-family: Nunito, Arial, sans-serif; color: #000; margin: 0; font-size: 10pt; }
+ .top { display: flex; justify-content: space-between; align-items: flex-start; }
+ .lg { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 2.2px; width: 30px; height: 30px; vertical-align: middle; margin-right: 8px; } .lg i { display: block; border-radius: 22%; }
+ .nome { font-weight: 900; font-size: 16pt; vertical-align: middle; } .meta { text-align: right; color: #555; font-size: 9pt; }
+ h1 { color: #1B2D4B; font-weight: 900; font-size: 19pt; margin: 16px 0 2px; } .cli { font-weight: 700; font-size: 12pt; margin-bottom: 12px; }
+ .cards { display: flex; gap: 10px; margin-bottom: 8px; } .card { flex: 1; border-radius: 8px; padding: 9px 10px; border: 1.2px solid; }
+ .card .t { font-weight: 700; font-size: 9pt; } .card .v { font-weight: 900; font-size: 16pt; margin: 2px 0; } .card .l { font-size: 7.5pt; color: #555; }
+ .card.rec { color: #fff; } .card.rec .l { color: #fff; }
+ .exp { color: #555; font-size: 8.5pt; margin-bottom: 8px; }
+ table { width: 100%; border-collapse: collapse; } th { background: #1B2D4B; color: #fff; font-weight: 700; font-size: 8pt; text-align: left; padding: 5px 6px; } th.n, td.n { text-align: right; }
+ td { padding: 5px 6px; font-size: 8.5pt; border-bottom: 1px solid #eee; vertical-align: top; } tr:nth-child(even) td { background: #F7F7F7; }
+ .sub { color: #555; font-size: 6.6pt; } .prd { color: #333; font-size: 6.6pt; }
+ .tot td { background: #FBF4F7 !important; font-weight: 900; font-size: 10pt; border: 0; }
+ .pag { margin-top: 14px; background: #FBF4F7; border-radius: 8px; padding: 10px 12px; } .pag h2 { color: #1B2D4B; font-size: 11pt; margin: 0 0 6px; font-weight: 900; }
+ .pag table th { background: transparent; color: #1B2D4B; font-size: 8pt; border-bottom: 1px solid #ddd; } .pag td { background: transparent !important; border: 0; font-size: 9pt; }
+ .obs { margin-top: 12px; font-size: 9pt; } .obs b { color: #1B2D4B; }
+ .rod { position: ${pdf ? "static" : "fixed"}; bottom: 0; left: 0; right: 0; border-top: 0.5px solid #ddd; padding-top: 5px; font-size: 8pt; color: #1B2D4B; font-weight: 700; display: flex; justify-content: space-between; ${pdf ? "margin-top:24px" : ""} }
+ .rod span { color: #555; font-weight: 400; } .espaco { height: 60px; ${pdf ? "display:none" : ""} }
+ tr, .card, .pag, .obs { page-break-inside: avoid; }
+ @media screen { body { max-width: 760px; margin: 20px auto; padding: 0 16px; } .rod { position: static; margin-top: 30px; } .espaco { display: none; } }
+</style></head><body>
+<div class="top"><div>${logo}</div><div class="meta">Emitido em ${new Date().toLocaleDateString("pt-BR")}<br>Válido até ${orData(L.validade) || "—"}<br>Lista ${L.num} · Loja ${L.loja}</div></div>
+<h1>Orçamento da lista escolar</h1>
+<div class="cli">${escH(L.escola || "")}${L.serie ? ` · ${escH(L.serie)}` : ""}${L.cliente ? ` · ${escH(L.cliente)}` : ""}</div>
+<div class="cards">${OL_FAIXAS.map(([f, n]) => `<div class="card ${f}" style="border-color:${OL_COR[f]};${f === "rec" ? `background:${OL_COR[f]}` : `color:${OL_COR[f]}`}"><div class="t">${n.toUpperCase()}${f === "rec" ? " · a mais pedida" : ""}</div><div class="v" style="${f === "rec" ? "" : "color:#000"}">${orBrl(c.totais[f])}</div><div class="l">${OL_LEG[f]}</div></div>`).join("")}</div>
+<div class="exp">A quantidade de cada item é a mesma nas três opções; o que muda é a marca. Na tabela, cada opção mostra o TOTAL do item (quantidade × preço unitário), a conta e o produto considerado.</div>
+<table><thead><tr><th>ITEM DA LISTA</th><th class="n">QTD</th>${OL_FAIXAS.map(([f, n]) => `<th class="n">${n.toUpperCase()}</th>`).join("")}</tr></thead><tbody>
+${c.linhas.map(l => `<tr><td>${escH(l.descricao)}</td><td class="n"><b>${br(l.qtd, 0)}</b></td>${OL_FAIXAS.map(([f]) => { const x = l.faixas[f]; return `<td class="n"><b style="color:${OL_COR[f]}">${orBrl(x.total)}</b><div class="prd">${br(l.qtd, 0)} × ${orBrl(x.unit)} (un.)</div><div class="sub">${escH(x.nome || "")}</div></td>`; }).join("")}</tr>`).join("")}
+<tr class="tot"><td colspan="2" style="color:#1B2D4B">TOTAL</td>${OL_FAIXAS.map(([f]) => `<td class="n" style="color:${OL_COR[f]}">${orBrl(c.totais[f])}</td>`).join("")}</tr></tbody></table>
+<div class="pag"><h2>Formas de pagamento</h2><table><thead><tr><th></th>${OL_FAIXAS.map(([f, n]) => `<th class="n">${n}</th>`).join("")}</tr></thead><tbody>
+${orLinhasPag(cfg).map(([k, r]) => `<tr><td>${escH(r)}</td>${OL_FAIXAS.map(([f]) => `<td class="n" style="color:${OL_COR[f]};font-weight:700">${k === "parcelado" ? (pg[f].n > 1 ? `${pg[f].n}× de ${orBrl(pg[f].parcela)}` : "não parcela") : orBrl(pg[f][k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+${c.pendentes.length ? `<div class="obs"><b>Confirmamos o preço na hora: </b>${c.pendentes.map(p => escH(p.descricao)).join(", ")}.</div>` : ""}
+${c.naoVendemos.length ? `<div class="obs"><b>Não trabalhamos com: </b>${c.naoVendemos.map(p => escH(p.descricao)).join(", ")}.</div>` : ""}
+<div class="obs"><b>Validade: </b>preços válidos até ${orData(L.validade) || "—"} ou enquanto durar o estoque. Quer reservar? É só responder esta mensagem.</div>
+<div class="espaco"></div>
+<div class="rod"><div>${escH(cfg.rodape_loja1)}<br>${escH(cfg.rodape_loja2)}</div><div style="text-align:right"><span>${escH(cfg.rodape_site)}</span><br><span>lista ${L.num}</span></div></div>
+${pdf ? "" : `<script>window.addEventListener("load", () => { (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 300)); });<\/script>`}
+</body></html>`;
+}
+async function olImprimir(compartilhar) {
+  const L = OL.atual; if (!L) return; const c = OL.ultCalc || await olCalc(L);
+  if (!c.linhas.length) return msg("Nenhum item com preço ainda: case os itens com o catálogo e cadastre os produtos das faixas.");
+  if (!compartilhar) {
+    const w = window.open("", "_blank"); if (!w) return msg("O navegador bloqueou a janela de impressão; permita pop-ups para este site.");
+    w.document.open(); w.document.write(olHtmlDoc(L, c, "print")); w.document.close();
+  } else {
+    const b = document.getElementById("olZapPdf"); if (b) { b.disabled = true; b.textContent = "gerando PDF…"; }
+    try {
+      const nome = `Orcamento-lista-${L.num}-NovaRaphaella.pdf`, blob = await htmlParaPdf(olHtmlDoc(L, c, "pdf"), nome), file = new File([blob], nome, { type: "application/pdf" });
+      const texto = `Orçamento da lista escolar${L.escola ? " — " + L.escola : ""}${L.serie ? " · " + L.serie : ""}: Econômica ${orBrl(c.totais.eco)} · Recomendada ${orBrl(c.totais.rec)} · Premium ${orBrl(c.totais.pre)}.`;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: "Orçamento da lista escolar", text: texto }); } catch (e) { if (e && e.name === "AbortError") return; throw e; } }
+      else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); msg("PDF baixado; anexe na conversa do WhatsApp."); }
+    } catch (e) { msg("Não consegui gerar o PDF: " + ((e && e.message) || e)); }
+    finally { const b2 = document.getElementById("olZapPdf"); if (b2) { b2.disabled = false; b2.textContent = "PDF no WhatsApp"; } }
+  }
+  if (L.status === "aberto") { L.status = "enviado"; olSalvar(true); olDesenharEd(); olDesenharLista(); }
+}
+// ---------- catálogo de itens genéricos ----------
+async function olCriarGen(p) {
+  if (!db) return null;
+  const nome = String(p && p.nome || "").trim(); if (!nome) return null;
+  const existe = [...OL.gen.values()].find(g => olNorm(g.nome) === olNorm(nome)); if (existe) return existe;
+  const g = { id: "g" + Date.now().toString(36), nome, categoria: (p.categoria || "Outros").trim(), palavras: p.palavras || "", unidade: "un", ativo: true, faixas: { eco: [], rec: [], pre: [] } };
+  const { id, ...dados } = g; try { await db.doc("orc_genericos/" + id).set(dados); } catch (e) { msg("Não consegui criar o item (" + (e.code || e.message) + ")."); return null; }
+  OL.gen.set(id, g); return g;
+}
+function olSalvarGen(g) { const { id, ...dados } = g; return db.doc("orc_genericos/" + id).set(dados).catch(e => msg("Não consegui salvar o item (" + (e.code || e.message) + "))")); }
+async function olDesenharCat() {
+  const el = document.getElementById("olCat"); if (!el || el.style.display === "none") return;
+  const q = olNorm(OL.catQ), gens = olGenOrdenados().filter(g => !q || olNorm(g.nome + " " + (g.palavras || "") + " " + (g.categoria || "")).includes(q));
+  const todosEans = gens.flatMap(g => ["eco", "rec", "pre"].flatMap(f => g.faixas && g.faixas[f] || []));
+  const cache = await olPrecos(1, todosEans);
+  const sel = OL.catSel && OL.gen.get(OL.catSel);
+  el.innerHTML = `<div class="painel" style="background:#f6f8fb">
+    <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:flex-end"><b>Catálogo de itens genéricos</b> <span class="orig">(${OL.gen.size} itens; preços mostrados = Loja 1)</span>
+      <input type="text" id="olCatQ" placeholder="filtrar…" value="${orA(OL.catQ)}" style="width:180px"> <button class="sec" id="olCatNovo">Novo item genérico</button></div>
+    ${sel ? olHtmlGenEditor(sel, cache) : ""}
+    <div style="overflow:auto;margin-top:8px;max-height:420px"><table><thead><tr><th>Item</th>${OL_FAIXAS.map(([f, n]) => `<th style="background:${OL_COR[f]}">${n}</th>`).join("")}</tr></thead><tbody>
+    ${gens.map(g => `<tr data-g="${g.id}" style="cursor:pointer;${OL.catSel === g.id ? "outline:2px solid #0b57d0" : ""}"><td><b>${escH(g.nome)}</b><div class="orig" style="font-size:10px">${escH(g.categoria || "")}</div></td>${OL_FAIXAS.map(([f]) => { const l = (g.faixas && g.faixas[f] || []); return `<td style="font-size:11px">${l.length ? l.map(e => { const p = cache.get(olEanKey(e)); return p ? `${escH(p.desc)} <b>${orBrl(p.pv)}</b>` : `<span class="chip falta">${escH(e)} não achado</span>`; }).join("<br>") : `<span class="orig">—</span>`}</td>`; }).join("")}</tr>`).join("")}
+    </tbody></table></div></div>`;
+  const qi = el.querySelector("#olCatQ"); qi.addEventListener("input", () => { OL.catQ = qi.value; clearTimeout(OL.catT); OL.catT = setTimeout(() => { olDesenharCat().then(() => { const i = document.getElementById("olCatQ"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); }, 400); });
+  el.querySelector("#olCatNovo").addEventListener("click", async () => { const nome = prompt("Nome do item genérico (sem marca), ex.: Caderno brochura capa dura 96 folhas"); if (!nome) return; const cat = prompt("Categoria", "Outros") || "Outros"; const g = await olCriarGen({ nome, categoria: cat, palavras: "" }); if (g) { OL.catSel = g.id; olDesenharCat(); } });
+  for (const tr of el.querySelectorAll("tr[data-g]")) tr.addEventListener("click", () => { OL.catSel = tr.dataset.g; OL.busca = null; olDesenharCat(); });
+  if (sel) olLigarGenEditor(sel, cache);
+}
+function olHtmlGenEditor(g, cache) {
+  return `<div class="painel" id="olGenEd" style="margin-top:8px;border:1px solid #0b57d0">
+    <div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <label class="c">Nome<input type="text" data-gk="nome" value="${orA(g.nome)}" style="width:300px"></label>
+      <label class="c">Categoria<input type="text" data-gk="categoria" value="${orA(g.categoria || "")}" style="width:150px"></label>
+      <label class="c" style="flex:1;min-width:220px">Palavras-chave (como aparece nas listas)<input type="text" data-gk="palavras" value="${orA(g.palavras || "")}"></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-gk="ativo" ${g.ativo === false ? "" : "checked"}> ativo</label>
+      <a href="#" id="olGenFechar" style="font-size:12px">fechar</a></div>
+    <div class="bcards" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">${OL_FAIXAS.map(([f, n]) => `<div class="bcard" style="border-color:${OL_COR[f]}"><div style="font-weight:bold;color:${OL_COR[f]}">${n}</div>
+      <div data-fl="${f}">${(g.faixas && g.faixas[f] || []).map((e, i) => { const p = cache.get(olEanKey(e)); return `<div style="font-size:12px;display:flex;justify-content:space-between;gap:6px"><span>${p ? escH(p.desc) + ` <b>${orBrl(p.pv)}</b>` + (p.est != null ? ` <span class="orig">est. ${br(p.est, 0)}</span>` : "") : `<span class="chip falta">${escH(e)} não está no cadastro</span>`}</span><a href="#" data-rmf="${f}:${i}" style="color:#b42318">✕</a></div>`; }).join("") || `<span class="orig">nenhum produto</span>`}</div>
+      <div class="linha" style="gap:4px;margin-top:4px"><input type="text" data-bq="${f}" placeholder="nome ou código de barras" style="flex:1;min-width:120px"><button class="sec" data-bcam="${f}" title="bipar">📷</button></div><div data-bres="${f}"></div></div>`).join("")}</div>
+    <div class="orig" style="margin-top:4px">Com mais de um produto na mesma faixa, turmas diferentes recebem marcas diferentes (rodízio). Produto sem estoque sai do rodízio sozinho.</div></div>`;
+}
+function olLigarGenEditor(g, cache) {
+  const ed = document.getElementById("olGenEd"); if (!ed) return;
+  for (const i of ed.querySelectorAll("[data-gk]")) i.addEventListener("change", () => { const k = i.dataset.gk; g[k] = k === "ativo" ? i.checked : i.value; olSalvarGen(g); if (k === "nome" || k === "categoria") olDesenharCat(); });
+  ed.querySelector("#olGenFechar").addEventListener("click", ev => { ev.preventDefault(); OL.catSel = null; olDesenharCat(); });
+  for (const a of ed.querySelectorAll("[data-rmf]")) a.addEventListener("click", ev => { ev.preventDefault(); const [f, i] = a.dataset.rmf.split(":"); g.faixas[f].splice(Number(i), 1); olSalvarGen(g); olDesenharCat(); });
+  const buscar = async (f, txt) => {
+    const res = ed.querySelector(`[data-bres="${f}"]`); if (txt.length < 3) { res.innerHTML = ""; return; }
+    res.innerHTML = `<span class="orig">buscando…</span>`;
+    let rows = []; const cols = "ean,descricao,preco_venda,estoque,ativo";
+    if (/^\d{4,14}$/.test(txt)) { const cands = [...new Set([txt, txt.padStart(13, "0"), txt.replace(/^0+/, "") || "0"])]; const r = await supa.from("produtos").select(cols).eq("loja_id", 1).in("ean", cands); rows = r.data || []; }
+    else { const ws = semAcento(txt.toUpperCase()).replace(/[%_,()]/g, " ").split(/\s+/).filter(w => w.length > 1).slice(0, 6); let qq = supa.from("produtos").select(cols).eq("loja_id", 1); for (const w of ws) qq = qq.ilike("descricao", `%${w}%`); const r = await qq.order("descricao").limit(40); rows = r.data || []; }
+    rows = rows.filter(p => p.ativo !== false && p.ean);
+    if (!rows.length) { res.innerHTML = `<span class="orig">nada encontrado na Loja 1</span>`; return; }
+    if (rows.length === 1 && /^\d{4,14}$/.test(txt)) { add(f, rows[0]); return; }
+    res.innerHTML = `<div style="max-height:160px;overflow:auto;border:1px solid var(--borda);border-radius:6px;font-size:12px">` + rows.map((p, i) => `<div data-i="${i}" style="padding:3px 6px;border-bottom:1px solid #eee;cursor:pointer">${escH(p.descricao)} <b>${orBrl(p.preco_venda)}</b> <span class="orig">est. ${br(Number(p.estoque) || 0, 0)}</span></div>`).join("") + `</div>`;
+    for (const d of res.querySelectorAll("[data-i]")) d.addEventListener("click", () => add(f, rows[Number(d.dataset.i)]));
+  };
+  const add = (f, p) => { if (!g.faixas) g.faixas = { eco: [], rec: [], pre: [] }; if (!g.faixas[f]) g.faixas[f] = []; const e = olEanKey(p.ean); if (!g.faixas[f].includes(e)) g.faixas[f].push(e); (OL.precos[1] || (OL.precos[1] = new Map())).set(e, { desc: p.descricao, pv: r2(Number(p.preco_venda) || 0), est: p.estoque != null ? Number(p.estoque) : null, ativo: true }); olSalvarGen(g); olDesenharCat(); };
+  for (const i of ed.querySelectorAll("[data-bq]")) { i.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); buscar(i.dataset.bq, i.value.trim()); } }); i.addEventListener("input", () => { clearTimeout(i._t); i._t = setTimeout(() => buscar(i.dataset.bq, i.value.trim()), 500); }); }
+  for (const b of ed.querySelectorAll("[data-bcam]")) b.addEventListener("click", () => lerCamera(c => buscar(b.dataset.bcam, c)));
+}
+function olLigar() {
+  if (!db) return;
+  db.collection("orc_genericos").onSnapshot(s => { OL.gen = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (OL.atual) { olDesenharItens(); olDesenharResumo(); } olDesenharCat(); }, () => {});
+  db.collection("orc_listas").onSnapshot(s => { const id = OL.atual && OL.atual.id; OL.listas = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (id && OL.listas.has(id)) OL.listas.set(id, OL.atual); olDesenharLista(); }, () => {});
+  document.getElementById("olNova").addEventListener("click", olNova);
+  document.getElementById("olCatLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("olCat"); if (b.style.display === "none") { b.style.display = ""; olDesenharCat(); } else b.style.display = "none"; });
 }
 function orLigar() {
   if (!db) return;
@@ -2622,6 +2976,7 @@ function orLigar() {
   document.getElementById("orNovo").addEventListener("click", orNovo);
   document.getElementById("orFiltro").addEventListener("change", orDesenharLista);
   document.getElementById("orCfgLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("orCfgBox"); if (b.style.display === "none") { orDesenharCfg(); b.style.display = ""; } else b.style.display = "none"; });
+  olLigar();
 }
 function ligarOuvintes() {
   orLigar();

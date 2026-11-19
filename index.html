@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="51">
+<meta name="versao" content="52">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -550,6 +550,11 @@ function desenhar() {
         atualizarLinha(it); if (c === "ean" || c === "div") desenharDetalhe(it); totais(); guardar(it);
         if (c === "pct") { if (db) agendarCfg(); else if (metaLocal) metaLocal.cfg = cfgAtual(); desenharBoletosNota(); alertas(); }
       });
+      // preço de venda: se o que está no campo é só a sugestão do markup, ao entrar no campo ele fica vazio para digitar o seu; saindo sem digitar, a sugestão volta
+      if (c === "pv" || c === "pv2") {
+        inp.addEventListener("focus", () => { if (it[c] == null) inp.value = ""; else inp.select(); });
+        inp.addEventListener("blur", () => { if (it[c] == null) atualizarLinha(it); else inp.value = br(it[c]); });
+      }
       if (c === "ean") inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const prox = document.querySelector(`#l${it.n + 1} [data-c=ean]`); if (prox) prox.focus(); } });
     }
     tr.querySelector("[data-b]").addEventListener("click", () => abrirBusca(it));

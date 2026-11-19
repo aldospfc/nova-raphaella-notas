@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="49">
+<meta name="versao" content="50">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -1217,14 +1217,17 @@ function desenharBoletosNota() {
   const p = document.getElementById("pBol"); if (!p || !cab) return;
   const m = metaDe(cab.chave), bs = (m && m.boletos) || [];
   const totalBol = bs.reduce((a, b) => a + aPagar(m, b), 0), r2_ = div2On() && bs.length && totaisLojas().un2 > 0 ? rateioLoja2(m, bs) : null;
-  if (bs.length && itens.length && (r2_ || bs.some(b => b.p2))) agendarPartesL2(cab.chave, r2_ ? r2_.partes : null);
-  p.innerHTML = `<a id="bolSeta" title="clique para esconder ou mostrar a lista de boletos" style="cursor:pointer;color:inherit;font-weight:bold;text-decoration:none">${document.body.classList.contains("semBol") ? "▸" : "▾"} Boletos desta nota</a> <span class="orig">${bs.length ? bs.length + " boleto" + (bs.length > 1 ? "s" : "") + " · total a pagar R$ " + br(bs.reduce((a, b) => a + aPagar(m, b), 0)) + (fbDe(m) > 1 ? ` — meia nota: os boletos da nota estão multiplicados por ${String(fbDe(m)).replace(".", ",")}` : "") : "nenhum boleto lançado"}</span>${r2_ ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><b>Loja 2 paga R$ ${br(r2_.total2)}</b> = R$ ${br(r2_.bol)} dos boletos (${br(r2_.fracao * 100, 1)}%${r2_.porNota ? ", calculado nota por nota" : ""})${r2_.difal2 ? ` + R$ ${br(r2_.difal2)} da parte dela no DIFAL` : ""} · Loja 1 fica com R$ ${br(r2(totalBol - r2_.total2))}${r2_.difal2 ? " dos boletos, já descontado o DIFAL que a Loja 2 devolve" : ""}</div>` : ""}<div id="lBol"></div><button class="sec" id="bAddBol" style="margin-top:6px">Adicionar boleto</button>`;
+  // sem divisão item a item (nota já lançada, por exemplo), a parte da Loja 2 pode ser informada como um valor total e rateada pelos boletos
+  const man = !r2_ && m && m.l2man > 0 && totalBol > 0 ? partesManualL2(m, bs, totalBol) : null, partes = r2_ ? r2_.partes : man;
+  if (bs.length && (partes || bs.some(b => b.p2))) agendarPartesL2(cab.chave, partes);
+  p.innerHTML = `<a id="bolSeta" title="clique para esconder ou mostrar a lista de boletos" style="cursor:pointer;color:inherit;font-weight:bold;text-decoration:none">${document.body.classList.contains("semBol") ? "▸" : "▾"} Boletos desta nota</a> <span class="orig">${bs.length ? bs.length + " boleto" + (bs.length > 1 ? "s" : "") + " · total a pagar R$ " + br(bs.reduce((a, b) => a + aPagar(m, b), 0)) + (fbDe(m) > 1 ? ` — meia nota: os boletos da nota estão multiplicados por ${String(fbDe(m)).replace(".", ",")}` : "") : "nenhum boleto lançado"}</span>${r2_ ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><b>Loja 2 paga R$ ${br(r2_.total2)}</b> = R$ ${br(r2_.bol)} dos boletos (${br(r2_.fracao * 100, 1)}%${r2_.porNota ? ", calculado nota por nota" : ""})${r2_.difal2 ? ` + R$ ${br(r2_.difal2)} da parte dela no DIFAL` : ""} · Loja 1 fica com R$ ${br(r2(totalBol - r2_.total2))}${r2_.difal2 ? " dos boletos, já descontado o DIFAL que a Loja 2 devolve" : ""}</div>` : ""}${!r2_ && bs.length ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><label title="use quando a nota já foi lançada sem dividir item a item: informe quanto a Loja 2 deve nesta nota e o valor é rateado pelos boletos na proporção de cada um">Loja 2 me deve nesta nota R$ <input type="text" inputmode="decimal" data-k="l2man" value="${m.l2man > 0 ? br(m.l2man) : ""}" placeholder="0,00" style="width:90px;text-align:right"></label>${man ? ` <span class="orig">= ${br(m.l2man / totalBol * 100, 1)}% dos boletos · Loja 1 fica com R$ ${br(r2(totalBol - m.l2man))}</span>` : ` <span class="orig">(rateio pelos boletos)</span>`}</div>` : ""}<div id="lBol"></div><button class="sec" id="bAddBol" style="margin-top:6px">Adicionar boleto</button>`;
+  { const im = p.querySelector("[data-k=l2man]"); if (im) im.addEventListener("change", ev => { const v = pnum(ev.target.value) || 0; if (v > totalBol + 0.005) { ev.target.value = m.l2man > 0 ? br(m.l2man) : ""; return msg("A parte da Loja 2 não pode passar do total dos boletos (R$ " + br(totalBol) + ")."); } salvarMeta(cab.chave, { l2man: v > 0 ? r2(v) : null }); }); }
   p.querySelector("#bolSeta").addEventListener("click", () => { const g = document.getElementById("gBol"); g.checked = !g.checked; g.dispatchEvent(new Event("change")); });
   const l = p.querySelector("#lBol");
   bs.forEach((b, i) => {
     const [txtS, cls] = sitBoleto(b), e = document.createElement("div"); e.className = "bol";
     e.innerHTML = `<span style="min-width:70px">${h(b.n || i + 1)}</span><label>vencimento <input type="date" data-k="venc" value="${h(b.venc || "")}"></label><label>${b.nf ? "valor na nota" : "valor"} R$ <input type="text" inputmode="decimal" data-k="valor" value="${b.valor ? br(b.valor) : ""}" style="width:90px;text-align:right"></label>` +
-      `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${r2_ && r2_.partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="parte da Loja 2 neste boleto, já com a parte dela no DIFAL">Loja 2 me paga: R$ ${br(r2_.partes[i])} · Loja 1: R$ ${br(r2(aPagar(m, b) - r2_.partes[i]))}</span><label title="marque quando a Loja 2 te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec ? " checked" : ""}> Loja 2 já me pagou</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
+      `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${partes && partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="${r2_ ? "parte da Loja 2 neste boleto, já com a parte dela no DIFAL" : "parte da Loja 2 neste boleto, rateada pelo valor informado acima"}">Loja 2 me paga: R$ ${br(partes[i])} · Loja 1: R$ ${br(r2(aPagar(m, b) - partes[i]))}</span><label title="marque quando a Loja 2 te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec ? " checked" : ""}> Loja 2 já me pagou</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
     e.querySelector("[data-k=venc]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { venc: ev.target.value }));
     e.querySelector("[data-k=valor]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { valor: pnum(ev.target.value) }));
     e.querySelector("[data-k=pago]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { pago: ev.target.checked ? new Date().toISOString() : null }));
@@ -2085,6 +2088,13 @@ function rateioLoja2(m, bs) {
   for (const x of g.values()) { bol += x.bol * (x.nota > 0 ? x.nota2 / x.nota : 0); difal2 += x.difal2; }
   const total = bs.reduce((a, b) => a + aPagar(m, b), 0);
   return { partes, bol: r2(bol), difal2: r2(difal2), total2: r2(bol + difal2), fracao: total > 0 ? bol / total : 0, porNota };
+}
+// rateio de um valor total devido pela Loja 2 pelos boletos, na proporção de cada um; a sobra de arredondamento vai no último
+function partesManualL2(m, bs, totalBol) {
+  const partes = bs.map(b => r2(aPagar(m, b) * m.l2man / totalBol));
+  const soma = r2(partes.reduce((a, v) => a + v, 0)), dif = r2(m.l2man - soma);
+  if (dif && partes.length) partes[partes.length - 1] = r2(partes[partes.length - 1] + dif);
+  return partes;
 }
 // guarda em cada boleto a parte da Loja 2 (p2), para aparecer na aba Boletos e nos avisos sem precisar abrir a nota
 let tP2 = null;

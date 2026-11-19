@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="47">
+<meta name="versao" content="48">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -32,6 +32,11 @@
   tr.rev td { background: #a9c8ee; }
   tr.rev td .orig { color: #24426b; }
   tr.rev td input.p, tr.rev td input.desc, tr.rev td input.ean { background: #e9f1fb; }
+  /* preço de venda: sugerido pelo markup (cinza, itálico, tracejado) x definido pela pessoa (escuro, negrito, fundo verde) */
+  td input.p.sug { color: #8a94a6; font-style: italic; border-style: dashed; background: #fafbfd; }
+  td input.p.def { color: #0b2a4a; font-weight: bold; background: #e6f6e6; border-color: #7fbf7f; }
+  tr.rev td input.p.sug { background: #e9f1fb; }
+  tr.rev td input.p.def { background: #d6f0d6; }
   td.rv { text-align: center; white-space: nowrap; }
   td.rv input { width: 20px; height: 20px; cursor: pointer; }
   body.soPend tr.rev { display: none; }
@@ -143,6 +148,7 @@
       <label class="c">% na nota (padrão)<input type="number" id="gPct" value="100" min="1" max="100" step="1" style="width:80px"></label>
       <label class="c">Acréscimo padrão sobre o custo (%)<input type="number" id="gMk" value="100" min="0" step="5" style="width:80px"></label>
       <label class="c">Arredondar venda para<select id="gArr"><option value="0">centavos</option><option value="0.1">R$ 0,10</option><option value="0.5" selected>R$ 0,50</option><option value="1">R$ 1,00</option></select></label>
+      <span class="c" style="font-size:11px;color:#556" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido</span>
       <label class="c">O que vai no XML<select id="gModo"><option value="A">A — só destrinchar (valores da nota)</option><option value="B">B — custo final embutido (IPI e DIFAL dentro do valor)</option></select></label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option><option value="duas">Duas notas: uma de cada loja</option></select></label>
       <label class="c" id="lXml2" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="pedidos diferentes do mesmo fornecedor para as duas lojas: abra aqui a nota da Loja 2 e trabalhe as duas na mesma tela. Cada loja fica com a quantidade e o custo da sua própria nota.">Juntar a nota da Loja 2 <input type="file" id="fXml2" accept=".xml" style="max-width:190px"></label><span id="parInfo" class="orig"></span>
@@ -567,7 +573,8 @@ function atualizarLinha(it) {
   const iPv = tr.querySelector("[data-c=pv]"), iMk = tr.querySelector("[data-c=mk]");
   if (iPv !== document.activeElement) iPv.value = br(k.venda);
   if (iMk !== document.activeElement) iMk.value = it.pv != null ? k.acresc.toFixed(1) : (it.mk ?? "");
-  iPv.style.fontWeight = it.pv != null ? "bold" : "";
+  iPv.classList.toggle("def", it.pv != null); iPv.classList.toggle("sug", it.pv == null);
+  iPv.title = it.pv != null ? "preço definido por você (apague para voltar ao sugerido)" : "preço SUGERIDO pelo markup" + (it.mk != null ? " deste item" : " geral do topo") + " — ainda não foi definido; digite para fixar";
   if (l2On()) {
     const dst = destino(), q2 = qLojas(it, k)[1], k2 = dst === "duas" ? calcL(it, 2) : null, bruto = dst === "div" ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
     o("l2in").style.display = dst === "div" ? "" : "none";
@@ -578,7 +585,7 @@ function atualizarLinha(it) {
     if (interno && !c2_ && q2 > 0) o("l2").innerHTML += `<br><span class="chip falta" title="código interno (000000000…) é uma numeração de cada loja: na Loja 2 esse mesmo número pode ser outro produto">código interno da Loja 1 — informe ou gere o código da Loja 2, senão este item não vai para lá</span>`;
     else if (interno && it.ean2 && !gtinValido(it.ean2)) o("l2").innerHTML += `<br><span class="chip falta">código da Loja 2 inválido</span>`;
     const cu2 = dst === "duas" ? (k2 ? k2.custoUn : 0) : k.custoUn;
-    tr.querySelector("[data-c=pv2]").style.visibility = dst === "duas" && !k2 ? "hidden" : "";
+    { const i2 = tr.querySelector("[data-c=pv2]"); i2.style.visibility = dst === "duas" && !k2 ? "hidden" : ""; i2.classList.toggle("def", it.pv2 != null); i2.classList.toggle("sug", it.pv2 == null); i2.title = it.pv2 != null ? "preço da Loja 2 definido por você" : "a Loja 2 usa o mesmo preço da Loja 1; digite para diferenciar"; }
     tr.classList.toggle("so2", dst === "duas" && !!it.so2);
     o("mg2").innerHTML = (cu2 > 0 && v2 > 0 ? `<span title="markup = quanto o preço de venda está acima do custo: (venda ÷ custo − 1). Margem sobre a venda: ${br((1 - cu2 / v2) * 100, 1)}%">markup ${br((v2 / cu2 - 1) * 100, 1)}%</span>` : "") + (!cad2Info ? "<br>carregando Loja 2…" : !it.ean ? "" : p2 ? `<br><span title="como está no Gestão da Loja 2 hoje">hoje L2: venda <b>${br(p2[4] ?? 0)}</b> · est. ${br(p2[2] ?? 0, 0)}</span>` : (bruto ? `<br><span class="chip novo" style="padding:0 4px">novo na Loja 2</span>` + (catLoja2(it).ok ? "" : ` <span class="chip av" style="padding:0 4px" title="não achei na Loja 2 uma categoria com o mesmo nome; o produto entra na categoria padrão de lá">categoria padrão</span>`) : ""));
   }

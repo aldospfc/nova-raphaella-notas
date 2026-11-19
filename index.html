@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="48">
+<meta name="versao" content="49">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -1346,6 +1346,17 @@ async function syncValidade(it, chave) {
     else if (["ean", "desc", "val", "qtd"].some(k => a[k] !== base[k])) await ref.update(base);
   } else if (a) await ref.delete();
 }
+// salva data/quantidade de uma validade; se ela veio de uma nota, atualiza também o item da nota (senão, ao reabrir a nota, a data antiga voltaria)
+function salvarValidade(v, p) {
+  if (!db) return;
+  const ps = [db.doc("validades/" + v.id).update(p)];
+  if (!v.avulso && v.nota && p.val) {
+    const i = v.id.lastIndexOf("_"), idIt = i > 0 ? v.id.slice(i + 1) : null;
+    if (idIt) ps.push(db.doc(`notas/${v.nota}/itens/${idIt}`).update({ val: p.val }).catch(() => {}));
+    if (cab && cab.chave === v.nota) { const it = itens.find(x => idItem(x.n) === idIt); if (it) { it.val = p.val; atualizarLinha(it); } }
+  }
+  return Promise.all(ps).then(() => { const a = valDocs.get(v.id); if (a) valDocs.set(v.id, { ...a, ...p }); alertas(); }).catch(e => msg("Não consegui salvar (" + (e.code || e.message) + ")."));
+}
 function listaValidades() {
   const l = db ? [...valDocs].map(([id, v]) => ({ id, ...v })) : itens.filter(i => i.val).map(i => ({ id: "l" + i.n, ean: i.ean, desc: i.desc || i.xprod, val: i.val, qtd: calc(i).qtdUn, emit: cab.emit, nnf: cab.nnf, nota: cab.chave, baixa: null }));
   return l.sort((a, b) => (a.val || "").localeCompare(b.val || ""));
@@ -1369,7 +1380,13 @@ function desenharValidades() {
   for (const v of lista) {
     const [txtS, cls] = sitValidade(v), tr = document.createElement("tr");
     const origem = v.avulso ? "lançado na loja" + (v.loja ? " — " + v.loja : "") : `${v.emit} — ${String(v.nota || "").startsWith("M") ? "sem nota" : "NF " + v.nnf}`;
-    tr.innerHTML = `<td>${dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td class="n">${br(v.qtd || 0, 0)}</td><td>${h(origem)}</td><td><span class="chip ${cls}">${txtS}${v.baixa && v.motivo ? " — " + h(v.motivo) : ""}</span></td><td>${db ? `<a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${v.baixa ? "desfazer baixa" : "dar baixa"}</a>` : ""}</td>`;
+    const edit = db && !v.baixa;
+    tr.innerHTML = `<td>${edit ? `<input type="date" data-k="val" value="${v.val || ""}" title="mude a data e ela é salva na hora">` : dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td class="n">${edit ? `<input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:64px" title="quantidade acompanhada">` : br(v.qtd || 0, 0)}</td><td>${h(origem)}</td><td><span class="chip ${cls}">${txtS}${v.baixa && v.motivo ? " — " + h(v.motivo) : ""}</span></td><td>${db ? `<a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${v.baixa ? "desfazer baixa" : "dar baixa"}</a>` : ""}</td>`;
+    for (const i of tr.querySelectorAll("input[data-k]")) i.addEventListener("change", () => {
+      const nv = tr.querySelector("[data-k=val]").value, nq = parseFloat(tr.querySelector("[data-k=qtd]").value) || 0;
+      if (!nv) { i.value = v.val || ""; return msg("A data não pode ficar em branco; para tirar da lista, dê baixa."); }
+      salvarValidade(v, { val: nv, qtd: nq });
+    });
     const a = tr.querySelector("a"); if (a) a.addEventListener("click", () => {
       const salva = p => db.doc("validades/" + v.id).update(p).catch(e => msg("Não consegui salvar (" + e.code + ")."));
       if (v.baixa) return salva({ baixa: null, motivo: null });
@@ -1665,8 +1682,8 @@ function prValidades() {
   for (const v of lista) {
     const [txtS, cls] = sitValidade(v), d = document.createElement("div"); d.className = "linha"; d.style.cssText = "gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px";
     const origem = v.avulso ? "lançado na loja" + (v.loja ? " — " + v.loja : "") : `${v.emit || ""} — ${String(v.nota || "").startsWith("M") ? "sem nota" : "NF " + (v.nnf || "")}`;
-    d.innerHTML = (v.avulso ? `<input type="date" data-k="val" value="${v.val || ""}"> <input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:70px" title="quantidade">` : `<b>${dataBr(v.val)}</b> · ${br(v.qtd || 0, 0)} un`) + ` <span class="chip ${cls}">${txtS}</span> <span class="orig">${escH(origem)}${v.avulso ? "" : " (data e quantidade vêm da nota)"}</span> <a data-k="bx" style="cursor:pointer;color:#0b57d0;text-decoration:underline">dar baixa</a>`;
-    const salva = p => db.doc("validades/" + v.id).update(p).then(() => { const a = valDocs.get(v.id); if (a) valDocs.set(v.id, { ...a, ...p }); prValidades(); alertas(); }).catch(e => msg("Não consegui salvar (" + (e.code || e.message) + ")."));
+    d.innerHTML = `<input type="date" data-k="val" value="${v.val || ""}"> <input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:70px" title="quantidade">` + ` <span class="chip ${cls}">${txtS}</span> <span class="orig">${escH(origem)}</span> <a data-k="bx" style="cursor:pointer;color:#0b57d0;text-decoration:underline">dar baixa</a>`;
+    const salva = p => (p.val ? salvarValidade(v, p) : db.doc("validades/" + v.id).update(p).then(() => { const a = valDocs.get(v.id); if (a) valDocs.set(v.id, { ...a, ...p }); alertas(); }).catch(e => msg("Não consegui salvar (" + (e.code || e.message) + ")."))).then(() => prValidades());
     for (const i of d.querySelectorAll("input")) i.addEventListener("change", () => { const nv = d.querySelector("[data-k=val]").value; if (!nv) return msg("A data não pode ficar em branco; para tirar, dê baixa."); salva({ val: nv, qtd: parseFloat(d.querySelector("[data-k=qtd]").value) || 0 }); });
     d.querySelector("[data-k=bx]").addEventListener("click", ev => { const sel = document.createElement("select"); sel.innerHTML = "<option value=''>motivo da baixa…</option>" + ["vendido", "vencido e descartado", "devolvido ao fornecedor", "promoção para girar", "lançado errado", "outro"].map(o => `<option>${o}</option>`).join(""); sel.addEventListener("change", () => { if (sel.value) salva({ baixa: new Date().toISOString(), motivo: sel.value }); }); ev.target.replaceWith(sel); sel.focus(); });
     cx.appendChild(d);

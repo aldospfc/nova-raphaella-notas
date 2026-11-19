@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="56">
+<meta name="versao" content="57">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -128,7 +128,7 @@
   <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
 </div>
 <nav id="abas" style="display:none">
-  <button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button>
+  <button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button>
   <span id="alertas"></span>
 </nav>
 <main id="principal" style="display:none">
@@ -246,6 +246,21 @@
    <div class="linha" style="margin-top:6px;gap:8px;flex-wrap:wrap"><input type="text" id="vdCpQ" placeholder="produto, código de barras ou valor (ex.: 45,50)" style="flex:1;min-width:200px;font-size:16px;padding:6px"><button id="vdCpBuscar" class="sec" title="procura o produto ou o valor nos cupons dos 60 dias anteriores ao dia escolhido">buscar em 60 dias</button><button id="vdCpLimpar" class="sec">limpar</button></div>
    <div id="vdCp" style="margin-top:6px"></div></div>
   <div class="painel" style="overflow:auto"><b>Últimos 30 dias</b> <span class="orig">— toque num dia para abrir</span><table style="margin-top:6px"><thead><tr><th>Dia</th><th class="n">Loja 1</th><th class="n">Loja 2</th><th class="n">Total</th><th class="n">Itens</th><th style="width:40%"></th></tr></thead><tbody id="vdDias"></tbody></table></div>
+ </div>
+ <div id="vOrcamentos" style="display:none">
+  <div class="painel">
+    <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><b>Orçamentos</b> <span class="orig">— cliente de balcão ou WhatsApp; salva sozinho na nuvem; preço vem do cadastro da loja escolhida</span></div>
+      <div class="linha" style="gap:8px;align-items:center">
+        <select id="orFiltro" title="quais orçamentos listar"><option value="abertos">abertos</option><option value="venda">viraram venda</option><option value="perdido">perdidos</option><option value="todos">todos</option></select>
+        <button id="orNovo">Novo orçamento</button>
+        <a href="#" id="orCfgLink" style="font-size:12px" title="descontos por forma de pagamento e rodapé do PDF">condições de pagamento</a>
+      </div>
+    </div>
+    <div id="orCfgBox" style="display:none;margin-top:8px"></div>
+    <div id="orLista" style="margin-top:8px"></div>
+  </div>
+  <div id="orEd" class="painel" style="display:none"></div>
  </div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
@@ -1246,10 +1261,11 @@ async function salvarMeta(chave, patch) {
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); }
 function mostrar(v) {
   vista = v;
-  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   redesenharTudo();
   if (v === "vendas") vdCarregar();
+  if (v === "orcamentos") orDesenharLista();
 }
 const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
   : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
@@ -2302,7 +2318,273 @@ function mostrarLogin(sim) {
   document.getElementById("abas").style.display = sim ? "none" : "";
   document.getElementById("principal").style.display = sim ? "none" : "";
 }
+// ===================== Orçamentos =====================
+// Orçamento para cliente (balcão ou WhatsApp). Itens vêm do cadastro vivo da loja escolhida; fica salvo em docs "orcamentos/<id>".
+// Layout do PDF e condições de pagamento seguem o modelo criado para o app de listas escolares (Nunito, logo dos 4 quadrados, marinho).
+const OR = { docs: new Map(), atual: null, cfg: null, salvarT: null, busca: [], unsub: null };
+const OR_PAG_PADRAO = { desc_avista: 10, desc_credito: 7, desc_parcelado: 3, max_parcelas: 4, parcela_minima: 50,
+  rodape_loja1: "Jardim Soraia · Estrada de Mogi das Cruzes, 2007 · WhatsApp (11) 2280-9379",
+  rodape_loja2: "Limoeiro / Vila Robertina · Av. Manoel dos Santos Braga, 1282 · WhatsApp (11) 91718-4713",
+  rodape_site: "novaraphaella.com.br", validade_dias: 7,
+  obs_padrao: "Preços válidos até a data indicada ou enquanto durar o estoque. Quer reservar? É só responder esta mensagem." };
+const orCfg = () => ({ ...OR_PAG_PADRAO, ...(OR.cfg || {}) });
+const OR_STATUS = { aberto: ["Aberto", "av"], enviado: ["Enviado ao cliente", "novo"], venda: ["Virou venda", "ok"], perdido: ["Não fechou", "falta"] };
+const orA = t => escH(t).replace(/"/g, "&quot;");
+const orBrl = v => "R$ " + br(v || 0);
+const orSub = o => (o.itens || []).reduce((a, i) => a + (Number(i.qtd) || 0) * (Number(i.pv) || 0), 0);
+const orTotal = o => r2(orSub(o) * (1 - (Number(o.descPct) || 0) / 100));
+function orPagamento(total, c) {
+  const avista = r2(total * (1 - c.desc_avista / 100)), credito = r2(total * (1 - c.desc_credito / 100)), parcelado = r2(total * (1 - c.desc_parcelado / 100));
+  let n = Math.max(1, Math.floor(Number(c.max_parcelas) || 1)); if (c.parcela_minima > 0) n = Math.min(n, Math.floor(parcelado / c.parcela_minima)); n = Math.max(1, n);
+  return { avista, credito, parcelado, n, parcela: r2(parcelado / n) };
+}
+function orLinhasPag(c) {
+  const pc = p => (Number(p) || 0).toLocaleString("pt-BR") + "%";
+  return [["avista", `Dinheiro, Pix ou débito — ${pc(c.desc_avista)} de desconto`], ["credito", `Crédito à vista — ${pc(c.desc_credito)} de desconto`],
+    ["parcelado", `Crédito em até ${Math.floor(c.max_parcelas)}× (parcela mínima ${orBrl(c.parcela_minima)}) — ${pc(c.desc_parcelado)} de desconto`]];
+}
+const orData = iso => iso ? iso.split("-").reverse().join("/") : "";
+const orMaisDias = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+function orNovo() {
+  const num = Math.max(0, ...[...OR.docs.values()].map(o => Number(o.num) || 0)) + 1;
+  const o = { id: Date.now().toString(36), num, cliente: "", tel: "", loja: 1, validade: orMaisDias(orCfg().validade_dias), obs: "", itens: [], descPct: 0, status: "aberto", criado: new Date().toISOString() };
+  OR.docs.set(o.id, o); OR.atual = o; orSalvar(true); orDesenharEd(); orDesenharLista();
+  setTimeout(() => { const i = document.getElementById("orCliente"); if (i) i.focus(); }, 50);
+}
+function orSalvar(agora) {
+  const o = OR.atual; if (!o || !db) return;
+  clearTimeout(OR.salvarT);
+  const f = () => { o.alterado = new Date().toISOString(); const { id, ...dados } = o; db.doc("orcamentos/" + id).set(dados).catch(e => msg("Não consegui salvar o orçamento (" + (e.code || e.message) + ").")); };
+  if (agora) f(); else OR.salvarT = setTimeout(f, 700);
+}
+function orAbrir(id) { const o = OR.docs.get(id); if (!o) return; OR.atual = o; OR.busca = []; orDesenharEd(); document.getElementById("orEd").scrollIntoView({ behavior: "smooth", block: "start" }); }
+function orFechar() { orSalvar(true); OR.atual = null; document.getElementById("orEd").style.display = "none"; orDesenharLista(); }
+function orDesenharLista() {
+  const el = document.getElementById("orLista"); if (!el) return;
+  const f = document.getElementById("orFiltro").value;
+  const lista = [...OR.docs.values()].filter(o => f === "todos" ? true : f === "abertos" ? (o.status === "aberto" || o.status === "enviado") : o.status === f)
+    .sort((a, b) => (b.criado || "").localeCompare(a.criado || ""));
+  if (!lista.length) { el.innerHTML = `<div class="orig">Nenhum orçamento ${f === "todos" ? "" : "nesta situação"}. Clique em "Novo orçamento".</div>`; return; }
+  const h = hoje().toISOString().slice(0, 10);
+  el.innerHTML = `<div class="bcards">` + lista.map(o => { const [st, cls] = OR_STATUS[o.status] || OR_STATUS.aberto, venc = o.validade && o.validade < h && (o.status === "aberto" || o.status === "enviado");
+    return `<div class="bcard" data-id="${o.id}" style="cursor:pointer">
+      <div class="linha" style="justify-content:space-between"><b>Nº ${o.num} · ${escH(o.cliente || "(sem nome)")}</b><span class="chip ${cls}">${st}</span></div>
+      <div class="orig">Loja ${o.loja} · ${(o.itens || []).length} item(ns) · ${o.criado ? new Date(o.criado).toLocaleDateString("pt-BR") : ""}${o.validade ? ` · válido até ${orData(o.validade)}` : ""}${venc ? ' <span class="chip falta">vencido</span>' : ""}</div>
+      <div style="font-size:18px;font-weight:bold;color:#1B2D4B">${orBrl(orTotal(o))}</div>
+      ${o.tel ? `<div class="orig">WhatsApp ${escH(o.tel)}</div>` : ""}
+    </div>`; }).join("") + `</div>`;
+  for (const c of el.querySelectorAll(".bcard")) c.addEventListener("click", () => orAbrir(c.dataset.id));
+}
+function orDesenharEd() {
+  const o = OR.atual, ed = document.getElementById("orEd"); if (!o) { ed.style.display = "none"; return; }
+  ed.style.display = "";
+  const c = orCfg(), sub = orSub(o), tot = orTotal(o), pg = orPagamento(tot, c), [st, cls] = OR_STATUS[o.status] || OR_STATUS.aberto;
+  ed.innerHTML = `
+    <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><b style="font-size:16px">Orçamento nº ${o.num}</b> <span class="chip ${cls}">${st}</span></div>
+      <div class="linha" style="gap:6px;flex-wrap:wrap">
+        <button class="sec" id="orImp" title="abre a versão para imprimir ou salvar em PDF">Imprimir / PDF</button>
+        <button class="sec" id="orZap" title="copia o texto e abre o WhatsApp do cliente">Texto p/ WhatsApp</button>
+        <button class="sec" id="orDup" title="cria uma cópia deste orçamento">Duplicar</button>
+        <button class="sec" id="orFecharB">Fechar</button>
+      </div>
+    </div>
+    <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:8px;align-items:flex-end">
+      <label class="c">Cliente<input type="text" id="orCliente" value="${orA(o.cliente)}" style="width:220px" placeholder="nome"></label>
+      <label class="c">WhatsApp<input type="tel" id="orTel" value="${orA(o.tel)}" style="width:140px" placeholder="(11) 9...."></label>
+      <label class="c">Loja (preços)<select id="orLoja"><option value="1" ${o.loja == 1 ? "selected" : ""}>Loja 1</option><option value="2" ${o.loja == 2 ? "selected" : ""}>Loja 2</option></select></label>
+      <label class="c">Válido até<input type="date" id="orVal" value="${o.validade || ""}"></label>
+      <label class="c">Desconto geral %<input type="number" id="orDesc" min="0" max="100" step="0.5" value="${o.descPct || 0}" style="width:80px"></label>
+    </div>
+    <div class="linha" style="gap:8px;margin-top:10px;align-items:flex-end;flex-wrap:wrap">
+      <label class="c" style="flex:1;min-width:240px">Adicionar produto (nome ou código de barras; bipar funciona aqui)<input type="text" id="orQ" placeholder="ex.: caderno 10 matérias, ou bipe o código" autocomplete="off"></label>
+      <button class="sec" id="orBuscarB">Buscar</button>
+    </div>
+    <div id="orRes" style="margin-top:4px"></div>
+    <div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th><th class="n">Qtd</th><th class="n">Preço un.</th><th class="n">Total</th><th></th></tr></thead><tbody id="orItens"></tbody></table></div>
+    <div class="linha" style="justify-content:flex-end;gap:16px;margin-top:8px;flex-wrap:wrap;align-items:baseline">
+      ${o.descPct > 0 ? `<span class="orig">subtotal ${orBrl(sub)} · desconto ${br(o.descPct, 1)}%</span>` : ""}
+      <span style="font-size:20px;font-weight:bold;color:#1B2D4B">Total ${orBrl(tot)}</span>
+    </div>
+    <div class="painel" style="background:#FBF4F7;margin-top:8px"><b style="color:#1B2D4B">Formas de pagamento</b>
+      <div class="orig" style="margin-top:4px">${orLinhasPag(c).map(([k, r]) => `${escH(r)}: <b>${k === "parcelado" ? (pg.n > 1 ? `${pg.n}× de ${orBrl(pg.parcela)}` : "não parcela (abaixo do mínimo)") : orBrl(pg[k])}</b>`).join("<br>")}</div></div>
+    <label class="c" style="margin-top:8px">Observações (saem no PDF e no WhatsApp)<textarea id="orObs" rows="2" style="width:100%;max-width:700px">${escH(o.obs || "")}</textarea></label>
+    <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center"><span class="orig">Situação:</span>
+      ${Object.entries(OR_STATUS).map(([k, [n]]) => `<button class="sec" data-st="${k}" ${o.status === k ? "disabled" : ""}>${n}</button>`).join(" ")}
+      <a href="#" id="orExcluir" style="margin-left:auto;color:#b42318;font-size:12px">excluir orçamento</a></div>`;
+  orDesenharItens();
+  const g = id => ed.querySelector("#" + id);
+  const campo = (id, k, conv) => g(id).addEventListener("input", ev => { o[k] = conv ? conv(ev.target.value) : ev.target.value; orSalvar(); if (k === "descPct") orAtualizarTotais(); });
+  campo("orCliente", "cliente"); campo("orTel", "tel"); campo("orVal", "validade"); campo("orObs", "obs"); campo("orDesc", "descPct", v => Math.min(100, Math.max(0, parseFloat(v) || 0)));
+  g("orLoja").addEventListener("change", ev => { o.loja = Number(ev.target.value); orSalvar(); orRepreco(); });
+  g("orBuscarB").addEventListener("click", () => orBuscar());
+  g("orQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); orBuscar(true); } });
+  g("orImp").addEventListener("click", orImprimir); g("orZap").addEventListener("click", orWhats); g("orFecharB").addEventListener("click", orFechar);
+  g("orDup").addEventListener("click", () => { const num = Math.max(0, ...[...OR.docs.values()].map(x => Number(x.num) || 0)) + 1; const n = { ...JSON.parse(JSON.stringify(o)), id: Date.now().toString(36), num, status: "aberto", criado: new Date().toISOString(), validade: orMaisDias(orCfg().validade_dias) }; OR.docs.set(n.id, n); OR.atual = n; orSalvar(true); orDesenharEd(); orDesenharLista(); });
+  for (const b of ed.querySelectorAll("[data-st]")) b.addEventListener("click", () => { o.status = b.dataset.st; if (o.status === "venda") o.vendaEm = new Date().toISOString(); orSalvar(true); orDesenharEd(); orDesenharLista(); });
+  g("orExcluir").addEventListener("click", ev => { ev.preventDefault(); if (!confirm(`Excluir o orçamento nº ${o.num}?`)) return; db.doc("orcamentos/" + o.id).delete().catch(() => {}); OR.docs.delete(o.id); OR.atual = null; ed.style.display = "none"; orDesenharLista(); });
+}
+function orAtualizarTotais() { const o = OR.atual; if (!o) return; const sel = document.activeElement, id = sel && sel.id, pos = sel && sel.selectionStart; orDesenharEd(); if (id) { const e = document.getElementById(id); if (e) { e.focus(); try { if (pos != null) e.setSelectionRange(pos, pos); } catch (_e) {} } } }
+function orDesenharItens() {
+  const o = OR.atual, tb = document.getElementById("orItens"); if (!tb) return;
+  if (!o.itens.length) { tb.innerHTML = `<tr><td colspan="5" class="orig">Nenhum item ainda. Busque acima ou bipe o código de barras.</td></tr>`; return; }
+  tb.innerHTML = o.itens.map((i, n) => `<tr data-n="${n}">
+    <td><input type="text" data-k="desc" value="${orA(i.desc)}" style="width:100%;min-width:200px" title="o nome pode ser editado só para este orçamento"><div class="orig mono" style="font-size:10px">${escH(i.ean || "")}${i.est != null ? ` · estoque ${br(i.est, 0)}` : ""}${i.pvCad != null && Math.abs(i.pvCad - i.pv) >= 0.005 ? ` · cadastro ${orBrl(i.pvCad)}` : ""}</div></td>
+    <td class="n"><input type="number" data-k="qtd" min="0" step="1" value="${i.qtd}" style="width:64px;text-align:right"></td>
+    <td class="n"><input type="text" inputmode="decimal" data-k="pv" value="${br(i.pv)}" style="width:84px;text-align:right"></td>
+    <td class="n"><b>${orBrl((Number(i.qtd) || 0) * (Number(i.pv) || 0))}</b></td>
+    <td><a href="#" data-rm title="remover" style="color:#b42318">✕</a></td></tr>`).join("");
+  for (const tr of tb.querySelectorAll("tr[data-n]")) {
+    const it = o.itens[Number(tr.dataset.n)];
+    for (const inp of tr.querySelectorAll("input[data-k]")) inp.addEventListener("change", () => { const k = inp.dataset.k; it[k] = k === "desc" ? inp.value : k === "qtd" ? Math.max(0, parseFloat(inp.value) || 0) : Math.max(0, pnum(inp.value) || 0); orSalvar(); orAtualizarTotais(); });
+    tr.querySelector("[data-rm]").addEventListener("click", ev => { ev.preventDefault(); o.itens.splice(Number(tr.dataset.n), 1); orSalvar(); orDesenharEd(); });
+  }
+}
+async function orBuscar(enter) {
+  const o = OR.atual; if (!o || !supa) return;
+  const q = document.getElementById("orQ"), res = document.getElementById("orRes"), txt = q.value.trim();
+  if (txt.length < 3) { res.innerHTML = `<span class="orig">Digite pelo menos 3 letras ou o código de barras.</span>`; return; }
+  res.innerHTML = `<span class="orig">buscando…</span>`;
+  const cols = "loja_id,ean,descricao,estoque,preco_venda,ativo,id_gestao";
+  let rows = [];
+  if (/^\d{4,14}$/.test(txt)) {
+    const cands = [...new Set([txt, txt.padStart(13, "0"), txt.replace(/^0+/, "") || "0"])];
+    const r = await supa.from("produtos").select(cols).eq("loja_id", o.loja).in("ean", cands); rows = r.data || [];
+    if (!rows.length) { const a = await supa.from("auxiliares").select("id_produto").eq("loja_id", o.loja).in("ean_aux", cands); for (const x of a.data || []) { const r2_ = await supa.from("produtos").select(cols).eq("loja_id", o.loja).eq("id_gestao", x.id_produto); rows.push(...(r2_.data || [])); } }
+    if (!rows.length) { const r3 = await supa.from("produtos").select(cols).in("ean", cands); if (r3.data && r3.data.length) { res.innerHTML = `<span class="chip falta">este código só existe no cadastro da Loja ${r3.data[0].loja_id}; troque a loja do orçamento ou cadastre o produto</span>`; return; } }
+  } else {
+    const ws = semAcento(txt.toUpperCase()).replace(/[%_,()]/g, " ").split(/\s+/).filter(w => w.length > 1).slice(0, 6);
+    let qq = supa.from("produtos").select(cols).eq("loja_id", o.loja); for (const w of ws) qq = qq.ilike("descricao", `%${w}%`);
+    const r = await qq.order("descricao").limit(60); rows = r.data || [];
+  }
+  rows = rows.filter(p => p.ativo !== false);
+  if (!rows.length) { res.innerHTML = `<span class="orig">Nada encontrado na Loja ${o.loja}.</span>`; return; }
+  if (enter && (rows.length === 1 || /^\d{4,14}$/.test(txt))) { orAddProduto(rows[0]); q.value = ""; res.innerHTML = ""; q.focus(); return; }
+  OR.busca = rows;
+  res.innerHTML = `<div style="max-height:260px;overflow:auto;border:1px solid var(--borda);border-radius:6px">` + rows.map((p, i) => `<div data-i="${i}" style="padding:4px 8px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;gap:8px"><span>${escH(p.descricao)} <span class="orig mono" style="font-size:10px">${escH(p.ean || "")}</span></span><span style="white-space:nowrap"><b>${orBrl(p.preco_venda)}</b> <span class="orig">est. ${br(Number(p.estoque) || 0, 0)}</span></span></div>`).join("") + `</div>`;
+  for (const d of res.querySelectorAll("[data-i]")) d.addEventListener("click", () => { orAddProduto(OR.busca[Number(d.dataset.i)]); q.value = ""; res.innerHTML = ""; q.focus(); });
+}
+function orAddProduto(p) {
+  const o = OR.atual; if (!o) return;
+  const ja = o.itens.find(i => i.ean && i.ean === p.ean);
+  if (ja) ja.qtd = (Number(ja.qtd) || 0) + 1;
+  else o.itens.push({ ean: p.ean || "", desc: p.descricao || "", qtd: 1, pv: r2(Number(p.preco_venda) || 0), pvCad: r2(Number(p.preco_venda) || 0), est: p.estoque != null ? Number(p.estoque) : null, idg: p.id_gestao });
+  orSalvar(); orDesenharEd(); setTimeout(() => { const q = document.getElementById("orQ"); if (q) q.focus(); }, 0);
+}
+// trocou a loja: busca os preços de cadastro da outra loja e, para quem estava com o preço do cadastro, atualiza
+async function orRepreco() {
+  const o = OR.atual; if (!o || !supa || !o.itens.length) return;
+  const eans = o.itens.map(i => i.ean).filter(Boolean);
+  const r = await supa.from("produtos").select("ean,preco_venda,estoque").eq("loja_id", o.loja).in("ean", eans);
+  const m = new Map((r.data || []).map(p => [p.ean, p])); let semCad = 0;
+  for (const i of o.itens) { const p = m.get(i.ean); if (!p) { semCad++; i.est = null; continue; } const novo = r2(Number(p.preco_venda) || 0); if (i.pvCad == null || Math.abs(i.pv - i.pvCad) < 0.005) i.pv = novo; i.pvCad = novo; i.est = p.estoque != null ? Number(p.estoque) : null; }
+  orSalvar(); orDesenharEd(); if (semCad) msg(`${semCad} item(ns) não existem no cadastro da Loja ${o.loja}; ficaram com o preço anterior.`);
+}
+function orTexto() {
+  const o = OR.atual, c = orCfg(), tot = orTotal(o), pg = orPagamento(tot, c);
+  const L = [`*Nova Raphaella — Orçamento nº ${o.num}*${o.cliente ? ` para ${o.cliente}` : ""}`, ""];
+  for (const i of o.itens) L.push(`• ${Number(i.qtd) || 0}× ${i.desc} — ${orBrl((Number(i.qtd) || 0) * (Number(i.pv) || 0))}${Number(i.qtd) > 1 ? ` (${orBrl(i.pv)} cada)` : ""}`);
+  L.push("", (o.descPct > 0 ? `Subtotal ${orBrl(orSub(o))} · desconto ${br(o.descPct, 1)}%\n` : "") + `*Total: ${orBrl(tot)}*`, "",
+    `Formas de pagamento:`, `• Dinheiro, Pix ou débito: *${orBrl(pg.avista)}* (${br(c.desc_avista, 0)}% de desconto)`, `• Crédito à vista: *${orBrl(pg.credito)}* (${br(c.desc_credito, 0)}% de desconto)`,
+    pg.n > 1 ? `• Crédito parcelado: *${pg.n}× de ${orBrl(pg.parcela)}* (${br(c.desc_parcelado, 0)}% de desconto)` : `• Parcelado: abaixo da parcela mínima de ${orBrl(c.parcela_minima)}`);
+  if (o.obs) L.push("", o.obs);
+  L.push("", `Válido até ${orData(o.validade)}. ${c.obs_padrao}`);
+  return L.join("\n");
+}
+async function orWhats() {
+  const o = OR.atual; if (!o) return;
+  const t = orTexto();
+  try { await navigator.clipboard.writeText(t); msg("Texto do orçamento copiado."); } catch (_e) { msg("Não consegui copiar automaticamente; o texto está na janela do WhatsApp."); }
+  const tel = (o.tel || "").replace(/\D/g, "");
+  const url = "https://wa.me/" + (tel ? (tel.length <= 11 ? "55" + tel : tel) : "") + "?text=" + encodeURIComponent(t);
+  if (o.status === "aberto") { o.status = "enviado"; orSalvar(true); orDesenharEd(); orDesenharLista(); }
+  window.open(url, "_blank");
+}
+function orImprimir() {
+  const o = OR.atual; if (!o) return;
+  const c = orCfg(), sub = orSub(o), tot = orTotal(o), pg = orPagamento(tot, c);
+  const logo = `<span class="lg"><i style="background:#C35078"></i><i style="background:#B83D50"></i><i style="background:#7AAB30"></i><i style="background:#3A8DA6"></i></span><span class="nome">Nova Raphaella</span>`;
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Orçamento nº ${o.num} — Nova Raphaella</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+ @page { size: A4; margin: 15mm; }
+ body { font-family: Nunito, Arial, sans-serif; color: #000; margin: 0; font-size: 10.5pt; }
+ .top { display: flex; justify-content: space-between; align-items: flex-start; }
+ .lg { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 2.2px; width: 30px; height: 30px; vertical-align: middle; margin-right: 8px; }
+ .lg i { display: block; border-radius: 22%; }
+ .nome { font-weight: 900; font-size: 16pt; vertical-align: middle; }
+ .meta { text-align: right; color: #555; font-size: 9pt; }
+ h1 { color: #1B2D4B; font-weight: 900; font-size: 20pt; margin: 18px 0 2px; }
+ .cli { font-weight: 700; font-size: 12pt; margin-bottom: 14px; }
+ table { width: 100%; border-collapse: collapse; }
+ th { background: #1B2D4B; color: #fff; font-weight: 700; font-size: 8.5pt; text-align: left; padding: 5px 6px; }
+ th.n, td.n { text-align: right; }
+ td { padding: 6px; font-size: 9.5pt; border-bottom: 1px solid #eee; vertical-align: top; }
+ tr:nth-child(even) td { background: #F7F7F7; }
+ .sub { color: #555; font-size: 7.5pt; }
+ .tot td { background: #FBF4F7 !important; font-weight: 900; color: #1B2D4B; font-size: 11pt; border: 0; }
+ .pag { margin-top: 16px; background: #FBF4F7; border-radius: 8px; padding: 10px 12px; }
+ .pag h2 { color: #1B2D4B; font-size: 11pt; margin: 0 0 6px; font-weight: 900; }
+ .pag div { display: flex; justify-content: space-between; padding: 3px 0; font-size: 9.5pt; }
+ .pag b { color: #C35078; }
+ .obs { margin-top: 14px; font-size: 9.5pt; } .obs b { color: #1B2D4B; }
+ .rod { position: fixed; bottom: 0; left: 0; right: 0; border-top: 0.5px solid #ddd; padding-top: 5px; font-size: 8pt; color: #1B2D4B; font-weight: 700; display: flex; justify-content: space-between; }
+ .rod span { color: #555; font-weight: 400; }
+ .espaco { height: 60px; }
+ @media screen { body { max-width: 760px; margin: 20px auto; padding: 0 16px; } .rod { position: static; margin-top: 30px; } .espaco { display: none; } }
+</style></head><body>
+<div class="top"><div>${logo}</div><div class="meta">Emitido em ${new Date().toLocaleDateString("pt-BR")}<br>Válido até ${orData(o.validade) || "—"}<br>Orçamento nº ${o.num} · Loja ${o.loja}</div></div>
+<h1>Orçamento</h1>
+<div class="cli">${escH(o.cliente || "Cliente")}${o.tel ? ` · WhatsApp ${escH(o.tel)}` : ""}</div>
+<table><thead><tr><th>PRODUTO</th><th class="n">QTD</th><th class="n">PREÇO UN.</th><th class="n">TOTAL</th></tr></thead><tbody>
+${o.itens.map(i => `<tr><td>${escH(i.desc)}${i.ean ? `<div class="sub">${escH(i.ean)}</div>` : ""}</td><td class="n">${br(Number(i.qtd) || 0, 0)}</td><td class="n">${orBrl(i.pv)}</td><td class="n"><b>${orBrl((Number(i.qtd) || 0) * (Number(i.pv) || 0))}</b></td></tr>`).join("")}
+${o.descPct > 0 ? `<tr><td colspan="3" class="n">Subtotal</td><td class="n">${orBrl(sub)}</td></tr><tr><td colspan="3" class="n">Desconto ${br(o.descPct, 1)}%</td><td class="n">− ${orBrl(sub - tot)}</td></tr>` : ""}
+<tr class="tot"><td colspan="3">TOTAL</td><td class="n">${orBrl(tot)}</td></tr></tbody></table>
+<div class="pag"><h2>Formas de pagamento</h2>${orLinhasPag(c).map(([k, r]) => `<div><span>${escH(r)}</span><b>${k === "parcelado" ? (pg.n > 1 ? `${pg.n}× de ${orBrl(pg.parcela)}` : "não parcela") : orBrl(pg[k])}</b></div>`).join("")}</div>
+${o.obs ? `<div class="obs"><b>Observações: </b>${escH(o.obs).replace(/\n/g, "<br>")}</div>` : ""}
+<div class="obs"><b>Validade: </b>${escH(c.obs_padrao)}</div>
+<div class="espaco"></div>
+<div class="rod"><div>${escH(c.rodape_loja1)}<br>${escH(c.rodape_loja2)}</div><div style="text-align:right"><span>${escH(c.rodape_site)}</span><br><span>orçamento nº ${o.num}</span></div></div>
+<script>window.addEventListener("load", () => { (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 300)); });<\/script>
+</body></html>`;
+  const w = window.open("", "_blank"); if (!w) return msg("O navegador bloqueou a janela de impressão; permita pop-ups para este site.");
+  w.document.open(); w.document.write(html); w.document.close();
+  if (o.status === "aberto") { o.status = "enviado"; orSalvar(true); orDesenharEd(); orDesenharLista(); }
+}
+function orDesenharCfg() {
+  const b = document.getElementById("orCfgBox"), c = orCfg();
+  b.innerHTML = `<div class="painel" style="background:#f6f8fb"><b>Condições de pagamento e rodapé</b> <span class="orig">— valem para todos os orçamentos; salva ao sair do campo</span>
+    <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
+      <label class="c">Desc. dinheiro/Pix/débito %<input type="number" step="0.5" data-c="desc_avista" value="${c.desc_avista}" style="width:80px"></label>
+      <label class="c">Desc. crédito à vista %<input type="number" step="0.5" data-c="desc_credito" value="${c.desc_credito}" style="width:80px"></label>
+      <label class="c">Desc. crédito parcelado %<input type="number" step="0.5" data-c="desc_parcelado" value="${c.desc_parcelado}" style="width:80px"></label>
+      <label class="c">Máx. parcelas<input type="number" step="1" data-c="max_parcelas" value="${c.max_parcelas}" style="width:70px"></label>
+      <label class="c">Parcela mínima R$<input type="number" step="1" data-c="parcela_minima" value="${c.parcela_minima}" style="width:80px"></label>
+      <label class="c">Validade padrão (dias)<input type="number" step="1" data-c="validade_dias" value="${c.validade_dias}" style="width:70px"></label>
+    </div>
+    <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:6px">
+      <label class="c" style="flex:1;min-width:260px">Rodapé Loja 1<input type="text" data-c="rodape_loja1" value="${orA(c.rodape_loja1)}"></label>
+      <label class="c" style="flex:1;min-width:260px">Rodapé Loja 2<input type="text" data-c="rodape_loja2" value="${orA(c.rodape_loja2)}"></label>
+      <label class="c">Site<input type="text" data-c="rodape_site" value="${orA(c.rodape_site)}" style="width:180px"></label>
+    </div>
+    <label class="c" style="margin-top:6px">Frase de validade (PDF e WhatsApp)<input type="text" data-c="obs_padrao" value="${orA(c.obs_padrao)}"></label></div>`;
+  for (const i of b.querySelectorAll("[data-c]")) i.addEventListener("change", () => {
+    const k = i.dataset.c, v = i.type === "number" ? (parseFloat(i.value) || 0) : i.value;
+    OR.cfg = { ...orCfg(), [k]: v };
+    db.doc("config/orcamento").set(OR.cfg).catch(e => msg("Não consegui salvar as condições (" + (e.code || e.message) + ")."));
+    if (OR.atual) orDesenharEd();
+  });
+}
+function orLigar() {
+  if (!db) return;
+  db.collection("orcamentos").onSnapshot(s => { const atualId = OR.atual && OR.atual.id; OR.docs = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (atualId) { const a = OR.docs.get(atualId); if (a && JSON.stringify(a) !== JSON.stringify(OR.atual) && !OR.salvarT) { OR.atual = a; orDesenharEd(); } else if (a) OR.docs.set(atualId, OR.atual); } orDesenharLista(); }, () => {});
+  db.doc("config/orcamento").onSnapshot(d => { OR.cfg = d.exists ? d.data() : null; if (document.getElementById("orCfgBox").style.display !== "none") orDesenharCfg(); if (OR.atual) orDesenharEd(); }, () => {});
+  document.getElementById("orNovo").addEventListener("click", orNovo);
+  document.getElementById("orFiltro").addEventListener("change", orDesenharLista);
+  document.getElementById("orCfgLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("orCfgBox"); if (b.style.display === "none") { orDesenharCfg(); b.style.display = ""; } else b.style.display = "none"; });
+}
 function ligarOuvintes() {
+  orLigar();
   const t = setTimeout(() => sync("ainda não consegui falar com o armazenamento…", false), 10000);
   db.collection("notas").onSnapshot(s => {
     clearTimeout(t); listaNotas = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(n => n.nnf); redesenharTudo();

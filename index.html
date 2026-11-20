@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="65">
+<meta name="versao" content="66">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -128,7 +128,7 @@
   <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
 </div>
 <nav id="abas" style="display:none">
-  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button><button class="aba" data-v="transf">Transferências</button><button class="aba" data-v="compras">Compras</button><button class="aba" data-v="promocoes">Promoções</button>
+  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button><button class="aba" data-v="transf">Transferências</button><button class="aba" data-v="compras">Compras</button><button class="aba" data-v="promocoes">Promoções</button><button class="aba" data-v="etiquetas">Etiquetas</button>
   <span id="alertas"></span>
 </nav>
 <main id="principal" style="display:none">
@@ -288,6 +288,7 @@
  </div>
  <div id="vCompras" style="display:none"><div class="painel"><b>Sugestão de compra</b> <span class="orig">— o que está acabando, pelo ritmo de venda do caixa e o estoque do cadastro; marque os itens e monte o pedido</span><div id="cpPainel" style="margin-top:8px"></div></div></div>
  <div id="vPromocoes" style="display:none"><div class="painel"><b>Promoções</b> <span class="orig">— preço promocional por período; começa e termina sozinho no Gestão e nos caixas</span><div id="pmPainel" style="margin-top:8px"></div></div></div>
+ <div id="vEtiquetas" style="display:none"><div class="painel"><b>Etiquetas de gôndola</b> <span class="orig">— 105 × 30 mm na Elgin L42 Pro da loja; monte a lista e imprima tudo de uma vez</span><div id="etPainel" style="margin-top:8px"></div></div></div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
   <div class="painel"><b>Validades vencidas e dos próximos 30 dias</b><div id="avVal" style="margin-top:6px"></div></div>
@@ -1294,7 +1295,7 @@ async function salvarMeta(chave, patch) {
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 function mostrar(v) {
   vista = v;
-  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   redesenharTudo();
   if (v === "vendas") vdCarregar();
@@ -1303,6 +1304,7 @@ function mostrar(v) {
   if (v === "transf") tfDesenharLista();
   if (v === "compras") cpDesenhar();
   if (v === "promocoes") { pmDesenhar(); pmCarregar(); }
+  if (v === "etiquetas") etDesenhar();
 }
 const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
   : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
@@ -3508,6 +3510,120 @@ async function pmRodar(silencioso) {
   else if (data && (data.inicios || data.fins)) msg("Enviado ao Gestão e aos caixas; em até 1 minuto o preço muda (PC da loja ligado).");
 }
 function pmLigar() { if (!db) return; }
+// ===================== Etiquetas de gôndola (Elgin L42 Pro, ZPL, 105 × 30 mm) =====================
+// O site monta o ZPL e manda pela fila (tipo "etiqueta"); o ouvinte da loja envia cru para a impressora do Windows (Loja 1: compartilhada do caixa 2; Loja 2: local).
+// Ajustes (nome da impressora por loja, deslocamento, escuro) ficam em config/etiquetas.
+const ET = { itens: [], loja: 1, cfg: null, busca: [], ultimoPedido: null };
+const ET_PADRAO = { impressora1: "", impressora2: "", dx: 0, dy: 0, escuro: 15, larg: 105, alt: 30 };
+const etCfg = () => ({ ...ET_PADRAO, ...(ET.cfg || {}) });
+const etAscii = s => semAcento(String(s || "")).replace(/[^\x20-\x7e]/g, " ").replace(/[\^~\\]/g, " ").replace(/\s+/g, " ").trim();
+const etPreco = v => (Number(v) || 0).toFixed(2).replace(".", ",");
+function etZpl(it, c) {
+  const dpm = 8, W = Math.round(c.larg * dpm), H = Math.round(c.alt * dpm), dx = Math.round((Number(c.dx) || 0) * dpm), dy = Math.round((Number(c.dy) || 0) * dpm);
+  const desc = etAscii(it.desc).toUpperCase().slice(0, 64), ean = String(it.ean || "").replace(/\D/g, ""), promo = it.de > 0 && it.de > it.preco;
+  const [inteiro, cent] = etPreco(it.preco).split(","), xp = W - 300;
+  const z = [`^XA^CI0^MTD^PW${W}^LL${H}^LH${Math.max(0, dx)},${Math.max(0, dy)}^MD${Math.max(0, Math.min(30, Number(c.escuro) || 15)) - 15}^PQ${Math.max(1, Math.floor(it.qtd || 1))},0,1,Y`];
+  z.push(`^FO16,14^A0N,30,26^FB${xp - 30},2,4,L,0^FD${desc}^FS`);
+  if (ean.length === 13 && gtinValido(ean)) z.push(`^FO16,${H - 104}^BY2,2.5,52^BEN,52,Y,N^FD${ean.slice(0, 12)}^FS`);
+  else if (ean) z.push(`^FO16,${H - 104}^BY2,2.5,52^BCN,52,Y,N,N^FD${ean}^FS`);
+  if (promo) {
+    z.push(`^FO${xp},12^A0N,26,22^FDDE R$ ${etPreco(it.de)}^FS`, `^FO${xp},24^GB${Math.min(280, 14 * ("DE R$ " + etPreco(it.de)).length)},3,3^FS`, `^FO${xp},66^A0N,24,22^FDPOR^FS`);
+    if (it.ate) z.push(`^FO${xp + 70},70^A0N,20,18^FDATE ${it.ate}^FS`);
+  } else z.push(`^FO${xp},${H - 150}^A0N,28,24^FDR$^FS`);
+  z.push(`^FO${xp},${promo ? 92 : 64}^A0N,${promo ? 120 : 140},${promo ? 92 : 104}^FD${inteiro}^FS`);
+  const largInt = inteiro.length * (promo ? 64 : 72) + 6;
+  z.push(`^FO${Math.min(W - 64, xp + largInt)},${promo ? 98 : 72}^A0N,${promo ? 54 : 62},${promo ? 42 : 48}^FD,${cent}^FS`);
+  z.push(`^FO${W - 150},${H - 22}^A0N,16,14^FD${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}${it.cod ? " " + etAscii(it.cod).slice(0, 8) : ""}^FS`);
+  z.push("^XZ");
+  return z.join("\n");
+}
+function etPreview(it) {
+  const promo = it.de > 0 && it.de > it.preco, [i, c] = etPreco(it.preco).split(",");
+  return `<div style="width:315px;height:90px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">
+    <div style="position:absolute;left:6px;top:4px;width:205px;font-size:10px;font-weight:bold;line-height:1.15;max-height:26px;overflow:hidden">${escH(etAscii(it.desc).toUpperCase())}</div>
+    <div style="position:absolute;left:6px;bottom:4px;font-size:8px;letter-spacing:1px">▌▍▌▌▍▍▌▍▌▌▍▌▍<br>${escH(it.ean || "")}</div>
+    <div style="position:absolute;left:215px;top:${promo ? 2 : 14}px;width:98px">${promo ? `<div style="font-size:9px;text-decoration:line-through">DE R$ ${etPreco(it.de)}</div><div style="font-size:8px">POR</div>` : `<div style="font-size:9px">R$</div>`}<span style="font-size:${promo ? 34 : 40}px;font-weight:bold;line-height:1">${i}</span><span style="font-size:${promo ? 16 : 19}px;font-weight:bold;vertical-align:top">,${c}</span></div></div>`;
+}
+async function etAdicionarEans(lista, loja) {
+  // lista: [{ean, qtd?, de?, preco?, ate?}] — completa nome e preço pelo cadastro da loja
+  loja = loja || ET.loja; const eans = [...new Set(lista.map(x => String(x.ean || "")).filter(Boolean))]; if (!eans.length || !supa) return 0;
+  const m = new Map(); for (let i = 0; i < eans.length; i += 150) { const r = await supa.from("produtos").select("ean,descricao,preco_venda,codigo_interno").eq("loja_id", loja).in("ean", eans.slice(i, i + 150)); for (const p of r.data || []) m.set(p.ean, p); }
+  let n = 0;
+  for (const x of lista) { const p = m.get(String(x.ean)); if (!p) continue; const ja = ET.itens.find(i => i.ean === p.ean); if (ja) { if (x.qtd) ja.qtd = x.qtd; continue; } ET.itens.push({ ean: p.ean, desc: p.descricao, cod: p.codigo_interno || "", preco: x.preco != null ? x.preco : r2(Number(p.preco_venda) || 0), de: x.de || null, ate: x.ate || null, qtd: x.qtd || 1 }); n++; }
+  return n;
+}
+function etDesenhar() {
+  const el = document.getElementById("etPainel"); if (!el) return; const c = etCfg(), tot = ET.itens.reduce((a, i) => a + (Number(i.qtd) || 0), 0);
+  el.innerHTML = `<div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <label class="c">Loja (preço e impressora)<select id="etLoja"><option value="1" ${ET.loja === 1 ? "selected" : ""}>Loja 1</option><option value="2" ${ET.loja === 2 ? "selected" : ""}>Loja 2</option></select></label>
+      <label class="c" style="flex:1;min-width:220px">Adicionar produto (nome ou código; bipar funciona)<input type="text" id="etQ" autocomplete="off" placeholder="busca no cadastro da loja"></label><button class="sec" id="etBuscarB">Buscar</button><button class="sec" id="etCam">📷</button>
+    </div>
+    <div class="linha" style="gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><span class="orig">Puxar em lote:</span>
+      <button class="sec" id="etNota" ${cab ? "" : "disabled"} title="itens da nota aberta na aba Entrada">da nota aberta</button>
+      <label class="c" style="flex-direction:row;align-items:center;gap:4px">preços alterados desde <input type="date" id="etDesde" value="${vdMais(vdIso(new Date()), -1)}"></label><button class="sec" id="etAlt">puxar</button>
+      <button class="sec" id="etPromo" title="itens em promoção ativa nesta loja (etiqueta DE/POR)">promoções ativas</button>
+      ${ET.itens.length ? `<a href="#" id="etLimpar" style="color:#b42318;font-size:12px;margin-left:8px">limpar lista</a>` : ""}</div>
+    <div id="etRes" style="margin-top:4px"></div>
+    ${ET.itens.length ? `<div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th><th class="n">Preço</th><th class="n">De (promo)</th><th class="n">Qtd etiquetas</th><th>Prévia</th><th></th></tr></thead><tbody>
+      ${ET.itens.map((i, n) => `<tr data-n="${n}"><td>${escH(i.desc)}<div class="orig mono" style="font-size:10px">${escH(i.ean)}</div></td>
+        <td class="n"><input type="text" inputmode="decimal" data-k="preco" value="${br(i.preco)}" style="width:76px;text-align:right"></td>
+        <td class="n"><input type="text" inputmode="decimal" data-k="de" value="${i.de ? br(i.de) : ""}" placeholder="—" style="width:76px;text-align:right" title="preencha só para etiqueta de promoção (DE/POR)"></td>
+        <td class="n"><input type="number" data-k="qtd" min="0" step="1" value="${i.qtd}" style="width:60px;text-align:right"></td><td>${etPreview(i)}</td><td><a href="#" data-rm style="color:#b42318">✕</a></td></tr>`).join("")}</tbody></table></div>
+      <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center"><button id="etImprimir">Imprimir ${tot} etiqueta${tot === 1 ? "" : "s"} na Loja ${ET.loja}</button><span class="orig">${ET.itens.length} produto(s)</span></div>` : `<div class="orig" style="margin-top:8px">Nenhum produto na lista. Bipe, busque, ou puxe em lote de uma nota, dos preços alterados ou das promoções.</div>`}
+    <div id="etStatus" class="orig" style="margin-top:6px"></div>
+    <details style="margin-top:10px"><summary class="orig" style="cursor:pointer">configurar impressora e ajuste fino</summary><div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
+      <label class="c">Impressora na Loja 1 (vazio = acha sozinho)<input type="text" data-c="impressora1" value="${orA(c.impressora1)}" style="width:220px"></label>
+      <label class="c">Impressora na Loja 2<input type="text" data-c="impressora2" value="${orA(c.impressora2)}" style="width:220px"></label>
+      <label class="c" title="mm; positivo vai para a direita">Mover → (mm)<input type="number" step="0.5" data-c="dx" value="${c.dx}" style="width:70px"></label>
+      <label class="c" title="mm; positivo vai para baixo">Mover ↓ (mm)<input type="number" step="0.5" data-c="dy" value="${c.dy}" style="width:70px"></label>
+      <label class="c" title="0 a 30; padrão 15">Escuro<input type="number" step="1" min="0" max="30" data-c="escuro" value="${c.escuro}" style="width:60px"></label>
+      <button class="sec" id="etListar">Ver impressoras do PC da Loja ${ET.loja}</button><button class="sec" id="etTeste">Imprimir 1 de teste</button></div></details>`;
+  const g = id => el.querySelector("#" + id);
+  g("etLoja").addEventListener("change", ev => { ET.loja = Number(ev.target.value); const eans = ET.itens.map(i => ({ ean: i.ean, qtd: i.qtd, de: i.de })); ET.itens = []; etAdicionarEans(eans).then(etDesenhar); });
+  g("etBuscarB").addEventListener("click", () => etBuscar(g("etQ").value.trim())); g("etQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); etBuscar(g("etQ").value.trim(), true); } });
+  g("etCam").addEventListener("click", () => lerCamera(cd => etBuscar(cd, true)));
+  g("etNota").addEventListener("click", async () => { const l = itens.filter(i => !i.jg && i.ean && gtinValido(i.ean)).map(i => ({ ean: ET.loja === 2 && i.ean2 ? i.ean2 : i.ean, qtd: 1, preco: (ET.loja === 2 && i.pv2 != null ? i.pv2 : null) })); const n = await etAdicionarEans(l); msg(`${n} produto(s) da nota adicionados.`); etDesenhar(); });
+  g("etAlt").addEventListener("click", async () => { const d = g("etDesde").value; if (!d) return; const r = await supa.from("precos_hist").select("ean").eq("loja_id", ET.loja).neq("origem", "inicial").gte("data", d + "T00:00:00-03:00").limit(2000); const l = [...new Set((r.data || []).map(x => x.ean))].map(ean => ({ ean, qtd: 1 })); const n = await etAdicionarEans(l); msg(`${n} produto(s) com preço alterado desde ${orData(d)} adicionados.`); etDesenhar(); });
+  g("etPromo").addEventListener("click", async () => { const r = await supa.from("promocoes").select("ean,preco_normal,preco_promo,fim").eq("loja_id", ET.loja).eq("status", "ativa"); const l = (r.data || []).map(p => ({ ean: p.ean, qtd: 1, de: Number(p.preco_normal), preco: Number(p.preco_promo), ate: orData(p.fim).slice(0, 5) })); const n = await etAdicionarEans(l); msg(`${n} item(ns) em promoção adicionados.`); etDesenhar(); });
+  if (g("etLimpar")) g("etLimpar").addEventListener("click", ev => { ev.preventDefault(); ET.itens = []; etDesenhar(); });
+  for (const tr of el.querySelectorAll("tr[data-n]")) { const it = ET.itens[Number(tr.dataset.n)];
+    for (const i of tr.querySelectorAll("[data-k]")) i.addEventListener("change", () => { const k = i.dataset.k; it[k] = k === "qtd" ? Math.max(0, parseInt(i.value, 10) || 0) : (pnum(i.value) > 0 ? r2(pnum(i.value)) : (k === "de" ? null : it[k])); etDesenhar(); });
+    tr.querySelector("[data-rm]").addEventListener("click", ev => { ev.preventDefault(); ET.itens.splice(Number(tr.dataset.n), 1); etDesenhar(); }); }
+  if (g("etImprimir")) g("etImprimir").addEventListener("click", () => etEnviar(ET.itens.filter(i => i.qtd > 0)));
+  for (const i of el.querySelectorAll("[data-c]")) i.addEventListener("change", () => { const k = i.dataset.c; ET.cfg = { ...etCfg(), [k]: i.type === "number" ? (parseFloat(i.value) || 0) : i.value.trim() }; db.doc("config/etiquetas").set(ET.cfg).catch(() => {}); });
+  g("etListar").addEventListener("click", () => etFila("impressoras", "", "Listar impressoras"));
+  g("etTeste").addEventListener("click", () => etEnviar([{ ean: "7891000315507", desc: "ETIQUETA DE TESTE NOVA RAPHAELLA 105X30", preco: 12.34, de: 15.9, ate: "31/12", qtd: 1 }], true));
+}
+async function etBuscar(txt, enter) {
+  const res = document.getElementById("etRes"); txt = String(txt || "").trim(); if (txt.length < 3 || !supa) { res.innerHTML = `<span class="orig">Digite pelo menos 3 letras ou o código.</span>`; return; }
+  res.innerHTML = `<span class="orig">buscando…</span>`; const cols = "ean,descricao,preco_venda,estoque,ativo"; let rows = [];
+  if (/^\d{4,14}$/.test(txt)) { const cands = [...new Set([txt, txt.padStart(13, "0"), txt.replace(/^0+/, "") || "0"])]; const r = await supa.from("produtos").select(cols).eq("loja_id", ET.loja).in("ean", cands); rows = r.data || []; }
+  else { const ws = semAcento(txt.toUpperCase()).replace(/[%_,()]/g, " ").split(/\s+/).filter(w => w.length > 1).slice(0, 6); let qq = supa.from("produtos").select(cols).eq("loja_id", ET.loja); for (const w of ws) qq = qq.ilike("descricao", `%${w}%`); const r = await qq.order("descricao").limit(60); rows = r.data || []; }
+  rows = rows.filter(p => p.ativo !== false && p.ean);
+  if (!rows.length) { res.innerHTML = `<span class="orig">Nada encontrado na Loja ${ET.loja}.</span>`; return; }
+  const add = async p => { await etAdicionarEans([{ ean: p.ean, qtd: 1 }]); etDesenhar(); setTimeout(() => { const q = document.getElementById("etQ"); if (q) q.focus(); }, 0); };
+  if (enter && (rows.length === 1 || /^\d{4,14}$/.test(txt))) return add(rows[0]);
+  ET.busca = rows;
+  res.innerHTML = `<div style="max-height:240px;overflow:auto;border:1px solid var(--borda);border-radius:6px">` + rows.map((p, i) => `<div data-i="${i}" style="padding:4px 8px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;gap:8px"><span>${escH(p.descricao)} <span class="orig mono" style="font-size:10px">${escH(p.ean)}</span></span><b>${orBrl(p.preco_venda)}</b></div>`).join("") + `</div>`;
+  for (const d of res.querySelectorAll("[data-i]")) d.addEventListener("click", () => add(ET.busca[Number(d.dataset.i)]));
+}
+async function etFila(tipo, conteudo, titulo) {
+  const c = etCfg(), imp = ET.loja === 2 ? c.impressora2 : c.impressora1, st = document.getElementById("etStatus");
+  const corpo = (imp ? "--IMPRESSORA " + imp + "\n" : "") + conteudo;
+  const { data, error } = await supa.from("fila").insert({ loja_id: ET.loja, tipo, titulo, conteudo: corpo, status: "pendente" }).select("id").single();
+  if (error) { st.textContent = "Não consegui enviar: " + error.message; return; }
+  st.textContent = "Enviado para o PC da Loja " + ET.loja + "; aguardando…";
+  const t0 = Date.now(), tm = setInterval(async () => { const r = await supa.from("fila").select("status,resultado").eq("id", data.id).single(); const f = r.data; if (!f) return;
+    if (f.status === "aplicado" || f.status === "erro") { clearInterval(tm); const s2 = document.getElementById("etStatus"); if (s2) s2.innerHTML = `<span class="chip ${f.status === "aplicado" ? "ok" : "falta"}">${f.status === "aplicado" ? "pronto" : "erro"}</span> <span style="white-space:pre-wrap">${escH(f.resultado || "")}</span>`; }
+    else if (Date.now() - t0 > 180000) { clearInterval(tm); const s2 = document.getElementById("etStatus"); if (s2) s2.textContent = "O PC da loja ainda não pegou o pedido (está ligado?). Ele imprime assim que ligar."; } }, 3000);
+}
+function etEnviar(lista, teste) {
+  if (!lista.length) return msg("Nenhuma etiqueta com quantidade.");
+  const c = etCfg(), tot = lista.reduce((a, i) => a + (Number(i.qtd) || 0), 0);
+  if (!teste && tot > 60 && !confirm(`Imprimir ${tot} etiquetas na Loja ${ET.loja}?`)) return;
+  etFila("etiqueta", lista.map(i => etZpl(i, c)).join("\n"), teste ? "Etiqueta de teste" : `Etiquetas: ${lista.length} produto(s), ${tot} etiqueta(s)`);
+}
+function etLigar() { if (!db) return; db.doc("config/etiquetas").onSnapshot(d => { ET.cfg = d.exists ? d.data() : null; }, () => {}); }
 function orLigar() {
   if (!db) return;
   db.collection("orcamentos").onSnapshot(s => { const atualId = OR.atual && OR.atual.id; OR.docs = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (atualId) { const a = OR.docs.get(atualId); if (a && JSON.stringify(a) !== JSON.stringify(OR.atual) && !OR.salvarT) { OR.atual = a; orDesenharEd(); } else if (a) OR.docs.set(atualId, OR.atual); } orDesenharLista(); }, () => {});
@@ -3515,7 +3631,7 @@ function orLigar() {
   document.getElementById("orNovo").addEventListener("click", orNovo);
   document.getElementById("orFiltro").addEventListener("change", orDesenharLista);
   document.getElementById("orCfgLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("orCfgBox"); if (b.style.display === "none") { orDesenharCfg(); b.style.display = ""; } else b.style.display = "none"; });
-  olLigar(); tfLigar(); cpLigar();
+  olLigar(); tfLigar(); cpLigar(); etLigar();
 }
 function ligarOuvintes() {
   orLigar();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="63">
+<meta name="versao" content="64">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -301,8 +301,15 @@
     <label class="c">Loja<select id="vaLoja"><option>Loja 1</option><option>Loja 2</option></select></label>
     <button id="vaOk">Lançar</button>
   </div>
-  <div class="painel linha"><div class="resumo" id="resVal"></div><label style="margin-left:auto"><input type="checkbox" id="fValBaixa"> mostrar os que já tiveram baixa</label></div>
-  <div class="rolagem"><table><thead><tr><th>Validade</th><th>Produto</th><th>Código de barras</th><th class="n">Qtd</th><th>Origem</th><th>Situação</th><th></th></tr></thead><tbody id="tbVal"></tbody></table></div>
+  <div class="painel"><div id="valAlertas" class="linha" style="gap:6px;flex-wrap:wrap;margin-bottom:6px"></div><div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <label class="c">Período<select id="fValPer"><option value="">todos em acompanhamento</option><option value="venc">só vencidos</option><option value="7">vencidos + 7 dias</option><option value="30">vencidos + 30 dias</option><option value="60">vencidos + 60 dias</option><option value="90">vencidos + 90 dias</option></select></label>
+    <label class="c">Loja<select id="fValLoja"><option value="">todas</option><option value="1">Loja 1</option><option value="2">Loja 2</option></select></label>
+    <label class="c">Fornecedor / origem<select id="fValForn"><option value="">todos</option></select></label>
+    <label class="c">Produto ou código<input type="text" id="fValQ" placeholder="filtrar…" style="width:180px"></label>
+    <label class="c">Ordem<select id="fValOrd"><option value="val">validade</option><option value="desc">produto</option><option value="qtd">quantidade</option></select></label>
+    <label style="margin-left:auto"><input type="checkbox" id="fValBaixa"> mostrar os que já tiveram baixa</label>
+  </div><div class="resumo" id="resVal" style="margin-top:6px"></div></div>
+  <div class="rolagem"><table><thead><tr><th>Validade</th><th>Produto</th><th>Código de barras</th><th class="n">Qtd</th><th>Loja</th><th>Origem</th><th>Situação</th><th></th></tr></thead><tbody id="tbVal"></tbody></table></div>
   <div class="orig" style="margin-top:6px">Na entrada de uma nota, a validade é informada na setinha de cada item. Para o que já está na prateleira, use o lançamento acima.</div>
  </div>
 </main>
@@ -1481,19 +1488,38 @@ function sitValidade(v) {
   if (d <= 30) return [`vence em ${d} dias`, "av"];
   return [`vence em ${d} dias`, "novo"];
 }
+// loja de uma validade: a informada no lançamento avulso, ou a loja de destino da nota de origem
+function lojaValidade(v) {
+  if (v.loja) { const m = String(v.loja).match(/\d/); return m ? Number(m[0]) : null; }
+  const m = v.nota && metaDe(v.nota); const g = m && m.cfg && m.cfg.gDest; return g === "2" ? 2 : g ? 1 : null;
+}
 function desenharValidades() {
   if (vista !== "validades") return;
-  const todos = listaValidades(), pend_ = todos.filter(v => !v.baixa);
-  const venc = pend_.filter(v => dias(v.val) < 0), s30 = pend_.filter(v => { const d = dias(v.val); return d >= 0 && d <= 30; }), s60 = pend_.filter(v => { const d = dias(v.val); return d > 30 && d <= 60; });
-  document.getElementById("resVal").innerHTML = `<div><small>Vencidos</small><b>${venc.length}</b></div><div><small>Vencem em 30 dias</small><b>${s30.length}</b></div><div><small>De 31 a 60 dias</small><b>${s60.length}</b></div><div><small>Acompanhando</small><b>${pend_.length}</b></div>`;
-  const tb = document.getElementById("tbVal"); tb.innerHTML = "";
-  const lista = document.getElementById("fValBaixa").checked ? todos : pend_;
-  if (!lista.length) tb.innerHTML = `<tr><td colspan="7"><i>Nenhuma validade lançada.</i></td></tr>`;
+  const todos = listaValidades(), pend_ = todos.filter(v => !v.baixa), g = id => document.getElementById(id);
+  const venc = pend_.filter(v => dias(v.val) < 0), s7 = pend_.filter(v => { const d = dias(v.val); return d >= 0 && d <= 7; }), s30 = pend_.filter(v => { const d = dias(v.val); return d > 7 && d <= 30; }), s60 = pend_.filter(v => { const d = dias(v.val); return d > 30 && d <= 60; });
+  const un = l => l.reduce((a, v) => a + (Number(v.qtd) || 0), 0);
+  g("valAlertas").innerHTML = (venc.length ? `<span class="chip falta" style="font-size:13px">${venc.length} vencido${venc.length > 1 ? "s" : ""} · ${br(un(venc), 0)} un</span>` : "") + (s7.length ? `<span class="chip falta" style="font-size:13px;background:#fde8c8;color:#7a3e00">${s7.length} vence${s7.length > 1 ? "m" : ""} em 7 dias · ${br(un(s7), 0)} un</span>` : "") + (s30.length ? `<span class="chip av" style="font-size:13px">${s30.length} em 30 dias</span>` : "") + (!venc.length && !s7.length && !s30.length ? `<span class="chip ok">nada vencendo nos próximos 30 dias</span>` : "");
+  g("resVal").innerHTML = `<div><small>Vencidos</small><b>${venc.length}</b></div><div><small>Até 7 dias</small><b>${s7.length}</b></div><div><small>8 a 30 dias</small><b>${s30.length}</b></div><div><small>31 a 60 dias</small><b>${s60.length}</b></div><div><small>Acompanhando</small><b>${pend_.length}</b></div>`;
+  const fornSel = g("fValForn"), fornAtual = fornSel.value, forns = [...new Set(todos.map(v => v.avulso ? "lançado na loja" : (v.emit || "")).filter(Boolean))].sort();
+  fornSel.innerHTML = `<option value="">todos</option>` + forns.map(f => `<option value="${h(f)}" ${f === fornAtual ? "selected" : ""}>${h(f)}</option>`).join("");
+  const per = g("fValPer").value, lj = g("fValLoja").value, fo = fornSel.value, q = semAcento(g("fValQ").value.trim().toLowerCase()), ord = g("fValOrd").value;
+  const tb = g("tbVal"); tb.innerHTML = "";
+  let lista = (g("fValBaixa").checked ? todos : pend_).filter(v => {
+    const d = dias(v.val);
+    if (per === "venc" && !(d < 0 && !v.baixa)) return false; if (per && per !== "venc" && !(d <= Number(per) && !v.baixa)) return false;
+    if (lj && lojaValidade(v) !== Number(lj)) return false;
+    if (fo && (v.avulso ? "lançado na loja" : (v.emit || "")) !== fo) return false;
+    if (q && !semAcento((v.desc || "") + " " + (v.ean || "")).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  lista.sort((a, b) => ord === "desc" ? String(a.desc).localeCompare(String(b.desc)) : ord === "qtd" ? (Number(b.qtd) || 0) - (Number(a.qtd) || 0) : String(a.val || "9999").localeCompare(String(b.val || "9999")));
+  if (!lista.length) tb.innerHTML = `<tr><td colspan="8"><i>${todos.length ? "Nenhuma validade neste filtro." : "Nenhuma validade lançada."}</i></td></tr>`;
   for (const v of lista) {
-    const [txtS, cls] = sitValidade(v), tr = document.createElement("tr");
-    const origem = v.avulso ? "lançado na loja" + (v.loja ? " — " + v.loja : "") : `${v.emit} — ${String(v.nota || "").startsWith("M") ? "sem nota" : "NF " + v.nnf}`;
+    const [txtS, cls] = sitValidade(v), tr = document.createElement("tr"), lv = lojaValidade(v);
+    tr.className = v.baixa ? "" : dias(v.val) < 0 ? "falta" : dias(v.val) <= 7 ? "duvida" : "";
+    const origem = v.avulso ? "lançado na loja" : `${v.emit} — ${String(v.nota || "").startsWith("M") ? "sem nota" : "NF " + v.nnf}`;
     const edit = db && !v.baixa;
-    tr.innerHTML = `<td>${edit ? `<input type="date" data-k="val" value="${v.val || ""}" title="mude a data e ela é salva na hora">` : dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td class="n">${edit ? `<input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:64px" title="quantidade acompanhada">` : br(v.qtd || 0, 0)}</td><td>${h(origem)}</td><td><span class="chip ${cls}">${txtS}${v.baixa && v.motivo ? " — " + h(v.motivo) : ""}</span></td><td>${db ? `<a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${v.baixa ? "desfazer baixa" : "dar baixa"}</a>` : ""}</td>`;
+    tr.innerHTML = `<td>${edit ? `<input type="date" data-k="val" value="${v.val || ""}" title="mude a data e ela é salva na hora">` : dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td class="n">${edit ? `<input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:64px" title="quantidade acompanhada">` : br(v.qtd || 0, 0)}</td><td>${lv ? "Loja " + lv : "—"}</td><td>${h(origem)}${v.baixa && v.motivo ? `<div class="orig">${h(v.motivo)}</div>` : ""}</td><td><span class="chip ${cls}">${txtS}${v.baixa && v.motivo ? " — " + h(v.motivo) : ""}</span></td><td>${db ? `<a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${v.baixa ? "desfazer baixa" : "dar baixa"}</a>` : ""}</td>`;
     for (const i of tr.querySelectorAll("input[data-k]")) i.addEventListener("change", () => {
       const nv = tr.querySelector("[data-k=val]").value, nq = parseFloat(tr.querySelector("[data-k=qtd]").value) || 0;
       if (!nv) { i.value = v.val || ""; return msg("A data não pode ficar em branco; para tirar da lista, dê baixa."); }
@@ -3467,6 +3493,8 @@ for (const b of document.querySelectorAll(".aba")) b.addEventListener("click", (
 for (const id of ["fNotaTxt", "fNotaSit"]) document.getElementById(id).addEventListener("input", desenharGerencia);
 document.getElementById("fBolPagos").addEventListener("change", desenharBoletos);
 document.getElementById("fValBaixa").addEventListener("change", desenharValidades);
+for (const id of ["fValPer", "fValLoja", "fValForn", "fValOrd"]) document.getElementById(id).addEventListener("change", desenharValidades);
+document.getElementById("fValQ").addEventListener("input", () => { clearTimeout(window._fvt); window._fvt = setTimeout(desenharValidades, 300); });
 document.getElementById("vaOk").addEventListener("click", lancarValidadeAvulsa);
 document.getElementById("vaEan").addEventListener("change", ev => { const p = cadInfo && cadInfo.get(chave13(ev.target.value.replace(/\D/g, ""))); if (p) document.getElementById("vaDesc").value = p[1]; });
 document.getElementById("bConcl").addEventListener("click", async () => { const m = metaDe(cab.chave); if (!m) return; const vai = !m.concluida; await salvarMeta(cab.chave, { concluida: vai ? new Date().toISOString() : null }); if (vai) { const nm = await salvarMemoria(); if (nm) msg(`Memória do fornecedor atualizada com ${nm} produto(s).`); } });

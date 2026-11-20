@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="64">
+<meta name="versao" content="65">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -128,7 +128,7 @@
   <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
 </div>
 <nav id="abas" style="display:none">
-  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button><button class="aba" data-v="transf">Transferências</button><button class="aba" data-v="compras">Compras</button>
+  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button><button class="aba" data-v="transf">Transferências</button><button class="aba" data-v="compras">Compras</button><button class="aba" data-v="promocoes">Promoções</button>
   <span id="alertas"></span>
 </nav>
 <main id="principal" style="display:none">
@@ -287,6 +287,7 @@
   <div id="tfEd" class="painel" style="display:none"></div>
  </div>
  <div id="vCompras" style="display:none"><div class="painel"><b>Sugestão de compra</b> <span class="orig">— o que está acabando, pelo ritmo de venda do caixa e o estoque do cadastro; marque os itens e monte o pedido</span><div id="cpPainel" style="margin-top:8px"></div></div></div>
+ <div id="vPromocoes" style="display:none"><div class="painel"><b>Promoções</b> <span class="orig">— preço promocional por período; começa e termina sozinho no Gestão e nos caixas</span><div id="pmPainel" style="margin-top:8px"></div></div></div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
   <div class="painel"><b>Validades vencidas e dos próximos 30 dias</b><div id="avVal" style="margin-top:6px"></div></div>
@@ -1293,7 +1294,7 @@ async function salvarMeta(chave, patch) {
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 function mostrar(v) {
   vista = v;
-  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   redesenharTudo();
   if (v === "vendas") vdCarregar();
@@ -1301,6 +1302,7 @@ function mostrar(v) {
   if (v === "hoje") { hjDesenhar(); hjCarregar(); }
   if (v === "transf") tfDesenharLista();
   if (v === "compras") cpDesenhar();
+  if (v === "promocoes") { pmDesenhar(); pmCarregar(); }
 }
 const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
   : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
@@ -1519,13 +1521,14 @@ function desenharValidades() {
     tr.className = v.baixa ? "" : dias(v.val) < 0 ? "falta" : dias(v.val) <= 7 ? "duvida" : "";
     const origem = v.avulso ? "lançado na loja" : `${v.emit} — ${String(v.nota || "").startsWith("M") ? "sem nota" : "NF " + v.nnf}`;
     const edit = db && !v.baixa;
-    tr.innerHTML = `<td>${edit ? `<input type="date" data-k="val" value="${v.val || ""}" title="mude a data e ela é salva na hora">` : dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td class="n">${edit ? `<input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:64px" title="quantidade acompanhada">` : br(v.qtd || 0, 0)}</td><td>${lv ? "Loja " + lv : "—"}</td><td>${h(origem)}${v.baixa && v.motivo ? `<div class="orig">${h(v.motivo)}</div>` : ""}</td><td><span class="chip ${cls}">${txtS}${v.baixa && v.motivo ? " — " + h(v.motivo) : ""}</span></td><td>${db ? `<a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${v.baixa ? "desfazer baixa" : "dar baixa"}</a>` : ""}</td>`;
+    tr.innerHTML = `<td>${edit ? `<input type="date" data-k="val" value="${v.val || ""}" title="mude a data e ela é salva na hora">` : dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td class="n">${edit ? `<input type="number" data-k="qtd" min="0" step="1" value="${v.qtd || 0}" style="width:64px" title="quantidade acompanhada">` : br(v.qtd || 0, 0)}</td><td>${lv ? "Loja " + lv : "—"}</td><td>${h(origem)}${v.baixa && v.motivo ? `<div class="orig">${h(v.motivo)}</div>` : ""}${!v.baixa && v.ean ? ` <a href="#" data-promo style="font-size:11px;color:#0b57d0" title="abrir uma promoção com este produto">promoção</a>` : ""}</td><td><span class="chip ${cls}">${txtS}${v.baixa && v.motivo ? " — " + h(v.motivo) : ""}</span></td><td>${db ? `<a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${v.baixa ? "desfazer baixa" : "dar baixa"}</a>` : ""}</td>`;
     for (const i of tr.querySelectorAll("input[data-k]")) i.addEventListener("change", () => {
       const nv = tr.querySelector("[data-k=val]").value, nq = parseFloat(tr.querySelector("[data-k=qtd]").value) || 0;
       if (!nv) { i.value = v.val || ""; return msg("A data não pode ficar em branco; para tirar da lista, dê baixa."); }
       salvarValidade(v, { val: nv, qtd: nq });
     });
-    const a = tr.querySelector("a"); if (a) a.addEventListener("click", () => {
+    const pr = tr.querySelector("[data-promo]"); if (pr) pr.addEventListener("click", ev => { ev.preventDefault(); mostrar("promocoes"); pmNovo(v.ean); });
+    const a = tr.querySelector("a:not([data-promo])"); if (a) a.addEventListener("click", () => {
       const salva = p => db.doc("validades/" + v.id).update(p).catch(e => msg("Não consegui salvar (" + e.code + ")."));
       if (v.baixa) return salva({ baixa: null, motivo: null });
       const sel = document.createElement("select"); sel.innerHTML = "<option value=''>motivo da baixa…</option>" + ["vendido", "vencido e descartado", "devolvido ao fornecedor", "promoção para girar", "outro"].map(o => `<option>${o}</option>`).join("");
@@ -3394,6 +3397,117 @@ function cpLigar() {
   if (!db) return;
   db.doc("config/compras").onSnapshot(d => { CP.ignorar = new Set(d.exists && d.data().ignorar || []); if (vista === "compras") cpDesenhar(); }, () => {});
 }
+// ===================== Promoções =====================
+// Tabela promocoes (Supabase): preço promocional por produto e loja com início e fim; a função promocoes_rodar (a cada 15 min no banco, e na hora quando o site chama)
+// gera os pedidos na fila para o Gestão + caixas no início e devolve o preço normal no fim. Só preço de item; combos dependem do caixa (ver investigação).
+const PM = { lista: [], novo: null, filtro: "vigentes", busca: [] };
+const pmDesc = (de, por) => de > 0 ? Math.round((1 - por / de) * 1000) / 10 : 0;
+async function pmCarregar() {
+  if (!supa) return;
+  const { data } = await supa.from("promocoes").select("*").order("inicio", { ascending: false }).order("id", { ascending: false }).limit(1000);
+  PM.lista = data || []; pmDesenhar();
+}
+function pmNovo(pre) {
+  PM.novo = { nome: "", lojas: { 1: true, 2: false }, inicio: vdIso(new Date()), fim: vdMais(vdIso(new Date()), 7), itens: [] };
+  pmDesenhar(); if (pre) pmBuscar(pre, true); else setTimeout(() => { const q = document.getElementById("pmQ"); if (q) q.focus(); }, 50);
+}
+function pmDesenhar() {
+  const el = document.getElementById("pmPainel"); if (!el) return;
+  const hoje = vdIso(new Date()), f = PM.filtro;
+  const vis = PM.lista.filter(p => f === "todas" ? true : f === "vigentes" ? (p.status === "ativa" || p.status === "agendada") : p.status === f);
+  const stChip = p => p.status === "ativa" ? `<span class="chip ok">ativa até ${orData(p.fim)}</span>` : p.status === "agendada" ? `<span class="chip av">começa ${orData(p.inicio)}</span>` : p.status === "encerrada" ? `<span class="chip" style="background:#eee">encerrada</span>` : `<span class="chip" style="background:#eee">cancelada</span>`;
+  const n = PM.novo;
+  const form = n ? `<div class="painel" style="border:1px solid #0b57d0;margin-bottom:8px">
+    <div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <label class="c">Nome da promoção<input type="text" id="pmNome" value="${orA(n.nome)}" placeholder="ex.: Semana do caderno" style="width:220px"></label>
+      <label class="c">Lojas<span class="linha" style="gap:8px"><label><input type="checkbox" id="pmL1" ${n.lojas[1] ? "checked" : ""}> Loja 1</label><label><input type="checkbox" id="pmL2" ${n.lojas[2] ? "checked" : ""}> Loja 2</label></span></label>
+      <label class="c">Início<input type="date" id="pmIni" value="${n.inicio}"></label>
+      <label class="c">Fim (último dia)<input type="date" id="pmFim" value="${n.fim}"></label>
+      <label class="c">Desconto geral %<input type="number" id="pmPct" min="0" max="90" step="1" placeholder="aplica a todos" style="width:90px" title="preenche o preço promocional de todos os itens com este desconto sobre o preço atual"></label>
+    </div>
+    <div class="linha" style="gap:8px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
+      <label class="c" style="flex:1;min-width:240px">Produto (nome ou código de barras; bipar funciona)<input type="text" id="pmQ" placeholder="busca no cadastro" autocomplete="off"></label>
+      <button class="sec" id="pmBuscarB">Buscar</button><button class="sec" id="pmCam">📷</button></div>
+    <div id="pmRes" style="margin-top:4px"></div>
+    <div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th><th class="n">Custo</th><th class="n">Preço atual</th><th class="n">Preço promo</th><th class="n">Desc.</th><th class="n">Margem promo</th><th></th></tr></thead><tbody>
+    ${n.itens.map((i, k) => { const lojas = [1, 2].filter(l => n.lojas[l]); return lojas.map(l => { const p = i.lojas[l]; if (!p) return `<tr><td>${escH(i.desc)} <span class="chip falta">não cadastrado na Loja ${l}</span></td><td colspan="6"></td></tr>`;
+        const promo = i.promo != null ? i.promo : null, mg = promo != null && p.custo > 0 ? (promo / p.custo - 1) * 100 : null;
+        return `<tr><td>${escH(p.desc || i.desc)}<div class="orig mono" style="font-size:10px">${escH(i.ean)} · Loja ${l}${p.est != null ? " · est. " + br(p.est, 0) : ""}</div></td><td class="n">${br(p.custo || 0, 2)}</td><td class="n">${orBrl(p.venda)}</td>
+        <td class="n"><input type="text" inputmode="decimal" data-promo="${k}" value="${promo != null ? br(promo) : ""}" placeholder="R$" style="width:80px;text-align:right"></td><td class="n">${promo != null ? br(pmDesc(p.venda, promo), 1) + "%" : ""}</td>
+        <td class="n">${mg == null ? "" : `<span class="chip ${mg < 0 ? "falta" : mg < 20 ? "av" : "ok"}">${br(mg, 0)}%</span>`}</td><td><a href="#" data-rm="${k}" style="color:#b42318">✕</a></td></tr>`; }).join(""); }).join("") || `<tr><td colspan="7" class="orig">Adicione os produtos da promoção.</td></tr>`}
+    </tbody></table></div>
+    <div class="linha" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button id="pmSalvar">Ativar promoção</button><button class="sec" id="pmCancelarNovo">Descartar</button>
+      <span class="orig">No início, o preço promocional vai ao Gestão e aos caixas; no dia seguinte ao fim, o preço normal volta sozinho. A margem é sobre o custo do cadastro.</span></div></div>` : "";
+  el.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div class="linha" style="gap:8px;align-items:center"><select id="pmFiltro"><option value="vigentes" ${f === "vigentes" ? "selected" : ""}>ativas e agendadas</option><option value="ativa" ${f === "ativa" ? "selected" : ""}>ativas</option><option value="agendada" ${f === "agendada" ? "selected" : ""}>agendadas</option><option value="encerrada" ${f === "encerrada" ? "selected" : ""}>encerradas</option><option value="todas" ${f === "todas" ? "selected" : ""}>todas</option></select>
+      <span class="orig">${vis.length} item(ns)</span></div>
+      <div class="linha" style="gap:8px">${n ? "" : `<button id="pmNovoB">Nova promoção</button>`}<button class="sec" id="pmRodar" title="aplica agora o que está agendado para hoje e encerra o que venceu (o banco faz isso sozinho a cada 15 min)">Processar agora</button></div></div>
+    ${form}
+    ${vis.length ? `<div style="overflow:auto"><table><thead><tr><th>Produto</th><th>Loja</th><th>Promoção</th><th class="n">De</th><th class="n">Por</th><th class="n">Desc.</th><th>Período</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${vis.map(p => `<tr class="${p.status === "ativa" ? "pok" : ""}"><td>${escH(p.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(p.ean)}</div></td><td>Loja ${p.loja_id}</td><td>${escH(p.nome || "")}</td><td class="n"><s>${orBrl(p.preco_normal)}</s></td><td class="n"><b>${orBrl(p.preco_promo)}</b></td><td class="n">${br(pmDesc(Number(p.preco_normal), Number(p.preco_promo)), 1)}%</td><td>${orData(p.inicio)} – ${orData(p.fim)}</td><td>${stChip(p)}${p.fila_ini && p.status === "ativa" ? ` <span class="orig" data-fila="${p.fila_ini}"></span>` : ""}</td>
+      <td style="white-space:nowrap">${p.status === "ativa" ? `<a href="#" data-enc="${p.id}" style="color:#b42318">encerrar agora</a>` : p.status === "agendada" ? `<a href="#" data-canc="${p.id}" style="color:#b42318">cancelar</a>` : `<a href="#" data-del="${p.id}" style="color:#8a94a6">apagar</a>`}</td></tr>`).join("")}</tbody></table></div>` : `<div class="orig">Nenhuma promoção ${f === "todas" ? "cadastrada" : "neste filtro"}.</div>`}`;
+  const g = id => el.querySelector("#" + id);
+  g("pmFiltro").addEventListener("change", ev => { PM.filtro = ev.target.value; pmDesenhar(); });
+  if (g("pmNovoB")) g("pmNovoB").addEventListener("click", () => pmNovo());
+  g("pmRodar").addEventListener("click", pmRodar);
+  for (const a of el.querySelectorAll("[data-enc]")) a.addEventListener("click", async ev => { ev.preventDefault(); if (!confirm("Encerrar esta promoção agora? O preço normal volta ao Gestão e aos caixas em até 1 minuto.")) return; await supa.from("promocoes").update({ fim: vdMais(hoje, -1) }).eq("id", Number(a.dataset.enc)); await pmRodar(true); });
+  for (const a of el.querySelectorAll("[data-canc]")) a.addEventListener("click", async ev => { ev.preventDefault(); await supa.from("promocoes").update({ status: "cancelada", encerrada_em: new Date().toISOString() }).eq("id", Number(a.dataset.canc)); pmCarregar(); });
+  for (const a of el.querySelectorAll("[data-del]")) a.addEventListener("click", async ev => { ev.preventDefault(); await supa.from("promocoes").delete().eq("id", Number(a.dataset.del)); pmCarregar(); });
+  if (n) {
+    g("pmNome").addEventListener("input", ev => n.nome = ev.target.value);
+    g("pmL1").addEventListener("change", ev => { n.lojas[1] = ev.target.checked; pmCompletar(); }); g("pmL2").addEventListener("change", ev => { n.lojas[2] = ev.target.checked; pmCompletar(); });
+    g("pmIni").addEventListener("change", ev => n.inicio = ev.target.value); g("pmFim").addEventListener("change", ev => n.fim = ev.target.value);
+    g("pmPct").addEventListener("change", ev => { const pct = parseFloat(ev.target.value); if (!(pct >= 0)) return; for (const i of n.itens) { const ref = i.lojas[1] || i.lojas[2]; if (ref) i.promo = Math.round(ref.venda * (1 - pct / 100) * 10) / 10; } pmDesenhar(); });
+    g("pmBuscarB").addEventListener("click", () => pmBuscar(g("pmQ").value.trim())); g("pmQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); pmBuscar(g("pmQ").value.trim(), true); } });
+    g("pmCam").addEventListener("click", () => lerCamera(c => pmBuscar(c, true)));
+    for (const i of el.querySelectorAll("[data-promo]")) i.addEventListener("change", () => { n.itens[Number(i.dataset.promo)].promo = pnum(i.value) > 0 ? pnum(i.value) : null; pmDesenhar(); });
+    for (const a of el.querySelectorAll("[data-rm]")) a.addEventListener("click", ev => { ev.preventDefault(); n.itens.splice(Number(a.dataset.rm), 1); pmDesenhar(); });
+    g("pmSalvar").addEventListener("click", pmSalvar); g("pmCancelarNovo").addEventListener("click", () => { PM.novo = null; pmDesenhar(); });
+  }
+  for (const s of el.querySelectorAll("[data-fila]")) supa.from("fila").select("status").eq("id", Number(s.dataset.fila)).maybeSingle().then(r => { if (r.data) s.textContent = r.data.status === "aplicado" ? "· no Gestão" : r.data.status === "erro" ? "· ERRO no Gestão" : "· aguardando o PC da loja"; });
+}
+async function pmBuscar(txt, enter) {
+  const n = PM.novo; if (!n || !supa) return; const res = document.getElementById("pmRes"); txt = String(txt || "").trim();
+  if (txt.length < 3) { res.innerHTML = `<span class="orig">Digite pelo menos 3 letras ou o código.</span>`; return; }
+  res.innerHTML = `<span class="orig">buscando…</span>`;
+  const cols = "loja_id,id_gestao,ean,descricao,estoque,preco_compra,preco_venda,ativo"; let rows = [];
+  if (/^\d{4,14}$/.test(txt)) { const cands = [...new Set([txt, txt.padStart(13, "0"), txt.replace(/^0+/, "") || "0"])]; const r = await supa.from("produtos").select(cols).eq("loja_id", 1).in("ean", cands); rows = r.data || []; if (!rows.length) { const r2_ = await supa.from("produtos").select(cols).eq("loja_id", 2).in("ean", cands); rows = r2_.data || []; } }
+  else { const ws = semAcento(txt.toUpperCase()).replace(/[%_,()]/g, " ").split(/\s+/).filter(w => w.length > 1).slice(0, 6); let qq = supa.from("produtos").select(cols).eq("loja_id", 1); for (const w of ws) qq = qq.ilike("descricao", `%${w}%`); const r = await qq.order("descricao").limit(60); rows = r.data || []; }
+  rows = rows.filter(p => p.ativo !== false && p.ean);
+  if (!rows.length) { res.innerHTML = `<span class="orig">Nada encontrado.</span>`; return; }
+  if (enter && (rows.length === 1 || /^\d{4,14}$/.test(txt))) { await pmAdd(rows[0].ean, rows[0].descricao); document.getElementById("pmQ").value = ""; res.innerHTML = ""; return; }
+  PM.busca = rows;
+  res.innerHTML = `<div style="max-height:240px;overflow:auto;border:1px solid var(--borda);border-radius:6px">` + rows.map((p, i) => `<div data-i="${i}" style="padding:4px 8px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;gap:8px"><span>${escH(p.descricao)} <span class="orig mono" style="font-size:10px">${escH(p.ean)}</span></span><span><b>${orBrl(p.preco_venda)}</b> <span class="orig">est. ${br(Number(p.estoque) || 0, 0)}</span></span></div>`).join("") + `</div>`;
+  for (const d of res.querySelectorAll("[data-i]")) d.addEventListener("click", async () => { const p = PM.busca[Number(d.dataset.i)]; await pmAdd(p.ean, p.descricao); document.getElementById("pmQ").value = ""; res.innerHTML = ""; });
+}
+async function pmAdd(ean, desc) {
+  const n = PM.novo; if (!n) return; if (n.itens.some(i => i.ean === ean)) return msg("Esse produto já está na promoção.");
+  const it = { ean, desc, promo: null, lojas: {} }; n.itens.push(it); await pmCompletar(); setTimeout(() => { const q = document.getElementById("pmQ"); if (q) q.focus(); }, 0);
+}
+// carrega preço/custo/estoque de cada item nas lojas marcadas
+async function pmCompletar() {
+  const n = PM.novo; if (!n || !supa) return; const eans = n.itens.map(i => i.ean);
+  for (const l of [1, 2]) { if (!n.lojas[l] || !eans.length) continue; const r = await supa.from("produtos").select("ean,id_gestao,descricao,estoque,preco_compra,preco_venda").eq("loja_id", l).in("ean", eans); const m = new Map((r.data || []).map(p => [p.ean, p])); for (const i of n.itens) { const p = m.get(i.ean); i.lojas[l] = p ? { id: p.id_gestao, desc: p.descricao, venda: r2(Number(p.preco_venda) || 0), custo: r2(Number(p.preco_compra) || 0), est: p.estoque != null ? Number(p.estoque) : null } : null; } }
+  pmDesenhar();
+}
+async function pmSalvar() {
+  const n = PM.novo; if (!n) return; const lojas = [1, 2].filter(l => n.lojas[l]);
+  if (!lojas.length) return msg("Marque pelo menos uma loja."); if (!n.inicio || !n.fim || n.fim < n.inicio) return msg("Confira as datas de início e fim.");
+  const linhas = [];
+  for (const i of n.itens) { if (!(i.promo > 0)) continue; for (const l of lojas) { const p = i.lojas[l]; if (!p) continue; if (i.promo >= p.venda) continue; linhas.push({ loja_id: l, ean: i.ean, id_gestao: p.id, descricao: p.desc || i.desc, preco_normal: p.venda, preco_promo: r2(i.promo), custo: p.custo, inicio: n.inicio, fim: n.fim, status: "agendada", nome: n.nome || null, criado_por: window.__email || null }); } }
+  if (!linhas.length) return msg("Nenhum item com preço promocional menor que o atual.");
+  const abaixo = linhas.filter(x => x.custo > 0 && x.preco_promo < x.custo);
+  if (!confirm(`Ativar "${n.nome || "promoção"}" com ${linhas.length} item(ns)/loja, de ${orData(n.inicio)} a ${orData(n.fim)}?` + (abaixo.length ? `\n\nATENÇÃO: ${abaixo.length} item(ns) ficam ABAIXO DO CUSTO.` : "") + (n.inicio <= vdIso(new Date()) ? "\n\nComo começa hoje, o preço vai ao Gestão e aos caixas agora." : ""))) return;
+  const { error } = await supa.from("promocoes").insert(linhas); if (error) return msg("Não consegui salvar: " + error.message);
+  PM.novo = null; await pmRodar(true);
+}
+async function pmRodar(silencioso) {
+  const { data, error } = await supa.rpc("promocoes_rodar_site"); await pmCarregar();
+  if (error) return msg("Erro ao processar: " + error.message);
+  if (!silencioso) msg(`Processado: ${data.inicios || 0} início(s) e ${data.fins || 0} fim(ns) enviados ao Gestão.`);
+  else if (data && (data.inicios || data.fins)) msg("Enviado ao Gestão e aos caixas; em até 1 minuto o preço muda (PC da loja ligado).");
+}
+function pmLigar() { if (!db) return; }
 function orLigar() {
   if (!db) return;
   db.collection("orcamentos").onSnapshot(s => { const atualId = OR.atual && OR.atual.id; OR.docs = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (atualId) { const a = OR.docs.get(atualId); if (a && JSON.stringify(a) !== JSON.stringify(OR.atual) && !OR.salvarT) { OR.atual = a; orDesenharEd(); } else if (a) OR.docs.set(atualId, OR.atual); } orDesenharLista(); }, () => {});

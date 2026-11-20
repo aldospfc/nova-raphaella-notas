@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="69">
+<meta name="versao" content="70">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1465,7 +1465,11 @@ async function salvarMeta(chave, patch) {
   redesenharTudo();
 }
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
-function mostrar(v) {
+// cada aba vira uma entrada no histórico do navegador (#hoje, #notas…): o botão Voltar volta para a aba anterior em vez de sair do site
+const ABAS_V = ["hoje", "entrada", "notas", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
+window.addEventListener("popstate", e => { const v = (e.state && e.state.v) || location.hash.slice(1) || "entrada"; if (ABAS_V.includes(v) && v !== vista) mostrar(v, true); });
+function mostrar(v, semHist) {
+  if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
   vista = v;
   for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
@@ -2560,7 +2564,9 @@ async function entrarNoSistema(sessao) {
   setInterval(() => cadastroDaNuvem(true), 5 * 60 * 1000);
   ligarOuvintes();
   lerAgente(); setInterval(lerAgente, 60000);
-  if (window.innerWidth < 800 && !location.hash) mostrar("hoje"); // no celular, abre no painel do dia
+  { const hv = location.hash.slice(1); // abre na aba do endereço (#notas…); no celular, sem aba no endereço, abre no painel do dia
+    if (ABAS_V.includes(hv)) { if (hv !== vista) mostrar(hv, true); } else if (window.innerWidth < 800) mostrar("hoje", true);
+    try { history.replaceState({ v: vista }, "", "#" + vista); } catch (e) {} }
 }
 function incluirUsuario() {
   const b = document.getElementById("busca"); b.style.display = "block";

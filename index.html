@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="73">
+<meta name="versao" content="74">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -255,6 +255,30 @@
   .fo-notas a { color: var(--loja1); font-weight: 700; cursor: pointer; text-decoration: underline; }
   #toast { position: fixed; right: 18px; bottom: 18px; z-index: 60; max-width: min(460px, 92vw); background: var(--azul); color: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 10px 30px rgba(27,45,75,.25); font-weight: 600; font-size: 12.5px; display: none; }
   @media (max-width: 900px) { .fo-det { grid-template-columns: 1fr; } .fo-campos { grid-template-columns: 1fr 1fr; } .fo-campos .larga { grid-column: span 2; } }
+
+  /* ===== entrada: topo e notas em andamento (v74) ===== */
+  .btn-arq { display: inline-flex; align-items: center; gap: 7px; background: var(--azul); color: #fff; border: 1px solid var(--azul); border-radius: 5px; padding: 6px 13px; font-weight: 700; font-size: 12.5px; cursor: pointer; position: relative; line-height: 1.35; }
+  .btn-arq:hover { background: #24395c; }
+  .btn-arq input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .btn-arq svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ent-topo > .linha { align-items: center; }
+  .ent-topo.arrastando { outline: 2px dashed var(--loja1); outline-offset: 3px; background: #f4fafc; }
+  .nt-cab { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; padding-top: 12px; border-top: 1px solid var(--borda); }
+  .nt-cab b { color: var(--azul); font-size: 13px; }
+  .nt-cab .nt-tog { margin-left: auto; cursor: pointer; color: var(--loja1); font-weight: 700; font-size: 12px; }
+  .nt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .nt-card { border: 1px solid var(--borda); border-radius: 7px; padding: 10px 12px; background: #fff; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border-color .12s, box-shadow .12s; min-width: 0; }
+  .nt-card:hover { border-color: #b9c9d6; box-shadow: 0 2px 8px rgba(27,45,75,.08); }
+  .nt-card.atual { border-color: var(--loja1); box-shadow: inset 3px 0 var(--loja1); background: #f4fafc; }
+  .nt-topo { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .nt-topo .chip { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
+  .nt-num { font-size: 11px; font-weight: 800; color: var(--cinza); letter-spacing: .3px; white-space: nowrap; }
+  .nt-forn { font-weight: 800; color: var(--azul); font-size: 13px; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.5em; }
+  .nt-det { font-size: 11.5px; color: var(--cinza); font-weight: 600; }
+  .nt-pe { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .nt-pe button { padding: 4px 12px; font-size: 12px; }
+  .nt-x { margin-left: auto; color: #b42318; font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+  .nt-x:hover, .nt-x.conf { background: var(--erro-suave); }
 </style>
 </head>
 <body>
@@ -293,9 +317,9 @@
 </nav>
 <main id="principal" style="display:none">
  <div id="vEntrada">
-  <div class="painel">
+  <div class="painel ent-topo" id="entTopo">
     <div class="linha">
-      <label class="c">Abrir uma nota nova (XML da NF-e)<input type="file" id="fXml" accept=".xml"></label>
+      <label class="btn-arq" id="lXml" title="escolha o arquivo XML da NF-e — ou arraste o XML (ou o PDF/foto do romaneio) para este quadro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>Abrir XML da NF-e<input type="file" id="fXml" accept=".xml"></label>
       <button id="bManual" class="sec">Nova entrada sem nota</button>
       <button id="bRom" class="sec" title="a IA lê o romaneio, pedido ou DANFE (PDF ou fotos), confere os totais e abre como entrada sem XML para você revisar">Entrada por romaneio (PDF ou foto)</button><input type="file" id="fRom" accept="application/pdf,image/*" multiple style="display:none">
       <label class="c" id="lCad">Cadastro do Gestão (cadastro_gestao.json)<input type="file" id="fCad" accept=".json"></label>
@@ -2498,17 +2522,46 @@ async function novaEntradaManual(nome, lista, loja) {
   mostrar("entrada"); await abrirNota(chave);
   msg(`Entrada "${nome}" criada com ${lista.length} item(ns) e preço de venda atual mantido. Quando a mercadoria chegar, confira quantidades e custos e envie ao Gestão.`);
 }
+// notas em andamento em cartões (mais recentes primeiro). Com uma nota aberta, a lista fica recolhida (dá para abrir).
+const NT = { mostrar: null };
 function desenharNotas() {
-  const abertas = listaNotas.filter(n => !n.concluida);
-  const d = document.getElementById("notas"); d.innerHTML = abertas.length ? "<b>Notas em andamento:</b> " : "";
+  const abertas = listaNotas.filter(n => !n.concluida).sort((x, y) => (y.criado || "").localeCompare(x.criado || ""));
+  const d = document.getElementById("notas"); d.innerHTML = ""; if (!abertas.length) return;
+  const atual = cab ? abertas.find(n => n.id === cab.chave) : null, mostra = NT.mostrar != null ? NT.mostrar : !cab;
+  const topo = document.createElement("div"); topo.className = "nt-cab";
+  topo.innerHTML = `<b>Notas em andamento</b><span class="badge neutro">${abertas.length}</span>${atual ? `<span class="orig" style="margin:0">· aberta agora: <b style="font-size:12px">${escH(atual.emit || "")}</b></span>` : ""}<a class="nt-tog">${mostra ? "ocultar lista" : "mostrar todas"}</a>`;
+  topo.querySelector(".nt-tog").onclick = () => { NT.mostrar = !mostra; desenharNotas(); };
+  d.appendChild(topo); if (!mostra) return;
+  const grid = document.createElement("div"); grid.className = "nt-grid";
   for (const n of abertas) {
-    const e = document.createElement("span"); e.className = "nota" + (cab && cab.chave === n.id ? " atual" : "");
-    const t = document.createElement("span"); t.textContent = (n.id.startsWith("M") ? `Sem nota — ${n.emit}` : `NF ${n.nnf} — ${n.emit} — ${n.itens} itens`) + (n.baixado ? " — já enviada ao Gestão" : ""); e.appendChild(t);
-    const a = document.createElement("a"); a.textContent = "abrir"; a.onclick = () => abrirNota(n.id); e.appendChild(a);
-    const x = document.createElement("a"); x.textContent = "excluir"; x.onclick = () => { if (x.dataset.ok) excluirNota(n.id); else { x.dataset.ok = "1"; x.textContent = "confirmar exclusão"; } }; e.appendChild(x);
-    d.appendChild(e);
+    const [, txt0, cls] = sitNota(n), txt = txt0.replace(/ em \d{2}\/\d{2}\/\d{4}$/, "").replace("Erro ao gravar no Gestão", "Erro no envio"), ehAtual = atual && atual.id === n.id, c = document.createElement("div");
+    c.className = "nt-card" + (ehAtual ? " atual" : ""); c.title = (n.id.startsWith("M") ? "Entrada sem nota" : "NF " + (n.nnf || "")) + " — " + (n.emit || "");
+    c.innerHTML = `<div class="nt-topo"><span class="nt-num">${n.id.startsWith("M") ? "SEM NOTA" : "NF " + escH(n.nnf || "")}</span><span class="chip ${cls}" title="${escH(txt0)}">${escH(txt)}</span></div>
+      <div class="nt-forn">${escH(n.emit || "")}</div>
+      <div class="nt-det">${[n.itens ? n.itens + " itens" : "", n.vNF ? orBrl(n.vNF) : "", n.criado ? "criada " + dataBr(n.criado) : ""].filter(Boolean).join(" · ") || "&nbsp;"}</div>
+      <div class="nt-pe"><button class="${ehAtual ? "sec" : ""}">${ehAtual ? "Aberta" : "Abrir"}</button><a class="nt-x">excluir</a></div>`;
+    c.addEventListener("click", ev => { if (ev.target.closest(".nt-x")) return; NT.mostrar = null; abrirNota(n.id); });
+    const x = c.querySelector(".nt-x");
+    x.addEventListener("click", ev => { ev.stopPropagation(); if (x.dataset.ok) excluirNota(n.id); else { x.dataset.ok = "1"; x.classList.add("conf"); x.textContent = "confirmar exclusão"; } });
+    grid.appendChild(c);
   }
+  d.appendChild(grid);
 }
+// arrastar o XML (ou PDF/foto de romaneio) para o quadro de abrir nota
+(() => {
+  const z = document.getElementById("entTopo"); if (!z) return; let n = 0;
+  z.addEventListener("dragenter", ev => { if (ev.dataTransfer && [...ev.dataTransfer.types].includes("Files")) { n++; z.classList.add("arrastando"); } });
+  z.addEventListener("dragleave", () => { if (--n <= 0) { n = 0; z.classList.remove("arrastando"); } });
+  z.addEventListener("dragover", ev => { if (ev.dataTransfer && [...ev.dataTransfer.types].includes("Files")) ev.preventDefault(); });
+  z.addEventListener("drop", ev => {
+    n = 0; z.classList.remove("arrastando"); const fs = [...((ev.dataTransfer && ev.dataTransfer.files) || [])]; if (!fs.length) return; ev.preventDefault();
+    const xml = fs.filter(f => /\.xml$/i.test(f.name)), rom = fs.filter(f => /\.pdf$/i.test(f.name) || /^image\//.test(f.type));
+    const alvo = xml.length ? ["fXml", xml.slice(0, 1)] : rom.length ? ["fRom", rom] : null;
+    if (!alvo) return msg("Arraste um XML de NF-e, ou o PDF/foto de um romaneio.");
+    const inp = document.getElementById(alvo[0]), dt = new DataTransfer(); for (const f of alvo[1]) dt.items.add(f);
+    inp.files = dt.files; inp.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+})();
 async function excluirNota(chave) {
   try {
     if (cab && cab.chave === chave) { if (unsubItens) unsubItens(); if (unsubNota) unsubNota(); unsubItens = unsubNota = null; cab = null; itens = []; document.getElementById("app").style.display = "none"; }
@@ -3654,6 +3707,16 @@ function pmCombo(p, N, X) {
   const d = Math.round((1 - ultimo / p) * 10000) / 100, real = r2(cheios + r2(p * (1 - d / 100)));
   return { leve: N - 1, d, total: real };
 }
+// leve N pague M: no caixa vira Desconto adicional (leve N-1 + 100% no próximo); por enquanto só 1 grátis (M = N-1)
+function pmLP(p, N, M) {
+  p = Number(p); N = Math.floor(Number(N)); M = Math.floor(Number(M));
+  if (!(p > 0) || !(N >= 2) || !(M >= 1)) return null;
+  if (M >= N) return { erro: "o \"pague\" tem que ser menor que o \"leve\"" };
+  if (M !== N - 1) return { erro: `por enquanto o caixa só faz leve ${N} pague ${N - 1} (1 grátis); leve ${N} pague ${M} precisa de um teste no Gestão` };
+  return { leve: N - 1, d: 100, total: r2(M * p) };
+}
+const pmN = n => Math.floor(Number(n.tipo === "levepague" ? n.lv : n.cqtd));
+const pmCalc = (n, p) => n.tipo === "levepague" ? pmLP(p, n.lv, n.pg) : pmCombo(p, n.cqtd, n.cpreco);
 const pmDesc = (de, por) => de > 0 ? Math.round((1 - por / de) * 1000) / 10 : 0;
 async function pmCarregar() {
   if (!supa) return;
@@ -3662,7 +3725,7 @@ async function pmCarregar() {
   clearTimeout(PM.t); if (vista === "promocoes") PM.t = setTimeout(() => { if (vista === "promocoes") pmCarregar(); }, 30000);
 }
 function pmNovo(pre) {
-  PM.novo = { nome: "", tipo: "preco", cqtd: "", cpreco: "", lojas: { 1: true, 2: false }, inicio: vdIso(new Date()), fim: vdMais(vdIso(new Date()), 7), hora_ini: "", hora_fim: "", diario: false, itens: [] };
+  PM.novo = { nome: "", tipo: "preco", cqtd: "", cpreco: "", lv: "", pg: "", lojas: { 1: true, 2: false }, inicio: vdIso(new Date()), fim: vdMais(vdIso(new Date()), 7), hora_ini: "", hora_fim: "", diario: false, itens: [] };
   pmDesenhar(); if (pre) pmBuscar(pre, true); else setTimeout(() => { const q = document.getElementById("pmQ"); if (q) q.focus(); }, 50);
 }
 function pmDesenhar() {
@@ -3678,8 +3741,9 @@ function pmDesenhar() {
       <label class="c">Início<span class="linha" style="gap:4px;flex-wrap:nowrap"><input type="date" id="pmIni" value="${n.inicio}"><input type="time" id="pmHi" value="${n.hora_ini}" title="hora de início (em branco = começo do dia)" style="width:92px"></span></label>
       <label class="c">Fim (último dia)<span class="linha" style="gap:4px;flex-wrap:nowrap"><input type="date" id="pmFim" value="${n.fim}"><input type="time" id="pmHf" value="${n.hora_fim}" title="hora de fim (em branco = até o fim do dia)" style="width:92px"></span></label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding-bottom:6px" title="a promoção vale todos os dias entre as datas, mas só entre a hora de início e a de fim; fora do horário o preço normal volta"><input type="checkbox" id="pmDiario" ${n.diario ? "checked" : ""}> Todo dia, só nesse horário</label>
-      <label class="c">Tipo<select id="pmTipo"><option value="preco" ${n.tipo !== "combo" ? "selected" : ""}>Preço promocional (cada unidade)</option><option value="combo" ${n.tipo === "combo" ? "selected" : ""}>Combo: leve N por R$ X</option></select></label>
-      ${n.tipo === "combo" ? `<label class="c">Quantidade (N)<input type="number" id="pmCq" min="2" step="1" value="${orA(n.cqtd)}" placeholder="ex.: 6" style="width:90px"></label>
+      <label class="c">Tipo<select id="pmTipo"><option value="preco" ${n.tipo !== "combo" ? "selected" : ""}>Preço promocional (cada unidade)</option><option value="combo" ${n.tipo === "combo" ? "selected" : ""}>Combo: leve N por R$ X</option><option value="levepague" ${n.tipo === "levepague" ? "selected" : ""}>Leve N, pague M</option></select></label>
+      ${n.tipo === "levepague" ? `<label class="c">Leve (N)<input type="number" id="pmLv" min="2" step="1" value="${orA(n.lv)}" placeholder="ex.: 3" style="width:80px"></label><label class="c">Pague (M)<input type="number" id="pmPg" min="1" step="1" value="${orA(n.pg)}" placeholder="ex.: 2" style="width:80px"></label>`
+      : n.tipo === "combo" ? `<label class="c">Quantidade (N)<input type="number" id="pmCq" min="2" step="1" value="${orA(n.cqtd)}" placeholder="ex.: 6" style="width:90px"></label>
       <label class="c">Preço do combo (R$ X)<input type="text" inputmode="decimal" id="pmCp" value="${n.cpreco !== "" && n.cpreco != null ? br(n.cpreco) : ""}" placeholder="ex.: 10,00" style="width:100px"></label>`
       : `<label class="c">Desconto geral %<input type="number" id="pmPct" min="0" max="90" step="1" placeholder="aplica a todos" style="width:90px" title="preenche o preço promocional de todos os itens com este desconto sobre o preço atual"></label>`}
     </div>
@@ -3687,12 +3751,12 @@ function pmDesenhar() {
       <label class="c" style="flex:1;min-width:240px">Produto (nome ou código de barras; bipar funciona)<input type="text" id="pmQ" placeholder="busca no cadastro" autocomplete="off"></label>
       <button class="sec" id="pmBuscarB">Buscar</button><button class="sec" id="pmCam">📷</button></div>
     <div id="pmRes" style="margin-top:4px"></div>
-    <div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th><th class="n">Custo</th><th class="n">Preço atual</th><th class="n">${n.tipo === "combo" ? "No caixa" : "Preço promo"}</th><th class="n">Desc.</th><th class="n">Margem promo</th><th></th></tr></thead><tbody>
+    <div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th><th class="n">Custo</th><th class="n">Preço atual</th><th class="n">${n.tipo !== "preco" ? "No caixa" : "Preço promo"}</th><th class="n">Desc.</th><th class="n">Margem promo</th><th></th></tr></thead><tbody>
     ${n.itens.map((i, k) => { const lojas = [1, 2].filter(l => n.lojas[l]); return lojas.map(l => { const p = i.lojas[l]; if (!p) return `<tr><td>${escH(i.desc)} <span class="chip falta">não cadastrado na Loja ${l}</span></td><td colspan="6"></td></tr>`;
-        if (n.tipo === "combo") { const cb = pmCombo(p.venda, n.cqtd, n.cpreco), un = cb && !cb.erro ? cb.total / Number(n.cqtd) : null, mgc = un != null && p.custo > 0 ? (un / p.custo - 1) * 100 : null;
+        if (n.tipo !== "preco") { const cb = pmCalc(n, p.venda), un = cb && !cb.erro ? cb.total / pmN(n) : null, mgc = un != null && p.custo > 0 ? (un / p.custo - 1) * 100 : null;
           return `<tr><td>${escH(p.desc || i.desc)}<div class="orig mono" style="font-size:10px">${escH(i.ean)} · Loja ${l}${p.est != null ? " · est. " + br(p.est, 0) : ""}</div></td><td class="n">${br(p.custo || 0, 2)}</td><td class="n">${orBrl(p.venda)}</td>
-          <td class="n">${!cb ? `<span class="orig">informe N e R$ X</span>` : cb.erro ? `<span class="chip falta" title="${orA(cb.erro)}">não dá</span>` : `<b>${Number(n.cqtd)} por ${orBrl(cb.total)}</b><div class="orig">leve ${cb.leve} + ${br(cb.d)}% no próximo</div>`}</td>
-          <td class="n">${cb && !cb.erro ? br(pmDesc(p.venda * Number(n.cqtd), cb.total), 1) + "%" : ""}</td><td class="n">${mgc == null ? "" : `<span class="chip ${mgc < 0 ? "falta" : mgc < 20 ? "av" : "ok"}">${br(mgc, 0)}%</span>`}</td><td><a href="#" data-rm="${k}" style="color:#b42318">✕</a></td></tr>`; }
+          <td class="n">${!cb ? `<span class="orig">${n.tipo === "levepague" ? "informe leve e pague" : "informe N e R$ X"}</span>` : cb.erro ? `<span class="chip falta" title="${orA(cb.erro)}">não dá</span>` : `<b>${n.tipo === "levepague" ? `leve ${pmN(n)} pague ${Number(n.pg)} = ${orBrl(cb.total)}` : `${pmN(n)} por ${orBrl(cb.total)}`}</b><div class="orig">no caixa: leve ${cb.leve} + ${br(cb.d)}% no próximo</div>`}</td>
+          <td class="n">${cb && !cb.erro ? br(pmDesc(p.venda * pmN(n), cb.total), 1) + "%" : ""}</td><td class="n">${mgc == null ? "" : `<span class="chip ${mgc < 0 ? "falta" : mgc < 20 ? "av" : "ok"}">${br(mgc, 0)}%</span>`}</td><td><a href="#" data-rm="${k}" style="color:#b42318">✕</a></td></tr>`; }
         const promo = i.promo != null ? i.promo : null, mg = promo != null && p.custo > 0 ? (promo / p.custo - 1) * 100 : null;
         return `<tr><td>${escH(p.desc || i.desc)}<div class="orig mono" style="font-size:10px">${escH(i.ean)} · Loja ${l}${p.est != null ? " · est. " + br(p.est, 0) : ""}</div></td><td class="n">${br(p.custo || 0, 2)}</td><td class="n">${orBrl(p.venda)}</td>
         <td class="n"><input type="text" inputmode="decimal" data-promo="${k}" value="${promo != null ? br(promo) : ""}" placeholder="R$" style="width:80px;text-align:right"></td><td class="n">${promo != null ? br(pmDesc(p.venda, promo), 1) + "%" : ""}</td>
@@ -3706,7 +3770,7 @@ function pmDesenhar() {
       <div class="linha" style="gap:8px">${n ? "" : `<button id="pmNovoB">Nova promoção</button>`}<button class="sec" id="pmRodar" title="aplica agora o que está agendado para hoje e encerra o que venceu (o banco faz isso sozinho a cada minuto)">Processar agora</button></div></div>
     ${form}
     ${vis.length ? `<div style="overflow:auto"><table><thead><tr><th>Produto</th><th>Loja</th><th>Promoção</th><th class="n">De</th><th class="n">Por</th><th class="n">Desc.</th><th>Período</th><th>Situação</th><th></th></tr></thead><tbody>
-    ${vis.map(p => `<tr class="${p.status === "ativa" ? "pok" : ""}"><td>${escH(p.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(p.ean)}</div></td><td>Loja ${p.loja_id}</td><td>${escH(p.nome || "")}</td>${p.tipo === "combo" ? `<td class="n">${orBrl(p.preco_normal)}<div class="orig">un.</div></td><td class="n"><b>${p.combo_qtd} por ${orBrl(p.combo_preco)}</b><div class="orig">combo · leve ${p.leve} + ${br(p.desconto_pct)}%</div></td><td class="n">${br(pmDesc(Number(p.preco_normal) * p.combo_qtd, Number(p.combo_preco)), 1)}%</td>` : `<td class="n"><s>${orBrl(p.preco_normal)}</s></td><td class="n"><b>${orBrl(p.preco_promo)}</b></td><td class="n">${br(pmDesc(Number(p.preco_normal), Number(p.preco_promo)), 1)}%</td>`}<td>${pmPer(p)}</td><td>${stChip(p)}${p.fila_ini && p.status === "ativa" ? ` <span class="orig" data-fila="${p.fila_ini}"></span>` : ""}</td>
+    ${vis.map(p => `<tr class="${p.status === "ativa" ? "pok" : ""}"><td>${escH(p.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(p.ean)}</div></td><td>Loja ${p.loja_id}</td><td>${escH(p.nome || "")}</td>${p.tipo === "combo" || p.tipo === "levepague" ? `<td class="n">${orBrl(p.preco_normal)}<div class="orig">un.</div></td><td class="n"><b>${p.tipo === "levepague" ? `leve ${p.combo_qtd} pague ${p.pague}` : `${p.combo_qtd} por ${orBrl(p.combo_preco)}`}</b><div class="orig">combo · leve ${p.leve} + ${br(p.desconto_pct)}%</div></td><td class="n">${br(pmDesc(Number(p.preco_normal) * p.combo_qtd, Number(p.combo_preco)), 1)}%</td>` : `<td class="n"><s>${orBrl(p.preco_normal)}</s></td><td class="n"><b>${orBrl(p.preco_promo)}</b></td><td class="n">${br(pmDesc(Number(p.preco_normal), Number(p.preco_promo)), 1)}%</td>`}<td>${pmPer(p)}</td><td>${stChip(p)}${p.fila_ini && p.status === "ativa" ? ` <span class="orig" data-fila="${p.fila_ini}"></span>` : ""}</td>
       <td style="white-space:nowrap">${p.status === "ativa" ? `<a href="#" data-enc="${p.id}" style="color:#b42318">encerrar agora</a>` : p.status === "agendada" || p.status === "pausada" ? `<a href="#" data-canc="${p.id}" style="color:#b42318">${p.status === "pausada" ? "encerrar" : "cancelar"}</a>` : `<a href="#" data-del="${p.id}" style="color:#8a94a6">apagar</a>`}</td></tr>`).join("")}</tbody></table></div>` : `<div class="orig">Nenhuma promoção ${f === "todas" ? "cadastrada" : "neste filtro"}.</div>`}`;
   const g = id => el.querySelector("#" + id);
   g("pmFiltro").addEventListener("change", ev => { PM.filtro = ev.target.value; pmDesenhar(); });
@@ -3721,6 +3785,7 @@ function pmDesenhar() {
     g("pmIni").addEventListener("change", ev => n.inicio = ev.target.value); g("pmFim").addEventListener("change", ev => n.fim = ev.target.value);
     g("pmHi").addEventListener("change", ev => n.hora_ini = ev.target.value); g("pmHf").addEventListener("change", ev => n.hora_fim = ev.target.value); g("pmDiario").addEventListener("change", ev => n.diario = ev.target.checked);
     g("pmTipo").addEventListener("change", ev => { n.tipo = ev.target.value; pmDesenhar(); });
+    if (g("pmLv")) { g("pmLv").addEventListener("change", ev => { n.lv = ev.target.value; pmDesenhar(); }); g("pmPg").addEventListener("change", ev => { n.pg = ev.target.value; pmDesenhar(); }); }
     if (g("pmCq")) { g("pmCq").addEventListener("change", ev => { n.cqtd = ev.target.value; pmDesenhar(); }); g("pmCp").addEventListener("change", ev => { n.cpreco = pnum(ev.target.value) > 0 ? pnum(ev.target.value) : ""; pmDesenhar(); }); }
     if (g("pmPct")) g("pmPct").addEventListener("change", ev => { const pct = parseFloat(ev.target.value); if (!(pct >= 0)) return; for (const i of n.itens) { const ref = i.lojas[1] || i.lojas[2]; if (ref) i.promo = Math.round(ref.venda * (1 - pct / 100) * 10) / 10; } pmDesenhar(); });
     g("pmBuscarB").addEventListener("click", () => pmBuscar(g("pmQ").value.trim())); g("pmQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); pmBuscar(g("pmQ").value.trim(), true); } });
@@ -3763,18 +3828,19 @@ async function pmSalvar() {
   const agoraL = vdIso(new Date()) + " " + new Date().toTimeString().slice(0, 5), iniL = n.inicio + " " + (n.hora_ini || "00:00");
   if (!n.diario && (n.fim + " " + (n.hora_fim || "24:00")) <= agoraL) return msg("O fim da promoção já passou.");
   const linhas = [];
-  if (n.tipo === "combo") {
-    const N = Math.floor(Number(n.cqtd)), X = Number(n.cpreco), grupo = "g" + Date.now(); if (!(N >= 2) || !(X > 0)) return msg("No combo, informe a quantidade (2 ou mais) e o preço do combo.");
+  if (n.tipo !== "preco") {
+    const LP = n.tipo === "levepague", N = pmN(n), X = LP ? 0 : Number(n.cpreco), grupo = "g" + Date.now();
+    if (LP ? !(N >= 2 && Number(n.pg) >= 1) : !(N >= 2 && X > 0)) return msg(LP ? "Informe quantas o cliente leva e quantas paga." : "No combo, informe a quantidade (2 ou mais) e o preço do combo.");
     const erros = [], precos = new Set();
-    for (const i of n.itens) for (const l of lojas) { const p = i.lojas[l]; if (!p) continue; const cb = pmCombo(p.venda, N, X); if (!cb || cb.erro) { erros.push(`${p.desc || i.desc} (Loja ${l}): ${cb ? cb.erro : "sem preço"}`); continue; }
+    for (const i of n.itens) for (const l of lojas) { const p = i.lojas[l]; if (!p) continue; const cb = pmCalc(n, p.venda); if (!cb || cb.erro) { erros.push(`${p.desc || i.desc} (Loja ${l}): ${cb ? cb.erro : "sem preço"}`); continue; }
       precos.add(l + "|" + p.venda);
       linhas.push({ loja_id: l, ean: i.ean, id_gestao: p.id, descricao: p.desc || i.desc, preco_normal: p.venda, preco_promo: Math.round(cb.total / N * 10000) / 10000, custo: p.custo, inicio: n.inicio, fim: n.fim, hora_ini: n.hora_ini || null, hora_fim: n.hora_fim || null, diario: !!n.diario, status: "agendada", nome: n.nome || null, criado_por: window.__email || null,
-        tipo: "combo", combo_qtd: N, combo_preco: cb.total, leve: cb.leve, desconto_pct: cb.d, grupo }); }
-    if (erros.length) return msg("Combo impossível para: " + erros.join(" · "));
+        tipo: n.tipo, combo_qtd: N, combo_preco: cb.total, leve: cb.leve, desconto_pct: cb.d, pague: LP ? Number(n.pg) : null, grupo }); }
+    if (erros.length) return msg("Não dá para: " + erros.join(" · "));
     if (!linhas.length) return msg("Adicione os produtos do combo.");
     const lojasPrecos = [...precos].map(x => x.split("|")[0]); const misto = lojasPrecos.length !== new Set(lojasPrecos).size;
     const ex = linhas[0], abaixoC = linhas.filter(x => x.custo > 0 && x.preco_promo < x.custo);
-    if (!confirm(`Ativar o combo "${n.nome || N + " por " + orBrl(X)}": ${N} unidades por ${orBrl(ex.combo_preco)} (no caixa: leve ${ex.leve} e ${br(ex.desconto_pct)}% de desconto no próximo, aparece no SUBTOTAL), ${linhas.length} item(ns)/loja, ${pmPer(n)}?` +
+    if (!confirm(`Ativar "${n.nome || (LP ? "Leve " + N + " pague " + n.pg : N + " por " + orBrl(X))}": ${LP ? `leve ${N} pague ${n.pg}` : `${N} unidades por ${orBrl(ex.combo_preco)}`} (no caixa: leve ${ex.leve} e ${br(ex.desconto_pct)}% de desconto no próximo, aparece no SUBTOTAL), ${linhas.length} item(ns)/loja, ${pmPer(n)}?` +
       (linhas.length > 1 ? "\n\nOs produtos contam juntos: qualquer combinação deles fecha o combo." : "") + (misto ? "\n\nATENÇÃO: os produtos têm preços diferentes; o desconto cai no item que fechar o combo." : "") +
       (abaixoC.length ? `\n\nATENÇÃO: ${abaixoC.length} item(ns) ficam ABAIXO DO CUSTO no combo.` : "") + (!n.diario && iniL <= agoraL ? "\n\nComo já começou, vai ao Gestão e aos caixas agora." : ""))) return;
     const { error } = await supa.from("promocoes").insert(linhas); if (error) return msg("Não consegui salvar: " + error.message);

@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.1"
+$Versao = "2.8.2"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -92,14 +92,36 @@ public static class SqNR {
   [DllImport(D, CallingConvention=CallingConvention.Cdecl)] public static extern int sqlite3_step(IntPtr st);
   [DllImport(D, CallingConvention=CallingConvention.Cdecl)] public static extern IntPtr sqlite3_column_text(IntPtr st, int i);
   [DllImport(D, CallingConvention=CallingConvention.Cdecl)] public static extern int sqlite3_finalize(IntPtr st);
+  [DllImport(D, CallingConvention=CallingConvention.Cdecl)] public static extern int sqlite3_column_count(IntPtr st);
+  [DllImport(D, CallingConvention=CallingConvention.Cdecl)] public static extern IntPtr sqlite3_column_name(IntPtr st, int i);
   public static byte[] Z(string s) { byte[] b = Encoding.UTF8.GetBytes(s); byte[] r = new byte[b.Length + 1]; Array.Copy(b, r, b.Length); return r; }
   public static string Erro(IntPtr db) { return Marshal.PtrToStringAnsi(sqlite3_errmsg(db)); }
   public static void Exec(IntPtr db, string sql) { int rc = sqlite3_exec(db, Z(sql), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero); if (rc != 0) throw new Exception("sqlite (" + rc + "): " + Erro(db)); }
   public static string Um(IntPtr db, string sql) { IntPtr st; int rc = sqlite3_prepare_v2(db, Z(sql), -1, out st, IntPtr.Zero); if (rc != 0) throw new Exception("sqlite (" + rc + "): " + Erro(db)); string v = null; if (sqlite3_step(st) == 100) { IntPtr p = sqlite3_column_text(st, 0); if (p != IntPtr.Zero) v = Marshal.PtrToStringAnsi(p); } sqlite3_finalize(st); return v; }
+  public static string Tabela(IntPtr db, string sql, int max) { IntPtr st; int rc = sqlite3_prepare_v2(db, Z(sql), -1, out st, IntPtr.Zero); if (rc != 0) throw new Exception("sqlite (" + rc + "): " + Erro(db)); int n = sqlite3_column_count(st); StringBuilder sb = new StringBuilder(); int k = 0; while (k < max && sqlite3_step(st) == 100) { k++; sb.Append("--- linha " + k + "\r\n"); for (int i = 0; i < n; i++) { IntPtr p = sqlite3_column_text(st, i); sb.Append(Marshal.PtrToStringAnsi(sqlite3_column_name(st, i)) + " = " + (p == IntPtr.Zero ? "<null>" : Marshal.PtrToStringAnsi(p)) + "\r\n"); } } sqlite3_finalize(st); if (k == 0) sb.Append("(nenhuma linha)\r\n"); return sb.ToString(); }
   public static string Lista(IntPtr db, string sql) { IntPtr st; int rc = sqlite3_prepare_v2(db, Z(sql), -1, out st, IntPtr.Zero); if (rc != 0) throw new Exception("sqlite (" + rc + "): " + Erro(db)); StringBuilder sb = new StringBuilder(); while (sqlite3_step(st) == 100) { IntPtr p = sqlite3_column_text(st, 0); if (p != IntPtr.Zero) { if (sb.Length > 0) sb.Append(";"); sb.Append(Marshal.PtrToStringAnsi(p)); } } sqlite3_finalize(st); return sb.ToString(); }
 }
 "@
   Add-Type -TypeDefinition ($fonte.Replace("CAMINHO_DLL", $dll))
+
+  # pedido de LEITURA ({"q": "SELECT ..."}): so consulta o arquivo dos caixas, nao grava nada e nao entrega carga
+  $leituras = @($itens | Where-Object { $_.q })
+  if ($leituras.Count -gt 0) {
+    $rc = [SqNR]::sqlite3_open([SqNR]::Z($banco), [ref]$db)
+    if ($rc -ne 0) { throw ("nao abriu o arquivo dos caixas (codigo " + $rc + ")") }
+    [void][SqNR]::sqlite3_busy_timeout($db, 15000)
+    foreach ($l in $leituras) {
+      $q = ([string]$l.q).Trim()
+      if ($q -notmatch "^(?i)(select\s|pragma\s+table_info)") { Diz ("POS LEITURA recusada (so SELECT ou PRAGMA table_info): " + $q); continue }
+      Diz ("POS LEITURA: " + $q)
+      try { Diz ([SqNR]::Tabela($db, $q, 200)) } catch { Diz ("POS ERRO na leitura: " + $_.Exception.Message) }
+    }
+    [void][SqNR]::sqlite3_close($db); $db = [IntPtr]::Zero
+    $texto = ($linhas -join "`r`n")
+    if ($Saida) { [IO.File]::WriteAllText($Saida, $texto, [Text.Encoding]::UTF8) }
+    Write-Host $texto
+    exit 0
+  }
 
   # quais caixas existem: cadastro do Servidor PDV; se nao der, os que ja confirmaram carga alguma vez
   $caixas = @()
@@ -494,9 +516,11 @@ function Aplica($item) {
   $erro = Join-Path $Pasta ("fila_" + $id + "_erro.txt")
   $enc = [Text.Encoding]::GetEncoding(1252)
   # linhas "--POS {json}" no comeco do pedido = produtos que tambem vao direto para os caixas; nao vao para o isql
-  $pos = @(); $sqlLinhas = New-Object System.Collections.ArrayList
+  # linhas "--POSQ SELECT ..." = consultas (so leitura) no arquivo dos caixas, para diagnostico
+  $pos = @(); $posq = @(); $sqlLinhas = New-Object System.Collections.ArrayList
   foreach ($ln in ([string]$item.conteudo -split "\r?\n")) {
-    if ($ln.StartsWith("--POS ")) { $pos += $ln.Substring(6).Trim() } else { [void]$sqlLinhas.Add($ln) }
+    if ($ln.StartsWith("--POSQ ")) { $posq += (@{ q = $ln.Substring(7).Trim() } | ConvertTo-Json -Compress) }
+    elseif ($ln.StartsWith("--POS ")) { $pos += $ln.Substring(6).Trim() } else { [void]$sqlLinhas.Add($ln) }
   }
   [IO.File]::WriteAllText($arq, ($sqlLinhas -join "`r`n"), $enc)
   foreach ($f in @($saida, $erro)) { if (Test-Path $f) { Remove-Item $f -Force } }
@@ -510,6 +534,11 @@ function Aplica($item) {
   if ($txtErro) { $resultado += "ERROS DO BANCO:`r`n" + $txtErro + "`r`n`r`n" }
   $resultado += $txtSaida
   if ($resultado.Length -gt 18000) { $resultado = $resultado.Substring(0, 18000) + "`r`n[...]" }
+  if ($posq.Count -gt 0) {
+    $txtQ = ""; try { $txtQ = EnviaPos ([string]$id + "q") $posq } catch { $txtQ = "POS ERRO: " + $_.Exception.Message }
+    if ($txtQ.Length -gt 30000) { $txtQ = $txtQ.Substring(0, 30000) + "`r`n[...]" }
+    $resultado += "`r`n`r`n=== POS (leitura) ===`r`n" + $txtQ
+  }
   if ($pos.Count -gt 0) {
     $txtPos = ""
     if ($falhou) { $txtPos = "POS AVISO: nada foi enviado aos caixas porque o Gestao recusou o envio." }

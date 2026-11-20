@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="71">
+<meta name="versao" content="72">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
   .painel { background: #fff; border: 1px solid var(--borda); border-radius: 7px; padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--sombra); }
   .linha { display: flex; gap: 14px 18px; flex-wrap: wrap; align-items: flex-end; }
   label.c { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 700; color: var(--cinza); }
-  input, select, button { font: inherit; }
+  input, select, button, textarea { font: inherit; }
   input[type=text], input[type=number], input[type=email], input[type=password], input[type=date], input[type=time], input[type=search], input[type=tel], input:not([type]), select, textarea { border: 1px solid var(--borda); border-radius: 5px; padding: 5px 8px; background: #fff; color: var(--texto); font-weight: 600; }
   td input[type=text], td input[type=number], td input[type=date], td input[type=time], td input:not([type]), td select { padding: 3px 5px; border-radius: 4px; }
   input:focus, select:focus, textarea:focus { outline: 2px solid var(--loja1); outline-offset: 0; border-color: var(--loja1); }
@@ -239,6 +239,22 @@
   @media (max-width: 1100px) { .tasks-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #cab { grid-template-columns: 2fr repeat(3, 1fr); } .sales-num { font-size: 28px; } }
   @media (min-width: 1500px) { .tasks-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
   @media (max-width: 760px) { .sales-grid, .tasks-grid, .task-dupla { grid-template-columns: 1fr; } .task-card.wide { grid-column: auto; } #cab { grid-template-columns: 1fr 1fr; } .kpis { margin-left: 0; } .sparkline { width: 80px; } }
+
+  /* ===== fornecedores (v72) ===== */
+  .fo-tab td { cursor: pointer; }
+  .fo-tab tr.aberto > td { background: #eef6fa; }
+  .fo-tab tr.det > td { cursor: default; background: #fbfcfd; padding: 14px 16px 16px; }
+  .fo-det { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px 28px; }
+  .fo-campos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 18px; }
+  .fo-campos div small { display: block; font-size: 10.5px; color: var(--cinza); font-weight: 700; }
+  .fo-campos div span { font-weight: 700; color: var(--texto); word-break: break-word; }
+  .fo-campos .larga { grid-column: span 3; }
+  .fo-edit { display: grid; gap: 8px; }
+  .fo-edit input, .fo-edit textarea { width: 100%; }
+  .fo-notas { margin-top: 12px; font-size: 12px; }
+  .fo-notas a { color: var(--loja1); font-weight: 700; cursor: pointer; text-decoration: underline; }
+  #toast { position: fixed; right: 18px; bottom: 18px; z-index: 60; max-width: min(460px, 92vw); background: var(--azul); color: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 10px 30px rgba(27,45,75,.25); font-weight: 600; font-size: 12.5px; display: none; }
+  @media (max-width: 900px) { .fo-det { grid-template-columns: 1fr; } .fo-campos { grid-template-columns: 1fr 1fr; } .fo-campos .larga { grid-column: span 2; } }
 </style>
 </head>
 <body>
@@ -258,6 +274,7 @@
    <button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span><i class="nav-count" id="nc_hoje"></i></button>
    <button class="aba ativa" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span><i class="nav-count" id="nc_entrada"></i></button>
    <button class="aba" data-v="notas" title="Notas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span>Notas</span><i class="nav-count" id="nc_notas"></i></button>
+   <button class="aba" data-v="fornec" title="Fornecedores"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span>Fornecedores</span><i class="nav-count" id="nc_fornec"></i></button>
    <div class="nav-label">Financeiro</div>
    <button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span><i class="nav-count" id="nc_vendas"></i></button>
    <button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span><i class="nav-count" id="nc_boletos"></i></button>
@@ -433,6 +450,17 @@
   <div id="tfEd" class="painel" style="display:none"></div>
  </div>
  <div id="vCompras" style="display:none"><div class="painel"><b>Sugestão de compra</b> <span class="orig">— o que está acabando, pelo ritmo de venda do caixa e o estoque do cadastro; marque os itens e monte o pedido</span><div id="cpPainel" style="margin-top:8px"></div></div></div>
+ <div id="vFornec" style="display:none">
+  <div class="filtros">
+    <label class="c">Procurar<input type="text" id="foQ" placeholder="nome, CNPJ ou cidade" style="width:280px" autocomplete="off"></label>
+    <label class="c">UF<select id="foUf"><option value="">todas</option></select></label>
+    <label class="c">Ordem<select id="foOrd"><option value="ult">última compra</option><option value="nome">nome</option><option value="total">total comprado</option></select></label>
+    <button class="sec" id="foAtu" title="lê os XMLs novos que entraram no sistema (isso também acontece sozinho ao abrir esta aba)">Atualizar dos XMLs</button>
+    <div class="kpis" id="foKpis"></div>
+  </div>
+  <div id="foLista"></div>
+  <div class="orig" style="margin-top:8px">Os dados vêm do XML da nota mais recente de cada CNPJ (cada filial é um fornecedor). E-mail, contato e observações você preenche aqui e eles não são apagados quando chega nota nova.</div>
+ </div>
  <div id="vPromocoes" style="display:none"><div class="painel"><b>Promoções</b> <span class="orig">— preço promocional por período; começa e termina sozinho no Gestão e nos caixas</span><div id="pmPainel" style="margin-top:8px"></div></div></div>
  <div id="vEtiquetas" style="display:none"><div class="painel"><b>Etiquetas de gôndola</b> <span class="orig">— 105 × 30 mm na Elgin L42 Pro da loja; monte a lista e imprima tudo de uma vez</span><div id="etPainel" style="margin-top:8px"></div></div></div>
  <div id="vAvisos" style="display:none">
@@ -1105,7 +1133,11 @@ function gerarXml(modo) {
   });
   return saida;
 }
-function msg(t) { document.getElementById("msg").textContent = t || ""; }
+function msg(t) {
+  document.getElementById("msg").textContent = t || "";
+  // fora da aba Entrada a linha de aviso fica escondida: mostra num balão no canto
+  if (t && typeof vista !== "undefined" && vista !== "entrada") { let b = document.getElementById("toast"); if (!b) { b = document.createElement("div"); b.id = "toast"; b.title = "clique para fechar"; b.onclick = () => b.style.display = "none"; document.body.appendChild(b); } b.textContent = t; b.style.display = "block"; clearTimeout(msg.t); msg.t = setTimeout(() => b.style.display = "none", 7000); }
+}
 // histórico de preços: tabela precos_hist na nuvem (gatilho registra toda mudança de custo/venda que o agente traz do Gestão; "inicial" = preço vigente quando o histórico começou, com a data da última alteração registrada no Gestão)
 const HP_ORIG = { inicial: "ponto de partida", gestao: "Gestão", site: "este site", cadastro: "cadastro novo" };
 async function histPrecos(ean) {
@@ -1464,12 +1496,12 @@ async function salvarMeta(chave, patch) {
 }
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 // cada aba vira uma entrada no histórico do navegador (#hoje, #notas…): o botão Voltar volta para a aba anterior em vez de sair do site
-const ABAS_V = ["hoje", "entrada", "notas", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
+const ABAS_V = ["hoje", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
 window.addEventListener("popstate", e => { const v = (e.state && e.state.v) || location.hash.slice(1) || "entrada"; if (ABAS_V.includes(v) && v !== vista) mostrar(v, true); });
 function mostrar(v, semHist) {
   if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
   vista = v;
-  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   { const b = document.querySelector('.aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
   redesenharTudo();
@@ -1480,6 +1512,7 @@ function mostrar(v, semHist) {
   if (v === "compras") cpDesenhar();
   if (v === "promocoes") { pmDesenhar(); pmCarregar(); }
   if (v === "etiquetas") etDesenhar();
+  if (v === "fornec") foCarregar(true);
 }
 const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
   : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
@@ -3613,7 +3646,8 @@ const pmDesc = (de, por) => de > 0 ? Math.round((1 - por / de) * 1000) / 10 : 0;
 async function pmCarregar() {
   if (!supa) return;
   const { data } = await supa.from("promocoes").select("*").order("inicio", { ascending: false }).order("id", { ascending: false }).limit(1000);
-  PM.lista = data || []; pmDesenhar();
+  PM.lista = data || []; if (!PM.novo) pmDesenhar();
+  clearTimeout(PM.t); if (vista === "promocoes") PM.t = setTimeout(() => { if (vista === "promocoes") pmCarregar(); }, 30000);
 }
 function pmNovo(pre) {
   PM.novo = { nome: "", lojas: { 1: true, 2: false }, inicio: vdIso(new Date()), fim: vdMais(vdIso(new Date()), 7), hora_ini: "", hora_fim: "", diario: false, itens: [] };
@@ -3722,6 +3756,79 @@ async function pmRodar(silencioso) {
   else if (data && (data.inicios || data.fins)) msg("Enviado ao Gestão e aos caixas; em até 1 minuto o preço muda (PC da loja ligado).");
 }
 function pmLigar() { if (!db) return; }
+// ===================== Fornecedores =====================
+// Tabela fornecedores (Supabase), montada pela função fornecedores_atualizar() a partir dos XMLs guardados em docs (notas/<chave>/xml e xml2).
+// Dados do emitente = nota mais recente de cada CNPJ; email/contato/obs são preenchidos aqui e nunca sobrescritos.
+const FO = { lista: [], notas: [], aberto: null, carregado: false };
+const foCnpj = c => { const d = String(c || "").replace(/\D/g, ""); return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5") : d.length === 11 ? d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4") : d; };
+const foCep = c => { const d = String(c || "").replace(/\D/g, ""); return d.length === 8 ? d.slice(0, 5) + "-" + d.slice(5) : d; };
+const foFone = f => { const d = String(f || "").replace(/\D/g, "").replace(/^0+/, ""); return d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d; };
+const FO_CRT = { "1": "Simples Nacional", "2": "Simples Nacional (excesso de sublimite)", "3": "Regime normal", "4": "MEI" };
+const foA = t => String(t ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+const foEnd = f => [f.logradouro, f.numero].filter(Boolean).join(", ") + (f.complemento ? " – " + f.complemento : "") + (f.bairro ? " – " + f.bairro : "");
+function foTexto(f) {
+  return [`Razão social: ${f.razao || ""}`, f.fantasia && f.fantasia !== f.razao ? `Nome fantasia: ${f.fantasia}` : null,
+    `CNPJ: ${foCnpj(f.cnpj)}` + (f.ie ? `   IE: ${f.ie}` : "") + (f.iest ? `   IE ST: ${f.iest}` : ""),
+    `Endereço: ${foEnd(f)}`, `Cidade/UF: ${f.municipio || ""}/${f.uf || ""}` + (f.cep ? `   CEP: ${foCep(f.cep)}` : "") + (f.cod_mun ? `   Cód. município (IBGE): ${f.cod_mun}` : ""),
+    f.fone ? `Telefone: ${foFone(f.fone)}` : null, f.email ? `E-mail: ${f.email}` : null, f.crt ? `Regime: ${FO_CRT[f.crt] || "CRT " + f.crt}` : null].filter(Boolean).join("\n");
+}
+async function foCarregar(atualizar) {
+  if (!supa) { document.getElementById("foLista").innerHTML = `<div class="painel orig">Os fornecedores ficam na nuvem: entre com o seu usuário para ver.</div>`; return; }
+  if (!FO.carregado) document.getElementById("foLista").innerHTML = `<div class="painel orig">carregando…</div>`;
+  if (atualizar) { const r = await supa.rpc("fornecedores_atualizar"); if (r.error) msg("Não consegui ler os XMLs novos: " + r.error.message); else if (r.data && r.data.novas && FO.carregado) msg(`${r.data.novas} nota(s) nova(s) lida(s) para o cadastro de fornecedores.`); }
+  const [a, b] = await Promise.all([supa.from("fornecedores").select("*").limit(5000), supa.from("fornecedores_notas").select("*").order("emissao", { ascending: false }).limit(10000)]);
+  if (a.error) { document.getElementById("foLista").innerHTML = `<div class="painel aviso">Erro: ${escH(a.error.message)}</div>`; return; }
+  FO.lista = a.data || []; FO.notas = b.data || []; FO.carregado = true;
+  const ufs = [...new Set(FO.lista.map(f => f.uf).filter(Boolean))].sort(), sel = document.getElementById("foUf"), atual = sel.value;
+  sel.innerHTML = `<option value="">todas</option>` + ufs.map(u => `<option ${u === atual ? "selected" : ""}>${u}</option>`).join("");
+  foDesenhar();
+}
+function foDesenhar() {
+  const el = document.getElementById("foLista"); if (!el || vista !== "fornec") return;
+  const q = semAcento(document.getElementById("foQ").value.toLowerCase().trim()), qd = q.replace(/\D/g, ""), uf = document.getElementById("foUf").value, ord = document.getElementById("foOrd").value;
+  let l = FO.lista.filter(f => (!uf || f.uf === uf) && (!q || semAcento([f.razao, f.fantasia, f.municipio, f.contato].join(" ").toLowerCase()).includes(q) || (qd.length >= 3 && String(f.cnpj).includes(qd))));
+  l.sort((x, y) => ord === "nome" ? String(x.razao).localeCompare(String(y.razao)) : ord === "total" ? (Number(y.total_comprado) - Number(x.total_comprado)) : String(y.ultima_nota || "").localeCompare(String(x.ultima_nota || "")));
+  const tot = FO.lista.reduce((s_, f) => s_ + Number(f.total_comprado || 0), 0);
+  document.getElementById("foKpis").innerHTML = `<div class="kpi"><small>Fornecedores</small><b>${FO.lista.length}</b></div><div class="kpi"><small>Notas lidas</small><b>${FO.notas.length}</b></div><div class="kpi"><small>Total em notas</small><b>${orBrl(tot)}</b></div>`;
+  if (!l.length) { el.innerHTML = `<div class="painel orig">${FO.lista.length ? "Nenhum fornecedor com esse filtro." : "Nenhum fornecedor ainda: eles aparecem aqui conforme as notas (XML) entram no sistema."}</div>`; return; }
+  el.innerHTML = `<div class="rolagem" style="max-height:none"><table class="tab-dados fo-tab"><thead><tr><th>Fornecedor</th><th>CNPJ</th><th>IE</th><th>Cidade/UF</th><th>Telefone</th><th class="n">Notas</th><th class="n">Total comprado</th><th>Última nota</th></tr></thead><tbody>` +
+    l.map(f => `<tr data-c="${foA(f.cnpj)}" class="${FO.aberto === f.cnpj ? "aberto" : ""}"><td><span class="forn">${escH(f.razao || "")}</span>${f.fantasia && f.fantasia !== f.razao ? `<span class="sub">${escH(f.fantasia)}</span>` : ""}</td><td class="mono">${foCnpj(f.cnpj)}</td><td class="mono">${escH(f.ie || "")}</td><td>${escH(f.municipio || "")}${f.uf ? "/" + f.uf : ""}</td><td style="white-space:nowrap">${foFone(f.fone)}</td><td class="n">${f.qtd_notas}</td><td class="n"><b>${orBrl(f.total_comprado)}</b></td><td>${dataBr(f.ultima_nota)}</td></tr>` +
+      (FO.aberto === f.cnpj ? `<tr class="det"><td colspan="8">${foDetalhe(f)}</td></tr>` : "")).join("") + `</tbody></table></div>`;
+  for (const tr of el.querySelectorAll("tr[data-c]")) tr.addEventListener("click", () => { FO.aberto = FO.aberto === tr.dataset.c ? null : tr.dataset.c; foDesenhar(); });
+  const det = el.querySelector("tr.det"); if (det) foLigarDetalhe(det, FO.lista.find(f => f.cnpj === FO.aberto));
+}
+function foDetalhe(f) {
+  const ns = FO.notas.filter(n => n.cnpj === f.cnpj), campo = (r, v, cls) => `<div class="${cls || ""}"><small>${r}</small><span>${v ? escH(v) : "—"}</span></div>`;
+  return `<div class="fo-det"><div>
+      <div class="fo-campos">${campo("Razão social", f.razao, "larga")}${f.fantasia && f.fantasia !== f.razao ? campo("Nome fantasia", f.fantasia, "larga") : ""}
+        ${campo("CNPJ", foCnpj(f.cnpj))}${campo("Inscrição estadual", f.ie)}${campo("Regime (CRT)", f.crt ? (FO_CRT[f.crt] || f.crt) : "")}
+        ${campo("Endereço", foEnd(f), "larga")}${campo("Cidade/UF", (f.municipio || "") + (f.uf ? "/" + f.uf : ""))}${campo("CEP", foCep(f.cep))}${campo("Cód. município (IBGE)", f.cod_mun)}
+        ${campo("Telefone", foFone(f.fone))}${f.iest ? campo("IE substituto tributário", f.iest) : ""}${f.cnae ? campo("CNAE", f.cnae) : ""}${f.im ? campo("Inscrição municipal", f.im) : ""}</div>
+      <div class="linha" style="gap:8px;margin-top:12px"><button class="btn-ico" data-copiar>${ICO_COPIAR} Copiar dados para a nota</button><button class="sec" data-copiarcnpj>Copiar só o CNPJ</button></div>
+      <div class="fo-notas"><b>Notas deste fornecedor (${ns.length})</b><div style="margin-top:4px">${ns.slice(0, 30).map(n => `<div>${dataBr(n.emissao)} · NF ${escH(n.nnf || "")}${n.chave.endsWith("#2") ? ` <span class="badge l2">Loja 2</span>` : ""} · ${orBrl(n.vnf)} · <a data-abrir="${foA(n.chave.replace(/#2$/, ""))}">abrir</a></div>`).join("") || `<span class="orig">—</span>`}</div></div>
+    </div>
+    <div class="fo-edit"><label class="c">E-mail<input type="email" data-ed="email" value="${foA(f.email)}" placeholder="para mandar a nota de devolução"></label>
+      <label class="c">Contato (vendedor, representante, WhatsApp)<input type="text" data-ed="contato" value="${foA(f.contato)}"></label>
+      <label class="c">Observações<textarea data-ed="obs" rows="4" placeholder="condições, prazos, como pedir devolução…">${escH(f.obs || "")}</textarea></label>
+      <div class="linha" style="gap:8px;align-items:center"><button data-salvar>Salvar</button><span class="orig" data-st></span></div></div></div>`;
+}
+const ICO_COPIAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+function foLigarDetalhe(det, f) {
+  if (!f) return;
+  const copiar = (t, ok) => { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => msg(ok)).catch(() => { prompt("Copie os dados:", t); }); };
+  det.querySelector("[data-copiar]").addEventListener("click", () => copiar(foTexto(f), "Dados do fornecedor copiados — é só colar."));
+  det.querySelector("[data-copiarcnpj]").addEventListener("click", () => copiar(foCnpj(f.cnpj), "CNPJ copiado."));
+  for (const a of det.querySelectorAll("[data-abrir]")) a.addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(a.dataset.abrir); });
+  det.querySelector("[data-salvar]").addEventListener("click", async () => {
+    const p = {}; for (const i of det.querySelectorAll("[data-ed]")) p[i.dataset.ed] = i.value.trim() || null;
+    const st = det.querySelector("[data-st]"); st.textContent = "salvando…";
+    const { error } = await supa.from("fornecedores").update(p).eq("cnpj", f.cnpj);
+    if (error) { st.textContent = "erro: " + error.message; return; }
+    Object.assign(f, p); st.textContent = "salvo ✓";
+  });
+}
+for (const id of ["foQ", "foUf", "foOrd"]) document.getElementById(id).addEventListener(id === "foQ" ? "input" : "change", foDesenhar);
+document.getElementById("foAtu").addEventListener("click", async () => { await foCarregar(true); msg("Fornecedores atualizados a partir dos XMLs."); });
 // ===================== Etiquetas de gôndola (Elgin L42 Pro, ZPL, 105 × 30 mm) =====================
 // O site monta o ZPL e manda pela fila (tipo "etiqueta"); o ouvinte da loja envia cru para a impressora do Windows (Loja 1: compartilhada do caixa 2; Loja 2: local).
 // Ajustes (nome da impressora por loja, deslocamento, escuro) ficam em config/etiquetas.

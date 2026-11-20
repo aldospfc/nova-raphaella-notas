@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.2"
+$Versao = "2.8.3"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -151,6 +151,21 @@ public static class SqNR {
   foreach ($it in $itens) {
     $ean = [string]$it.e
     if ($ean -notmatch "^\d{1,20}$") { continue }
+    # combo (Desconto adicional do Gestao): {"pr":"add"|"del","e":ean,"id":idPromo,"q":leve,"d":desconto %,"di":AAMMDD,"df":AAMMDD}
+    # mesma gravacao que a exportacao do Gestao faz: linha na tabela Promocao + produtos.iTipoPromo = 12
+    if ($it.pr) {
+      $tag = [int]$it.id
+      if ([int]([SqNR]::Um($db, "SELECT COUNT(*) FROM produtos WHERE sCodBarras = '" + $ean + "'")) -eq 0) { [void]$fora.Add($ean); continue }
+      [SqNR]::Exec($db, "DELETE FROM Promocao WHERE iIDPromo = " + $tag + " AND sCodBarras = '" + $ean + "'")
+      if ([string]$it.pr -eq "add") {
+        [SqNR]::Exec($db, "INSERT INTO Promocao (sCodBarras, iModo, iTipoPromo, iQtdePromo, rDescValor, iCount, iDataIni, iDataFim, iIDPromo) VALUES ('" + $ean + "', 0, 3, " + [int]$it.q + ", " + ([double]$it.d).ToString("0.####", $inv) + ", 0, " + [int]$it.di + ", " + [int]$it.df + ", " + $tag + ")")
+        [SqNR]::Exec($db, "UPDATE produtos SET iTipoPromo = 12 WHERE sCodBarras = '" + $ean + "'")
+      } else {
+        if ([int]([SqNR]::Um($db, "SELECT COUNT(*) FROM Promocao WHERE sCodBarras = '" + $ean + "'")) -eq 0) { [SqNR]::Exec($db, "UPDATE produtos SET iTipoPromo = 0 WHERE sCodBarras = '" + $ean + "'") }
+      }
+      $feitos++
+      continue
+    }
     $sets = @()
     if ($it.v -ne $null -and [double]$it.v -gt 0) { $sets += "rPreco_Venda1 = " + ([double]$it.v).ToString("0.####", $inv) }
     if ($it.c -ne $null -and [double]$it.c -gt 0) { $sets += "rPreco_Compra = " + ([double]$it.c).ToString("0.####", $inv) }

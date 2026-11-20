@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="66">
+<meta name="versao" content="67">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -563,6 +563,35 @@ function melhorSugestao(it) {
 }
 
 // ---------- tela ----------
+function desenharCab() {
+  const e = document.getElementById("cab"); if (!e || !cab) return;
+  const esc = t => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const ed = `<a id="cabEd" title="corrigir o nome do fornecedor" style="cursor:pointer;font-size:12px;margin-left:6px;color:#0b57d0;font-weight:normal;white-space:nowrap">✏️ editar</a>`;
+  const orig = !cab.manual && cab.emitXml && cab.emitXml !== cab.emit ? `<div class="orig" style="font-size:11px">no XML: ${esc(cab.emitXml)}</div>` : "";
+  if (cab.manual) e.innerHTML = `<div><small>Entrada sem nota — fornecedor</small><b>${esc(cab.emit)}</b>${ed}</div>`;
+  else e.innerHTML = `<div><small>Fornecedor</small><b>${esc(cab.emit)}</b>${ed}${orig}</div><div><small>UF</small><b>${cab.uf}</b></div><div><small>NF-e</small><b>${cab.nnf}</b></div>` +
+    `<div><small>Produtos</small><b>R$ ${br(cab.vProd)}</b></div><div><small>IPI</small><b>R$ ${br(cab.vIPI)}</b></div><div><small>ST</small><b>R$ ${br(cab.vST)}</b></div><div><small>Total da nota</small><b>R$ ${br(cab.vNF)}</b></div>`;
+  e.querySelector("#cabEd").onclick = () => {
+    const d = e.querySelector("#cabEd").parentElement;
+    d.innerHTML = `<small>Nome do fornecedor</small><input id="cabNome" type="text" maxlength="60" style="width:230px"> <button id="cabOk">Salvar</button> <button class="sec" id="cabNo">Cancelar</button>`;
+    const i = d.querySelector("#cabNome"); i.value = cab.emit; i.focus(); i.select();
+    const ok = () => renomearFornecedor(cab.chave, i.value);
+    d.querySelector("#cabOk").onclick = ok; d.querySelector("#cabNo").onclick = desenharCab;
+    i.addEventListener("keydown", ev => { if (ev.key === "Enter") ok(); else if (ev.key === "Escape") desenharCab(); });
+  };
+}
+async function renomearFornecedor(chave, nome) {
+  nome = String(nome || "").replace(/\s+/g, " ").trim().slice(0, 60);
+  if (!nome) return msg("Digite o nome do fornecedor.");
+  const m = metaDe(chave);
+  if (!(m && m.emit === nome)) {
+    await salvarMeta(chave, { emit: nome, emitEd: 1 });
+    if (db) for (const [id, v] of valDocs) if (v.nota === chave && v.emit !== nome) { valDocs.set(id, { ...v, emit: nome }); db.doc("validades/" + id).update({ emit: nome }).catch(() => {}); }
+    msg(`Fornecedor alterado para "${nome}".`);
+  }
+  if (cab && cab.chave === chave) { cab.emit = nome; desenharCab(); }
+  redesenharTudo();
+}
 function desenhar() {
   agendarSugestoes(); conciliarEnvios();
   document.getElementById("app").style.display = "";
@@ -571,10 +600,7 @@ function desenhar() {
   document.getElementById("bSql").style.display = cab.manual ? "none" : "";
   document.getElementById("gModo").parentElement.style.display = cab.manual ? "none" : "";
   document.getElementById("gPct").parentElement.style.display = cab.manual ? "none" : "";
-  if (cab.manual) document.getElementById("cab").innerHTML = `<div><small>Entrada sem nota</small><b>${cab.emit.replace(/</g, "&lt;")}</b></div>`;
-  else document.getElementById("cab").innerHTML =
-    `<div><small>Fornecedor</small><b>${cab.emit}</b></div><div><small>UF</small><b>${cab.uf}</b></div><div><small>NF-e</small><b>${cab.nnf}</b></div>` +
-    `<div><small>Produtos</small><b>R$ ${br(cab.vProd)}</b></div><div><small>IPI</small><b>R$ ${br(cab.vIPI)}</b></div><div><small>ST</small><b>R$ ${br(cab.vST)}</b></div><div><small>Total da nota</small><b>R$ ${br(cab.vNF)}</b></div>`;
+  desenharCab();
   const tb = document.getElementById("tb"); tb.innerHTML = "";
   for (const it of itens) {
     const tr = document.createElement("tr"); tr.id = "l" + it.n;
@@ -1191,7 +1217,7 @@ async function abrirNota(chave, texto) {
     else {
     if (!texto) { const q = await db.collection(`notas/${chave}/xml`).get(); texto = q.docs.map(d => d.data().t).join(""); }
     if (!texto) return msg("Essa nota ainda está sendo enviada pelo outro PC. Tente de novo em instantes.");
-    xmlTexto = texto; const r = lerNota(texto); doc = r.d; cab = r.c; itens = r.lista;
+    xmlTexto = texto; const r = lerNota(texto); doc = r.d; cab = r.c; itens = r.lista; cab.emitXml = cab.emit; if (meta && meta.emitEd && meta.emit) cab.emit = meta.emit;
     if (meta && meta.par) { // nota da Loja 2 trabalhada junto
       const q2 = await db.collection(`notas/${chave}/xml2`).get(), t2 = q2.docs.map(d => d.data().t).slice(0, meta.par.partes || 999).join("");
       if (t2) { juntarLoja2(itens, lerNota(t2).lista); cab.par = meta.par; }
@@ -1447,9 +1473,10 @@ function desenharGerencia() {
   for (const n of lista) {
     const [k, txtS, cls] = sitNota(n), bs = n.boletos || [], pagos = bs.filter(b => b.pago).length, tr = document.createElement("tr");
     tr.innerHTML = `<td>${dataBr(n.criado)}</td><td>${h(n.emit)}</td><td>${h(rotNota(n))}</td><td class="n">${n.itens || "-"}</td><td class="n">${n.vNF ? br(n.vNF) : "-"}</td><td><span class="chip ${cls}">${txtS}</span></td><td>${bs.length ? pagos + " de " + bs.length + " pagos" : "-"}</td>` +
-      `<td style="white-space:nowrap"><a data-a="abrir" style="cursor:pointer;color:#0b57d0;text-decoration:underline">abrir</a> · <a data-a="concl" style="cursor:pointer;color:#0b57d0;text-decoration:underline">${n.concluida ? "reabrir" : "concluir"}</a> · <a data-a="excl" style="cursor:pointer;color:#b91c1c;text-decoration:underline">excluir</a></td>`;
+      `<td style="white-space:nowrap"><a data-a="abrir" style="cursor:pointer;color:#0b57d0;text-decoration:underline">abrir</a> · <a data-a="forn" title="corrigir o nome do fornecedor" style="cursor:pointer;color:#0b57d0;text-decoration:underline">fornecedor</a> · <a data-a="concl" style="cursor:pointer;color:#0b57d0;text-decoration:underline">${n.concluida ? "reabrir" : "concluir"}</a> · <a data-a="excl" style="cursor:pointer;color:#b91c1c;text-decoration:underline">excluir</a></td>`;
     tr.querySelector("[data-a=abrir]").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(n.id); });
     tr.querySelector("[data-a=concl]").addEventListener("click", () => salvarMeta(n.id, { concluida: n.concluida ? null : new Date().toISOString() }));
+    tr.querySelector("[data-a=forn]").addEventListener("click", () => { const v = prompt("Nome do fornecedor desta nota:", n.emit || ""); if (v != null && v.trim()) renomearFornecedor(n.id, v); });
     const x = tr.querySelector("[data-a=excl]"); x.addEventListener("click", () => { if (!db) return; if (x.dataset.ok) excluirNota(n.id); else { x.dataset.ok = "1"; x.textContent = "confirmar exclusão"; } });
     tb.appendChild(tr);
   }

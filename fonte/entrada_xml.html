@@ -3,40 +3,53 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="67">
+<meta name="versao" content="68">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
+  :root { --azul:#1b2d4b; --claro:#dceefa; --borda:#dadfe4; --verde:#1b7248; --alerta:#ab6900; --erro:#c2410c; --ok:#1b7248; --cinza:#667381;
+    --fundo:#f5f7f9; --texto:#293343; --muted:#eef0f3; --loja1:#3a8da6; --loja2:#c35078; --excl:#4b3fa3; --ok-suave:#e1f7e6; --av-suave:#fff2d8; --erro-suave:#fff1f0;
+    --sb-muted:#9fa9b4; --sb-ativo:#324a63; --sombra:0 1px 2px rgba(27,45,75,.06); --menu:216px; }
   * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 0; color: #1b2430; background: #f4f6f9; }
-  header { background: var(--azul); color: #fff; padding: 10px 16px; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
-  header h1 { font-size: 17px; margin: 0; }
-  header span { opacity: .85; }
-  main { padding: 12px 16px 60px; }
-  .painel { background: #fff; border: 1px solid var(--borda); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
-  .linha { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
-  label.c { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--cinza); }
+  body { font-family: Nunito, Arial, Helvetica, sans-serif; font-size: 13px; margin: 0; color: var(--texto); background: var(--fundo); -webkit-font-smoothing: antialiased; }
+  header { position: sticky; top: 0; z-index: 35; height: 52px; background: #fff; color: var(--texto); border-bottom: 1px solid var(--borda); padding: 0 20px 0 12px; display: flex; gap: 12px; align-items: center; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 800; color: var(--azul); white-space: nowrap; }
+  header .hver { font-size: 10px; border: 1px solid var(--borda); border-radius: 4px; padding: 1px 5px; color: var(--cinza); white-space: nowrap; }
+  main { padding: 20px 24px 60px; }
+  .painel { background: #fff; border: 1px solid var(--borda); border-radius: 7px; padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--sombra); }
+  .linha { display: flex; gap: 14px 18px; flex-wrap: wrap; align-items: flex-end; }
+  label.c { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 700; color: var(--cinza); }
   input, select, button { font: inherit; }
-  input[type=text], input[type=number], select { border: 1px solid var(--borda); border-radius: 4px; padding: 4px 6px; background: var(--claro); color: #00308f; }
-  input[type=file] { font-size: 12px; }
-  button { border: 1px solid var(--azul); background: var(--azul); color: #fff; border-radius: 4px; padding: 6px 12px; cursor: pointer; }
-  button.sec { background: #fff; color: var(--azul); }
-  button:disabled { opacity: .45; cursor: default; }
-  .resumo { display: flex; gap: 22px; flex-wrap: wrap; }
+  input[type=text], input[type=number], input[type=email], input[type=password], input[type=date], input[type=search], input[type=tel], input:not([type]), select, textarea { border: 1px solid var(--borda); border-radius: 5px; padding: 5px 8px; background: #fff; color: var(--texto); font-weight: 600; }
+  td input[type=text], td input[type=number], td input[type=date], td input:not([type]), td select { padding: 3px 5px; border-radius: 4px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--loja1); outline-offset: 0; border-color: var(--loja1); }
+  input[type=checkbox], input[type=radio] { accent-color: var(--loja1); }
+  input[type=file] { font-size: 12px; color: var(--cinza); }
+  input[type=file]::file-selector-button { font: inherit; font-weight: 700; color: var(--azul); background: #fff; border: 1px solid var(--borda); border-radius: 5px; padding: 5px 10px; margin-right: 8px; cursor: pointer; }
+  input[type=file]::file-selector-button:hover { background: var(--muted); }
+  button { font-size: 12.5px; border: 1px solid var(--azul); background: var(--azul); color: #fff; border-radius: 5px; padding: 6px 12px; cursor: pointer; font-weight: 700; line-height: 1.35; transition: background .12s, border-color .12s; }
+  button:hover { background: #24395c; border-color: #24395c; }
+  button:focus-visible { outline: 2px solid var(--loja1); outline-offset: 2px; }
+  button.sec { background: #fff; color: var(--azul); border-color: var(--borda); }
+  button.sec:hover { background: var(--muted); border-color: #c5ccd4; }
+  button:disabled, button:disabled:hover { opacity: .45; cursor: default; }
+  .resumo { display: flex; gap: 14px 26px; flex-wrap: wrap; }
   .resumo div { min-width: 110px; }
-  .resumo b { display: block; font-size: 15px; }
-  .resumo small { color: var(--cinza); }
-  table { border-collapse: collapse; width: 100%; background: #fff; }
-  th { background: var(--azul); color: #fff; font-weight: normal; padding: 6px 5px; text-align: left; position: sticky; top: 0; z-index: 2; font-size: 12px; }
-  td { border-bottom: 1px solid #e3e8ef; padding: 4px 5px; vertical-align: top; }
-  tr.rev td { background: #a9c8ee; }
+  .resumo b { display: block; font-size: 16px; font-weight: 800; color: var(--azul); font-variant-numeric: tabular-nums; }
+  .resumo small { color: var(--cinza); font-size: 11px; font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; background: #fff; font-variant-numeric: tabular-nums; }
+  th { background: var(--muted); color: var(--cinza); font-weight: 800; padding: 8px 6px; text-align: left; position: sticky; top: 0; z-index: 2; font-size: 11px; border-bottom: 1px solid var(--borda); }
+  td { border-bottom: 1px solid #e8ecf0; padding: 5px 6px; vertical-align: top; }
+  tbody tr:hover > td { background-image: linear-gradient(rgba(58,141,166,.07), rgba(58,141,166,.07)); }
+  tr.rev td { background: #cfe2f6; }
   tr.rev td .orig { color: #24426b; }
-  tr.rev td input.p, tr.rev td input.desc, tr.rev td input.ean { background: #e9f1fb; }
+  tr.rev td input.p, tr.rev td input.desc, tr.rev td input.ean { background: #eef5fd; }
   /* preço de venda: sugerido pelo markup (cinza, itálico, tracejado) x definido pela pessoa (escuro, negrito, fundo verde) */
-  td input.p.sug { color: #8a94a6; font-style: italic; border-style: dashed; background: #fafbfd; }
-  td input.p.def { color: #0b2a4a; font-weight: bold; background: #e6f6e6; border-color: #7fbf7f; }
-  tr.rev td input.p.sug { background: #e9f1fb; }
-  tr.rev td input.p.def { background: #d6f0d6; }
+  td input.p.sug { color: #8a94a6; font-style: italic; border-style: dashed; background: #f7f8fa; font-weight: 600; }
+  td input.p.def { color: var(--texto); font-weight: 800; background: var(--ok-suave); border-color: #9ccfae; }
+  tr.rev td input.p.sug { background: #eef5fd; }
+  tr.rev td input.p.def { background: #d9f2df; }
   td.rv { text-align: center; white-space: nowrap; }
   td.rv input { width: 20px; height: 20px; cursor: pointer; }
   body.soPend tr.rev { display: none; }
@@ -54,17 +67,17 @@
   #tb td.n, #tb td.cc, #tb td.rv { width: 1%; }
   #tb [data-o=mg], #tb [data-o=mg2], #tb [data-o=l2] { white-space: normal; max-width: 170px; margin-left: auto; }
   .sugs div { margin-top: 2px; } .sugs a { cursor: pointer; color: #0b57d0; }  /* colunas de número só do tamanho do conteúdo; a sobra vai para a descrição */
-  tr.duvida td { background: #fff7e6; }
+  tr.duvida td { background: #fff6e5; }
   /* cor da linha pelo estado do item: azul claro = preço definido e nada faltando; vermelho claro = falta algo para ir ao Gestão */
   #histBox { position: fixed; right: 12px; bottom: 12px; width: min(560px, 96vw); max-height: 70vh; overflow: auto; background: #fff; border: 1px solid #b9c6d8; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.18); z-index: 50; padding: 10px 12px; font-size: 12px; }
   #histBox table { font-size: 12px; } #histBox th { position: static; }
   #histBox .sobe { color: #b42318; } #histBox .cai { color: #067647; }
-  tr.pok td { background: #e3eefc; }
-  tr.pok td input.p, tr.pok td input.desc, tr.pok td input.ean { background: #f4f8ff; }
-  tr.falta td { background: #fde8e8; }
-  tr.falta td input.p, tr.falta td input.desc, tr.falta td input.ean { background: #fff5f5; }
+  tr.pok td { background: #eef5fd; }
+  tr.pok td input.p, tr.pok td input.desc, tr.pok td input.ean { background: #fff; }
+  tr.falta td { background: #fdeeee; }
+  tr.falta td input.p, tr.falta td input.desc, tr.falta td input.ean { background: #fff; }
   tr.falta td input.p.def { background: #e6f6e6; }
-  tr.rev td, tr.rev.pok td, tr.rev.falta td { background: #a9c8ee; }
+  tr.rev td, tr.rev.pok td, tr.rev.falta td { background: #cfe2f6; }
   td input.desc { width: 100%; min-width: 250px; }
   td input.ean { width: 128px; }
   td input.p { width: 52px; text-align: right; }
@@ -73,7 +86,7 @@
   .bgrupo { display: flex; align-items: baseline; gap: 10px; margin: 16px 2px 8px; }
   .bgrupo b { font-size: 15px; } .bgrupo span { color: var(--cinza); font-size: 12px; } .bgrupo i { margin-left: auto; font-style: normal; font-weight: 600; }
   .bcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
-  .bcard { background: #fff; border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px 10px 16px; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
+  .bcard { background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 12px 14px 10px 16px; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--sombra); }
   .bcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: #94a3b8; }
   .bcard.falta::before { background: #dc2626; } .bcard.av::before { background: #f59e0b; } .bcard.novo::before { background: #4f46e5; } .bcard.ok::before { background: #16a34a; }
   .bcard.ok { opacity: .72; }
@@ -86,39 +99,69 @@
   .bcard .pagar { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--borda); border-radius: 999px; padding: 4px 12px; font-size: 12px; cursor: pointer; background: #f8fafc; user-select: none; }
   .bcard .pagar:hover { background: #eef2f7; } .bcard .pagar input { width: 15px; height: 15px; margin: 0; }
   .bcard .l2 { background: #f3f0ff; border-radius: 8px; padding: 5px 8px; font-size: 12px; display: flex; align-items: center; gap: 8px; }
-  .bvista { display: inline-flex; border: 1px solid var(--borda); border-radius: 999px; overflow: hidden; }
-  .bvista a { padding: 4px 12px; font-size: 12px; cursor: pointer; color: inherit; text-decoration: none; } .bvista a.on { background: #1e2a5a; color: #fff; }
-  .chip { display: inline-block; font-size: 11px; border-radius: 9px; padding: 1px 7px; margin-top: 3px; }
-  .chip.ok { background: #dcfce7; color: var(--ok); }
-  .chip.novo { background: #e0e7ff; color: #3730a3; }
-  .chip.falta { background: #fee2e2; color: var(--erro); }
-  .chip.av { background: #fef3c7; color: var(--alerta); }
+  .bvista { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; background: #fff; }
+  .bvista a { padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--cinza); text-decoration: none; } .bvista a.on { background: var(--azul); color: #fff; }
+  .chip { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 2px 7px; margin-top: 3px; line-height: 1.45; }
+  .chip.ok { background: var(--ok-suave); color: var(--ok); }
+  .chip.novo { background: #e7e9fb; color: #3730a3; }
+  .chip.falta { background: #fde4e1; color: #b42318; }
+  .chip.av { background: var(--av-suave); color: var(--alerta); }
   .sug { font-size: 11px; margin-top: 3px; }
-  .sug a { color: #0b57d0; cursor: pointer; text-decoration: underline; }
-  .custo { color: var(--verde); font-weight: bold; }
-  .rolagem { overflow: auto; max-height: 72vh; border: 1px solid var(--borda); border-radius: 6px; }
+  .sug a { color: var(--loja1); font-weight: 700; cursor: pointer; text-decoration: underline; }
+  .custo { color: var(--verde); font-weight: 800; }
+  .rolagem { overflow: auto; max-height: 72vh; border: 1px solid var(--borda); border-radius: 7px; background: #fff; box-shadow: var(--sombra); }
   .aviso { color: var(--alerta); }
-  #busca { position: fixed; right: 16px; top: 60px; width: 460px; max-width: calc(100vw - 24px); max-height: 80vh; overflow: auto; background: #fff; border: 1px solid var(--azul); border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.2); padding: 10px; display: none; z-index: 5; }
+  #busca { position: fixed; right: 16px; top: 60px; width: 460px; max-width: calc(100vw - 24px); max-height: 80vh; overflow: auto; background: #fff; border: 1px solid var(--borda); border-radius: 8px; box-shadow: 0 10px 30px rgba(27,45,75,.18); padding: 10px; display: none; z-index: 45; }
   #busca input[type=text], #busca input[type=email] { width: 100%; }
   #busca input[type=checkbox] { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; }
   #busca label.r { display: flex; align-items: flex-start; gap: 6px; line-height: 1.3; }
   #busca .r { padding: 4px 2px; border-bottom: 1px solid #eef1f5; cursor: pointer; }
-  #busca .r:hover { background: var(--claro); }
+  #busca .r:hover { background: #f0f7fb; }
   .mono { font-family: Consolas, monospace; }
-  nav#abas { background: #fff; border-bottom: 1px solid var(--borda); padding: 6px 16px 0; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-  .aba { background: #fff; color: var(--azul); border: 1px solid var(--borda); border-bottom: none; border-radius: 6px 6px 0 0; padding: 7px 16px; }
-  .aba.ativa { background: var(--azul); color: #fff; border-color: var(--azul); }
-  #usuario a { color: #fff; opacity: .85; cursor: pointer; text-decoration: underline; margin-left: 8px; }
-  #alertas { margin-left: 14px; display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 4px; }
-  #alertas .chip { cursor: pointer; margin-top: 0; font-size: 12px; padding: 2px 9px; }
   .bol { display: flex; gap: 10px; align-items: center; padding: 3px 0; flex-wrap: wrap; }
-  .nota { display: inline-flex; gap: 8px; align-items: center; border: 1px solid var(--borda); border-radius: 6px; padding: 5px 8px; margin: 0 8px 6px 0; background: #fff; }
-  .nota.atual { border-color: var(--azul); background: var(--claro); }
-  .nota a { color: #0b57d0; cursor: pointer; text-decoration: underline; }
+  .nota { display: inline-flex; gap: 8px; align-items: center; border: 1px solid var(--borda); border-radius: 6px; padding: 5px 9px; margin: 0 8px 6px 0; background: #fff; }
+  .nota.atual { border-color: var(--loja1); background: #eef7fa; box-shadow: inset 3px 0 var(--loja1); }
+  .nota a { color: var(--loja1); font-weight: 700; cursor: pointer; text-decoration: underline; }
+
+  /* ===== barra lateral (v68) ===== */
+  nav#abas { position: fixed; top: 0; left: 0; bottom: 0; width: var(--menu); z-index: 40; background: var(--azul); color: #fff; display: flex; flex-direction: column; transition: width .16s ease; }
+  nav#abas .brand { height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,.12); overflow: hidden; white-space: nowrap; }
+  nav#abas .brand-mark { width: 28px; height: 28px; flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2.5px; }
+  nav#abas .brand-mark i { border-radius: 24%; }
+  nav#abas .brand-name { font-size: 15px; font-weight: 800; line-height: 1.15; }
+  nav#abas .brand-caption { font-size: 9.5px; color: var(--sb-muted); text-transform: uppercase; letter-spacing: 1.3px; margin-top: 3px; }
+  nav#abas .nav-groups { padding: 6px 10px 12px; flex: 1; overflow-y: auto; overflow-x: hidden; }
+  nav#abas .nav-label { color: var(--sb-muted); font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 1.2px; padding: 0 10px; margin: 14px 0 5px; white-space: nowrap; }
+  .aba { display: flex; align-items: center; gap: 11px; width: 100%; height: 34px; padding: 0 10px; margin: 1px 0; border: 0; border-radius: 5px; background: transparent; color: rgba(255,255,255,.80); font-weight: 600; font-size: 13px; text-align: left; white-space: nowrap; }
+  .aba:hover { background: var(--sb-ativo); border: 0; color: #fff; }
+  .aba.ativa { background: var(--sb-ativo); color: #fff; font-weight: 700; box-shadow: inset 3px 0 var(--loja1); }
+  .aba svg { width: 17px; height: 17px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: .92; }
+  .aba .nav-count { margin-left: auto; font-style: normal; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 4px; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.13); }
+  .aba .nav-count:empty { display: none; }
+  .aba .nav-count.alerta { background: var(--loja2); color: #fff; }
+  nav#abas .sidebar-bottom { padding: 12px 18px; border-top: 1px solid rgba(255,255,255,.12); color: var(--sb-muted); font-size: 11px; white-space: nowrap; overflow: hidden; }
+  body.logado { padding-left: var(--menu); transition: padding-left .16s ease; }
+  body.menu-curto { --menu: 60px; }
+  body.menu-curto nav#abas .brand { padding: 0 16px; }
+  body.menu-curto nav#abas .brand-txt, body.menu-curto .aba span, body.menu-curto .aba .nav-count, body.menu-curto nav#abas .sidebar-bottom { display: none; }
+  body.menu-curto nav#abas .nav-label { font-size: 0; height: 1px; margin: 10px 8px; padding: 0; background: rgba(255,255,255,.14); }
+  body.menu-curto .aba { justify-content: center; padding: 0; }
+  header .ico { background: transparent; border: 1px solid transparent; color: var(--cinza); width: 32px; height: 32px; padding: 0; display: inline-grid; place-items: center; border-radius: 6px; }
+  header .ico:hover { background: var(--muted); border-color: transparent; color: var(--azul); }
+  header .ico svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  body:not(.logado) header .ico { display: none; }
+  #alertas { margin-left: auto; display: flex; gap: 6px; flex-wrap: nowrap; overflow: hidden; min-width: 0; }
+  #alertas .chip { cursor: pointer; margin-top: 0; font-size: 11px; padding: 3px 9px; white-space: nowrap; }
+  #usuario { color: var(--cinza); font-size: 12px; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  #usuario a { color: var(--azul); font-weight: 700; cursor: pointer; text-decoration: none; border: 1px solid var(--borda); border-radius: 5px; padding: 3px 9px; font-size: 11px; }
+  #usuario a:hover { background: var(--muted); }
+  #login { box-shadow: 0 10px 30px rgba(27,45,75,.10); }
+  @media (max-width: 900px) { #alertas { display: none; } }
+  @media (max-width: 760px) { body { --menu: 60px; } nav#abas .brand-txt, .aba span, .aba .nav-count, nav#abas .sidebar-bottom { display: none; } nav#abas .nav-label { font-size: 0; height: 1px; margin: 10px 8px; padding: 0; background: rgba(255,255,255,.14); } .aba { justify-content: center; padding: 0; } main { padding: 14px 12px 60px; } header .ico { display: none; } #usuario { font-size: 0; } #usuario a { font-size: 11px; } }
 </style>
 </head>
 <body>
-<header><h1>Entrada de notas</h1><span>Nova Raphaella — entrada no Gestão, boletos e validades <span style="opacity:.55;font-size:11px" title="versão do site; se uma novidade não aparecer, recarregue a página">v<script>document.write(document.querySelector('meta[name=versao]').content)</script></span></span><span id="usuario" style="margin-left:auto"></span></header>
+<header><button type="button" class="ico" id="bMenu" title="Recolher / abrir o menu"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg></button><h1 id="hTitulo">Nova Raphaella</h1><span class="hver" title="versão do site; se uma novidade não aparecer, recarregue a página">v<script>document.write(document.querySelector('meta[name=versao]').content)</script></span><span id="alertas"></span><span id="usuario"></span></header>
 <div id="login" style="display:none;max-width:360px;margin:60px auto;background:#fff;border:1px solid var(--borda);border-radius:8px;padding:18px 20px">
   <h2 style="margin:0 0 10px;font-size:16px;color:var(--azul)">Entrar</h2>
   <label class="c">E-mail<input type="email" id="lgEmail" autocomplete="username" style="width:100%"></label>
@@ -128,8 +171,27 @@
   <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
 </div>
 <nav id="abas" style="display:none">
-  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button><button class="aba" data-v="transf">Transferências</button><button class="aba" data-v="compras">Compras</button><button class="aba" data-v="promocoes">Promoções</button><button class="aba" data-v="etiquetas">Etiquetas</button>
-  <span id="alertas"></span>
+  <div class="brand"><span class="brand-mark"><i style="background:#C35078"></i><i style="background:#B83D50"></i><i style="background:#7AAB30"></i><i style="background:#3A8DA6"></i></span><span class="brand-txt"><span class="brand-name" style="display:block">Nova Raphaella</span><span class="brand-caption" style="display:block">Sistema das lojas</span></span></div>
+  <div class="nav-groups">
+   <div class="nav-label">Dia a dia</div>
+   <button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span><i class="nav-count" id="nc_hoje"></i></button>
+   <button class="aba ativa" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span><i class="nav-count" id="nc_entrada"></i></button>
+   <button class="aba" data-v="notas" title="Notas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span>Notas</span><i class="nav-count" id="nc_notas"></i></button>
+   <div class="nav-label">Financeiro</div>
+   <button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span><i class="nav-count" id="nc_vendas"></i></button>
+   <button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span><i class="nav-count" id="nc_boletos"></i></button>
+   <div class="nav-label">Estoque</div>
+   <button class="aba" data-v="produtos" title="Produtos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Produtos</span><i class="nav-count" id="nc_produtos"></i></button>
+   <button class="aba" data-v="validades" title="Validades"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 2v3"/><path d="M17 15.5v1.7l1 .625"/><path d="M21 8.936V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h3.935"/><path d="M3 9h9.873"/><path d="M8 2v3"/><circle cx="17" cy="17" r="5"/></svg><span>Validades</span><i class="nav-count" id="nc_validades"></i></button>
+   <button class="aba" data-v="transf" title="Transferências"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg><span>Transferências</span><i class="nav-count" id="nc_transf"></i></button>
+   <button class="aba" data-v="compras" title="Compras"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2.05 2.05 1.099-.028a1 1 0 0 1 1.008.815l2.69 14.347A1 1 0 0 0 7.83 18H18"/><path d="M4.563 5h16.435a1 1 0 0 1 .981 1.204l-1.026 6.226A2 2 0 0 1 18.962 14H6.25"/><circle cx="18" cy="20" r="2"/><circle cx="8" cy="20" r="2"/></svg><span>Compras</span><i class="nav-count" id="nc_compras"></i></button>
+   <div class="nav-label">Loja</div>
+   <button class="aba" data-v="orcamentos" title="Orçamentos"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg><span>Orçamentos</span><i class="nav-count" id="nc_orcamentos"></i></button>
+   <button class="aba" data-v="promocoes" title="Promoções"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg><span>Promoções</span><i class="nav-count" id="nc_promocoes"></i></button>
+   <button class="aba" data-v="etiquetas" title="Etiquetas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg><span>Etiquetas</span><i class="nav-count" id="nc_etiquetas"></i></button>
+   <button class="aba" data-v="avisos" title="Avisos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14"/><path d="M8 6v8"/></svg><span>Avisos</span><i class="nav-count" id="nc_avisos"></i></button>
+  </div>
+  <div class="sidebar-bottom">Duas lojas. Uma gestão.</div>
 </nav>
 <main id="principal" style="display:none">
  <div id="vEntrada">
@@ -1321,6 +1383,7 @@ function mostrar(v) {
   vista = v;
   for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
+  { const b = document.querySelector('.aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
   redesenharTudo();
   if (v === "vendas") vdCarregar();
   if (v === "orcamentos") orDesenharLista();
@@ -1599,6 +1662,9 @@ function alertas() {
   const val = listaValidades().filter(v => !v.baixa), vv = val.filter(v => dias(v.val) < 0), v30 = val.filter(v => { const d = dias(v.val); return d >= 0 && d <= 30; });
   if (vv.length) chip(`${vv.length} produto${vv.length > 1 ? "s" : ""} vencido${vv.length > 1 ? "s" : ""}`, "falta", "validades");
   if (v30.length) chip(`${v30.length} validade${v30.length > 1 ? "s" : ""} em 30 dias`, "av", "validades");
+  const nc = (id, n, alerta) => { const x = document.getElementById("nc_" + id); if (x) { x.textContent = n ? String(n) : ""; x.classList.toggle("alerta", !!alerta); } };
+  nc("boletos", bv.length || b7.length, bv.length > 0); nc("validades", vv.length || v30.length, vv.length > 0);
+  try { const em = fonteNotas().filter(n => !n.concluida), er = em.filter(n => (n.envio && n.envio.status === "erro") || (n.envio2 && n.envio2.status === "erro")); nc("notas", em.length, er.length > 0); } catch (e) {}
 }
 function chipEnvio(e, v, rot, loja, baixadoLocal) {
   if (!e) return;
@@ -2416,6 +2482,8 @@ function incluirUsuario() {
   b.querySelector("#nuOk").onclick = async () => { const r = await supa.rpc("incluir_usuario", { p_email: b.querySelector("#nuEmail").value.trim(), p_nome: b.querySelector("#nuNome").value.trim() }); b.querySelector("#nuMsg").textContent = r.error ? "Erro: " + r.error.message : "Incluído."; };
 }
 function mostrarLogin(sim) {
+  document.body.classList.toggle("logado", !sim);
+  { const a = document.querySelector(".aba.ativa span"), h = document.getElementById("hTitulo"); if (h) h.textContent = sim || !a ? "Nova Raphaella" : a.textContent; }
   document.getElementById("login").style.display = sim ? "" : "none";
   document.getElementById("abas").style.display = sim ? "none" : "";
   document.getElementById("principal").style.display = sim ? "none" : "";
@@ -3745,6 +3813,8 @@ document.getElementById("bEnt").addEventListener("click", () => enviarAoGestao("
 document.getElementById("bEntPos").addEventListener("click", () => enviarAoGestao("entrada", true).catch(e => msg("Não consegui enviar: " + (e.message || e))));
 document.getElementById("lnkArq").addEventListener("click", () => { if (confirm("Baixar o arquivo da ENTRADA COMPLETA para rodar pelo atalho 'Subir precos no Gestao'?\n(Cancelar = arquivo só de preços)")) baixarArquivo("entrada"); else baixarArquivo("precos"); });
 for (const b of document.querySelectorAll(".aba")) b.addEventListener("click", () => mostrar(b.dataset.v));
+try { if (localStorage.getItem("entradaxml:menuCurto") === "1") document.body.classList.add("menu-curto"); } catch (e) {}
+document.getElementById("bMenu").addEventListener("click", () => { const c = document.body.classList.toggle("menu-curto"); try { localStorage.setItem("entradaxml:menuCurto", c ? "1" : "0"); } catch (e) {} });
 for (const id of ["fNotaTxt", "fNotaSit"]) document.getElementById(id).addEventListener("input", desenharGerencia);
 document.getElementById("fBolPagos").addEventListener("change", desenharBoletos);
 document.getElementById("fValBaixa").addEventListener("change", desenharValidades);

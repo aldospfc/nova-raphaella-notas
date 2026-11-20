@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="74">
+<meta name="versao" content="75">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -157,7 +157,50 @@
   #usuario a:hover { background: var(--muted); }
   #login { box-shadow: 0 10px 30px rgba(27,45,75,.10); }
   @media (max-width: 900px) { #alertas { display: none; } }
-  @media (max-width: 760px) { body { --menu: 60px; } nav#abas .brand-txt, .aba span, .aba .nav-count, nav#abas .sidebar-bottom { display: none; } nav#abas .nav-label { font-size: 0; height: 1px; margin: 10px 8px; padding: 0; background: rgba(255,255,255,.14); } .aba { justify-content: center; padding: 0; } main { padding: 14px 12px 60px; } header .ico { display: none; } #usuario { font-size: 0; } #usuario a { font-size: 11px; } }
+  #barraMob, #veu { display: none; }
+  @media (max-width: 760px) {
+    /* menu vira gaveta (com os nomes) aberta pelo botão do topo ou pelo "Menu" da barra de baixo */
+    body.logado, body.logado.menu-curto { padding-left: 0; --menu: 264px; }
+    body.menu-curto nav#abas .brand-txt, body.menu-curto .aba span, body.menu-curto .aba .nav-count, body.menu-curto nav#abas .sidebar-bottom { display: revert; }
+    body.menu-curto nav#abas .nav-label { font-size: 10px; height: auto; margin: 14px 0 5px; padding: 0 10px; background: none; }
+    body.menu-curto .aba { justify-content: flex-start; padding: 0 10px; }
+    nav#abas { width: 264px; transform: translateX(-102%); transition: transform .2s ease; box-shadow: 0 0 40px rgba(0,0,0,.25); }
+    body.menu-aberto nav#abas { transform: none; }
+    nav#abas .aba { height: 42px; font-size: 14px; }
+    #veu { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 39; }
+    body.menu-aberto #veu { display: block; }
+    header { padding: 0 12px 0 6px; gap: 8px; height: 50px; }
+    body.logado header .ico { display: inline-grid; }
+    header h1 { font-size: 16px; }
+    #usuario { font-size: 0; gap: 4px; } #usuario a { font-size: 11px; padding: 4px 8px; }
+    main { padding: 14px 12px 84px; }
+    /* barra de baixo com as abas mais usadas */
+    body.logado #barraMob { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 36; background: #fff; border-top: 1px solid var(--borda); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 16px rgba(27,45,75,.06); }
+    #barraMob button { all: unset; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0 4px; font-size: 10.5px; font-weight: 700; color: var(--cinza); cursor: pointer; border-radius: 8px; -webkit-tap-highlight-color: transparent; }
+    #barraMob button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    #barraMob button.ativa { color: var(--azul); background: #eef4f8; }
+    #barraMob button.ativa svg { color: var(--loja1); }
+    /* campos com letra 16px: o iPhone não dá zoom ao tocar */
+    input[type=text], input[type=number], input[type=email], input[type=password], input[type=date], input[type=time], input[type=search], input[type=tel], input:not([type]), select, textarea { font-size: 16px; max-width: 100%; }
+    td input[type=text], td input[type=number], td input[type=date], td input:not([type]), td select { font-size: 15px; }
+    .linha > label.c, .linha > label.c input:not([type=checkbox]):not([type=radio]), .linha > label.c select { max-width: 100%; }
+    .linha > label.c[style*="flex-direction:row"] { flex-wrap: wrap; max-width: 100%; } .linha > label.c[style*="flex-direction:row"] select { min-width: 0; flex: 1 1 160px; }
+    .painel { padding: 12px; }
+    .pg-title { font-size: 21px; }
+    .pg-acoes { width: 100%; } .pg-acoes button { flex: 1; justify-content: center; }
+    /* tabelas de lista viram cartões */
+    .tab-dados thead { display: none; }
+    .tab-dados, .tab-dados tbody, .tab-dados tr, .tab-dados td { display: block; width: 100%; }
+    .tab-dados tr { border-bottom: 1px solid var(--borda); padding: 10px 12px; }
+    .tab-dados td { border: 0; padding: 2px 0; text-align: left !important; }
+    .tab-dados td[data-l]:not([data-l=""])::before { content: attr(data-l) ": "; color: var(--cinza); font-size: 11px; font-weight: 700; }
+    .tab-dados td.cab-l { font-size: 14px; }
+    .tab-dados .acoes-lin { margin-top: 6px; flex-wrap: wrap; } .tab-dados .acoes-lin a { padding: 5px 10px; font-size: 12px; }
+    .fo-tab tr.det > td { padding: 10px 0 4px; }
+    .rolagem { max-height: none; }
+    .kpis { margin-left: 0; width: 100%; } .kpi { flex: 1; min-width: 0; padding: 6px 10px; } .kpi b { font-size: 16px; }
+    #toast { left: 12px; right: 12px; bottom: 80px; max-width: none; }
+  }
 
   /* ===== componentes das telas (v69) ===== */
   .pg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 2px 0 18px; flex-wrap: wrap; }
@@ -315,6 +358,8 @@
   </div>
   <div class="sidebar-bottom">Duas lojas. Uma gestão.</div>
 </nav>
+<div id="veu"></div>
+<nav id="barraMob" aria-label="Atalhos"><button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span></button><button class="aba" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span></button><button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span></button><button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span></button><button id="bMenuMob" title="todas as abas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Menu</span></button></nav>
 <main id="principal" style="display:none">
  <div id="vEntrada">
   <div class="painel ent-topo" id="entTopo">
@@ -1529,7 +1574,8 @@ function mostrar(v, semHist) {
   vista = v;
   for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
-  { const b = document.querySelector('.aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
+  { const b = document.querySelector('nav#abas .aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
+  document.body.classList.remove("menu-aberto");
   redesenharTudo();
   if (v === "vendas") vdCarregar();
   if (v === "orcamentos") orDesenharLista();
@@ -1681,7 +1727,7 @@ function desenharGerencia() {
   for (const n of lista) {
     const [k, txtS, cls] = sitNota(n), bs = n.boletos || [], pagos = bs.filter(b => b.pago).length, tr = document.createElement("tr");
     const prox = bs.filter(b => !b.pago && b.venc).map(b => b.venc).sort()[0];
-    tr.innerHTML = `<td>${dataBr(n.criado)}</td><td><span class="forn">${h(n.emit)}</span></td><td>${h(rotNota(n))}</td><td class="n">${n.itens || "-"}</td><td class="n"><b>${n.vNF ? br(n.vNF) : "-"}</b></td><td><span class="chip ${cls}">${txtS}</span></td><td>${bs.length ? pagos + " de " + bs.length + " pagos" + (prox ? `<span class="sub">próximo ${dataBr(prox)}</span>` : "") : "-"}</td>` +
+    tr.innerHTML = `<td data-l="Criada em">${dataBr(n.criado)}</td><td class="cab-l"><span class="forn">${h(n.emit)}</span></td><td data-l="Nota">${h(rotNota(n))}</td><td class="n" data-l="Itens">${n.itens || "-"}</td><td class="n" data-l="Valor"><b>${n.vNF ? br(n.vNF) : "-"}</b></td><td><span class="chip ${cls}">${txtS}</span></td><td data-l="Boletos">${bs.length ? pagos + " de " + bs.length + " pagos" + (prox ? `<span class="sub">próximo ${dataBr(prox)}</span>` : "") : "-"}</td>` +
       `<td><span class="acoes-lin"><a data-a="abrir">abrir</a><a data-a="forn" title="corrigir o nome do fornecedor">fornecedor</a><a data-a="concl">${n.concluida ? "reabrir" : "concluir"}</a><a data-a="excl" class="perigo">excluir</a></span></td>`;
     tr.querySelector("[data-a=abrir]").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(n.id); });
     tr.querySelector("[data-a=concl]").addEventListener("click", () => salvarMeta(n.id, { concluida: n.concluida ? null : new Date().toISOString() }));
@@ -3896,7 +3942,7 @@ function foDesenhar() {
   document.getElementById("foKpis").innerHTML = `<div class="kpi"><small>Fornecedores</small><b>${FO.lista.length}</b></div><div class="kpi"><small>Notas lidas</small><b>${FO.notas.length}</b></div><div class="kpi"><small>Total em notas</small><b>${orBrl(tot)}</b></div>`;
   if (!l.length) { el.innerHTML = `<div class="painel orig">${FO.lista.length ? "Nenhum fornecedor com esse filtro." : "Nenhum fornecedor ainda: eles aparecem aqui conforme as notas (XML) entram no sistema."}</div>`; return; }
   el.innerHTML = `<div class="rolagem" style="max-height:none"><table class="tab-dados fo-tab"><thead><tr><th>Fornecedor</th><th>CNPJ</th><th>IE</th><th>Cidade/UF</th><th>Telefone</th><th class="n">Notas</th><th class="n">Total comprado</th><th>Última nota</th></tr></thead><tbody>` +
-    l.map(f => `<tr data-c="${foA(f.cnpj)}" class="${FO.aberto === f.cnpj ? "aberto" : ""}"><td><span class="forn">${escH(f.razao || "")}</span>${f.fantasia && f.fantasia !== f.razao ? `<span class="sub">${escH(f.fantasia)}</span>` : ""}</td><td class="mono">${foCnpj(f.cnpj)}</td><td class="mono">${escH(f.ie || "")}</td><td>${escH(f.municipio || "")}${f.uf ? "/" + f.uf : ""}</td><td style="white-space:nowrap">${foFone(f.fone)}</td><td class="n">${f.qtd_notas}</td><td class="n"><b>${orBrl(f.total_comprado)}</b></td><td>${dataBr(f.ultima_nota)}</td></tr>` +
+    l.map(f => `<tr data-c="${foA(f.cnpj)}" class="${FO.aberto === f.cnpj ? "aberto" : ""}"><td class="cab-l"><span class="forn">${escH(f.razao || "")}</span>${f.fantasia && f.fantasia !== f.razao ? `<span class="sub">${escH(f.fantasia)}</span>` : ""}</td><td class="mono" data-l="CNPJ">${foCnpj(f.cnpj)}</td><td class="mono" data-l="IE">${escH(f.ie || "")}</td><td data-l="Cidade">${escH(f.municipio || "")}${f.uf ? "/" + f.uf : ""}</td><td style="white-space:nowrap" data-l="Telefone">${foFone(f.fone)}</td><td class="n" data-l="Notas">${f.qtd_notas}</td><td class="n" data-l="Total comprado"><b>${orBrl(f.total_comprado)}</b></td><td data-l="Última nota">${dataBr(f.ultima_nota)}</td></tr>` +
       (FO.aberto === f.cnpj ? `<tr class="det"><td colspan="8">${foDetalhe(f)}</td></tr>` : "")).join("") + `</tbody></table></div>`;
   for (const tr of el.querySelectorAll("tr[data-c]")) tr.addEventListener("click", () => { FO.aberto = FO.aberto === tr.dataset.c ? null : tr.dataset.c; foDesenhar(); });
   const det = el.querySelector("tr.det"); if (det) foLigarDetalhe(det, FO.lista.find(f => f.cnpj === FO.aberto));
@@ -4144,7 +4190,10 @@ document.getElementById("bEntPos").addEventListener("click", () => enviarAoGesta
 document.getElementById("lnkArq").addEventListener("click", () => { if (confirm("Baixar o arquivo da ENTRADA COMPLETA para rodar pelo atalho 'Subir precos no Gestao'?\n(Cancelar = arquivo só de preços)")) baixarArquivo("entrada"); else baixarArquivo("precos"); });
 for (const b of document.querySelectorAll(".aba")) b.addEventListener("click", () => mostrar(b.dataset.v));
 try { if (localStorage.getItem("entradaxml:menuCurto") === "1") document.body.classList.add("menu-curto"); } catch (e) {}
-document.getElementById("bMenu").addEventListener("click", () => { const c = document.body.classList.toggle("menu-curto"); try { localStorage.setItem("entradaxml:menuCurto", c ? "1" : "0"); } catch (e) {} });
+const ehCel = () => window.matchMedia("(max-width: 760px)").matches;
+document.getElementById("bMenuMob").addEventListener("click", () => document.body.classList.toggle("menu-aberto"));
+document.getElementById("veu").addEventListener("click", () => document.body.classList.remove("menu-aberto"));
+document.getElementById("bMenu").addEventListener("click", () => { if (ehCel()) { document.body.classList.toggle("menu-aberto"); return; } const c = document.body.classList.toggle("menu-curto"); try { localStorage.setItem("entradaxml:menuCurto", c ? "1" : "0"); } catch (e) {} });
 for (const id of ["fNotaTxt", "fNotaSit"]) document.getElementById(id).addEventListener("input", desenharGerencia);
 document.getElementById("fBolPagos").addEventListener("change", desenharBoletos);
 document.getElementById("fValBaixa").addEventListener("change", desenharValidades);

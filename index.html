@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="68">
+<meta name="versao" content="69">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -158,6 +158,87 @@
   #login { box-shadow: 0 10px 30px rgba(27,45,75,.10); }
   @media (max-width: 900px) { #alertas { display: none; } }
   @media (max-width: 760px) { body { --menu: 60px; } nav#abas .brand-txt, .aba span, .aba .nav-count, nav#abas .sidebar-bottom { display: none; } nav#abas .nav-label { font-size: 0; height: 1px; margin: 10px 8px; padding: 0; background: rgba(255,255,255,.14); } .aba { justify-content: center; padding: 0; } main { padding: 14px 12px 60px; } header .ico { display: none; } #usuario { font-size: 0; } #usuario a { font-size: 11px; } }
+
+  /* ===== componentes das telas (v69) ===== */
+  .pg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 2px 0 18px; flex-wrap: wrap; }
+  .pg-title { font-size: 24px; line-height: 1.2; color: var(--azul); font-weight: 800; margin: 0; }
+  .pg-sub { color: var(--cinza); margin-top: 4px; font-size: 12px; font-weight: 600; }
+  .pg-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-ico { display: inline-flex; align-items: center; gap: 7px; }
+  .btn-ico svg, .badge svg, .task-icon svg, .task-link svg, .task-row svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .btn-ico svg { width: 15px; height: 15px; }
+  button.zap { background: var(--ok); border-color: var(--ok); } button.zap:hover { background: #155c3a; border-color: #155c3a; }
+  .sec-title { display: flex; align-items: center; gap: 10px; margin: 24px 0 12px; }
+  .sec-title:first-child { margin-top: 0; }
+  .sec-title h2 { font-size: 14px; font-weight: 800; color: var(--azul); margin: 0; white-space: nowrap; }
+  .sec-title .sec-linha { height: 1px; background: var(--borda); flex: 1; }
+  .sec-title .sec-extra { font-size: 12px; color: var(--cinza); font-weight: 600; white-space: nowrap; } .sec-title .sec-extra b { color: var(--azul); margin-left: 4px; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 800; white-space: nowrap; line-height: 1.4; }
+  .badge svg { width: 12px; height: 12px; }
+  .badge.ok { background: var(--ok-suave); color: var(--ok); } .badge.av { background: var(--av-suave); color: var(--alerta); }
+  .badge.falta { background: var(--erro-suave); color: #b42318; } .badge.neutro { background: var(--muted); color: var(--cinza); }
+  .badge.l1 { background: #e3f0f4; color: var(--loja1); } .badge.l2 { background: #f8e6ed; color: var(--loja2); } .badge.novo { background: #e7e9fb; color: #3730a3; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; background: currentColor; flex-shrink: 0; }
+  .sales-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .sales-card { background: #fff; border: 1px solid var(--borda); border-top: 3px solid var(--loja1); border-radius: 7px; padding: 18px 20px 15px; box-shadow: var(--sombra); }
+  .sales-card.l2 { border-top-color: var(--loja2); }
+  .sales-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .sales-top h3 { font-size: 13px; font-weight: 800; color: var(--azul); margin: 0; }
+  .sales-top .loja-nome { font-size: 11px; color: var(--cinza); margin-top: 3px; font-weight: 600; }
+  .sales-meio { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .sales-num { color: var(--azul); font-size: 32px; font-weight: 800; line-height: 1.35; margin-top: 10px; font-variant-numeric: tabular-nums; }
+  .sparkline { width: 120px; height: 40px; color: var(--loja1); flex-shrink: 0; } .l2 .sparkline { color: var(--loja2); }
+  .sparkline path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .sparkline circle { fill: currentColor; }
+  .sales-comp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--borda); padding-top: 12px; margin-top: 14px; }
+  .sales-comp span { display: block; font-size: 10.5px; color: var(--cinza); margin-bottom: 3px; font-weight: 600; }
+  .sales-comp strong { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tasks-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .task-card { background: #fff; border: 1px solid var(--borda); border-radius: 7px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--sombra); }
+  .task-card.wide { grid-column: span 2; }
+  .task-head { display: flex; align-items: center; gap: 9px; padding: 14px 16px 10px; font-weight: 800; color: var(--azul); }
+  .task-icon { background: var(--muted); border-radius: 5px; width: 28px; height: 28px; display: grid; place-items: center; flex-shrink: 0; }
+  .task-icon svg { width: 15px; height: 15px; }
+  .task-count { margin-left: auto; color: var(--cinza); font-size: 11px; font-weight: 600; }
+  .task-body { padding: 0 16px 12px; flex: 1; }
+  .task-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: 12px; }
+  .task-row + .task-row { border-top: 1px solid var(--muted); }
+  .task-row strong { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .task-row svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .task-row.erro { color: #b42318; } .task-row.av { color: var(--alerta); } .task-row.vazio { color: var(--cinza); }
+  .task-nota { font-size: 11px; color: var(--cinza); margin-top: 8px; }
+  .task-link { display: flex; align-items: center; justify-content: space-between; background: #f8f9fb; border-top: 1px solid var(--borda); padding: 9px 16px; color: var(--azul); font-size: 11.5px; font-weight: 800; cursor: pointer; text-decoration: none; }
+  .task-link:hover { background: #eef6fa; } .task-link svg { width: 13px; height: 13px; }
+  .debt { padding: 8px 10px; margin-top: 8px; background: #f4f2fd; color: var(--excl); border-radius: 5px; display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; }
+  .task-dupla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .eyebrow { font-size: 10px; text-transform: uppercase; font-weight: 800; color: var(--cinza); letter-spacing: 1px; }
+  .rodape-pg { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; color: var(--cinza); font-size: 11px; font-weight: 600; flex-wrap: wrap; }
+  /* lista de notas */
+  .filtros { display: flex; align-items: flex-end; gap: 12px 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .kpis { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+  .kpi { background: #fff; border: 1px solid var(--borda); border-radius: 7px; padding: 7px 14px; min-width: 110px; box-shadow: var(--sombra); }
+  .kpi small { display: block; font-size: 10.5px; color: var(--cinza); font-weight: 700; }
+  .kpi b { font-size: 18px; font-weight: 800; color: var(--azul); }
+  .tab-dados td { padding: 10px 10px; vertical-align: middle; border-bottom-color: #edf0f3; }
+  .tab-dados th { padding: 9px 10px; text-transform: uppercase; font-size: 10px; letter-spacing: .4px; }
+  .tab-dados .forn { font-weight: 800; color: var(--azul); }
+  .tab-dados .sub { display: block; font-size: 10.5px; color: var(--cinza); margin-top: 2px; font-weight: 600; }
+  .tab-dados .chip { margin-top: 0; }
+  .acoes-lin { display: inline-flex; gap: 4px; white-space: nowrap; }
+  .acoes-lin a { font-size: 11px; font-weight: 700; color: var(--azul); border: 1px solid var(--borda); border-radius: 4px; padding: 2px 8px; cursor: pointer; text-decoration: none; background: #fff; }
+  .acoes-lin a:hover { background: var(--muted); } .acoes-lin a.perigo { color: #b42318; } .acoes-lin a.perigo:hover { background: var(--erro-suave); border-color: #f2c4bf; }
+  /* entrada: cabeçalho da nota e barra de ações */
+  #cab { display: grid; grid-template-columns: minmax(220px, 2.4fr) repeat(6, minmax(0, 1fr)); gap: 12px 18px; }
+  #cab > div { min-width: 0; }
+  #cab > div:first-child b { font-size: 15px; }
+  #tot { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px 18px; }
+  #tot b { font-size: 18px; }
+  .quebra { flex-basis: 100%; height: 0; } .quebra.lin { border-top: 1px solid var(--borda); margin: 2px 0; }
+  input::placeholder { font-weight: 400; color: #9aa3ad; }
+  .barra-acoes { border-top: 1px solid var(--borda); padding-top: 12px; margin-top: 2px; align-items: center !important; }
+  .legenda { font-size: 11px; color: var(--cinza); font-weight: 600; align-self: center; }
+  @media (max-width: 1100px) { .tasks-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #cab { grid-template-columns: 2fr repeat(3, 1fr); } .sales-num { font-size: 28px; } }
+  @media (min-width: 1500px) { .tasks-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (max-width: 760px) { .sales-grid, .tasks-grid, .task-dupla { grid-template-columns: 1fr; } .task-card.wide { grid-column: auto; } #cab { grid-template-columns: 1fr 1fr; } .kpis { margin-left: 0; } .sparkline { width: 80px; } }
 </style>
 </head>
 <body>
@@ -221,20 +302,23 @@
       <label class="c">% na nota (padrão)<input type="number" id="gPct" value="100" min="1" max="100" step="1" style="width:80px"></label>
       <label class="c">Acréscimo padrão sobre o custo (%)<input type="number" id="gMk" value="100" min="0" step="5" style="width:80px"></label>
       <label class="c">Arredondar venda para<select id="gArr"><option value="0">centavos</option><option value="0.1">R$ 0,10</option><option value="0.5" selected>R$ 0,50</option><option value="1">R$ 1,00</option></select></label>
-      <span class="c" style="font-size:11px;color:#556" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido · <a href="#" id="bAceitarSug" title="transforma a sugestão de todos os itens pendentes em preço definido, para eles poderem ir ao Gestão">aceitar preços sugeridos</a> · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
       <label class="c">O que vai no XML<select id="gModo"><option value="A">A — só destrinchar (valores da nota)</option><option value="B">B — custo final embutido (IPI e DIFAL dentro do valor)</option></select></label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option><option value="duas">Duas notas: uma de cada loja</option></select></label>
       <label class="c" id="lXml2" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="pedidos diferentes do mesmo fornecedor para as duas lojas: abra aqui a nota da Loja 2 e trabalhe as duas na mesma tela. Cada loja fica com a quantidade e o custo da sua própria nota.">Juntar a nota da Loja 2 <input type="file" id="fXml2" accept=".xml" style="max-width:190px"></label><span id="parInfo" class="orig"></span>
+      <div class="quebra"></div>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a coluna com o código / referência do produto no fornecedor"><input type="checkbox" id="gCod" style="width:18px;height:18px" checked> Mostrar código / referência</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
-      <button id="bXml">Gerar XML ajustado</button>
+      <span class="legenda" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido · <a href="#" id="bAceitarSug" title="transforma a sugestão de todos os itens pendentes em preço definido, para eles poderem ir ao Gestão">aceitar preços sugeridos</a> · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
+      <div class="quebra lin"></div>
       <button id="bEnt" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão da loja, pelo agente do PC 1. NÃO use junto com a importação do XML pelo Gestão, senão o estoque entra duas vezes.">Enviar ao Gestão (entrada completa)</button>
       <button id="bEntPos" title="faz a entrada completa no Gestão e, em seguida, manda o preço dos produtos que já existem direto para os caixas, sem precisar da Carga Completa. Produto novo só entra no caixa com a Carga Completa.">Enviar ao Gestão e ao POS</button>
+      <button id="bXml" class="sec">Gerar XML ajustado</button>
       <button id="bSql" class="sec" title="só custo, venda e categoria — para quando a nota foi importada pelo próprio Gestão">Enviar só preços e categorias</button>
       <button id="bSqlPos" class="sec" title="grava custo, venda e categoria no Gestão e manda o preço direto para os caixas">Só preços, no Gestão e no POS</button>
       <span id="stBaixa" class="chip av" style="display:none"></span>
       <span id="stBaixa2" class="chip av" style="display:none"></span>
       <span id="stAgente" class="orig" title="o agente é o programinha no PC 1 que grava no Gestão o que você envia daqui"></span>
+      <div class="quebra"></div>
       <a id="lnkArq" style="cursor:pointer;color:#0b57d0;font-size:12px" title="se o PC da loja estiver desligado: baixa o arquivo para rodar pelo atalho 'Subir precos no Gestao'">baixar arquivo em vez de enviar</a>
       <button id="bCsv" class="sec">Baixar tabela de preços (CSV)</button>
       <button id="bConcl" class="sec">Marcar como concluída</button>
@@ -268,12 +352,12 @@
   <div id="busca"></div>
  </div>
  <div id="vNotas" style="display:none">
-  <div class="painel linha">
-    <label class="c">Procurar<input type="text" id="fNotaTxt" placeholder="fornecedor ou número" style="width:240px"></label>
+  <div class="filtros">
+    <label class="c">Procurar<input type="text" id="fNotaTxt" placeholder="fornecedor ou número" style="width:260px"></label>
     <label class="c">Situação<select id="fNotaSit"><option value="">todas</option><option value="a">em andamento</option><option value="e">enviadas ao Gestão</option><option value="c">concluídas</option></select></label>
-    <div class="resumo" id="resNotas"></div>
+    <div class="kpis" id="resNotas"></div>
   </div>
-  <div class="rolagem"><table><thead><tr><th>Criada em</th><th>Fornecedor</th><th>Nota</th><th class="n">Itens</th><th class="n">Valor</th><th>Situação</th><th>Boletos</th><th></th></tr></thead><tbody id="tbNotas"></tbody></table></div>
+  <div class="rolagem"><table class="tab-dados"><thead><tr><th>Criada em</th><th>Fornecedor</th><th>Nota</th><th class="n">Itens</th><th class="n">Valor</th><th>Situação</th><th>Boletos</th><th></th></tr></thead><tbody id="tbNotas"></tbody></table></div>
  </div>
  <div id="vBoletos" style="display:none">
   <div class="painel linha"><div class="resumo" id="resBol"></div><label style="margin-left:auto"><input type="checkbox" id="fBolPagos"> mostrar pagos</label></div>
@@ -336,7 +420,7 @@
   </div>
   <div id="olEd" class="painel" style="display:none"></div>
  </div>
- <div id="vHoje" style="display:none"><div class="painel"><b>Painel do dia</b> <span class="orig">— vendas, boletos, validades e pendências das duas lojas; atualiza sozinho a cada 2 minutos</span><div id="hjPainel" style="margin-top:8px"><span class="orig">carregando…</span></div></div></div>
+ <div id="vHoje" style="display:none"><div id="hjPainel"><span class="orig">carregando…</span></div></div>
  <div id="vTransf" style="display:none">
   <div class="painel">
     <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1529,14 +1613,15 @@ function desenharGerencia() {
   const q = semAcento(document.getElementById("fNotaTxt").value.toLowerCase()), sit = document.getElementById("fNotaSit").value;
   const todas = [...fonteNotas()].sort((a, b) => (b.criado || "").localeCompare(a.criado || ""));
   const conta = k => todas.filter(n => sitNota(n)[0] === k).length;
-  document.getElementById("resNotas").innerHTML = `<div><small>Em andamento</small><b>${conta("a")}</b></div><div><small>Enviadas ao Gestão</small><b>${conta("e")}</b></div><div><small>Concluídas</small><b>${conta("c")}</b></div>`;
+  document.getElementById("resNotas").innerHTML = `<div class="kpi"><small>Em andamento</small><b>${conta("a")}</b></div><div class="kpi"><small>Enviadas ao Gestão</small><b>${conta("e")}</b></div><div class="kpi"><small>Concluídas</small><b>${conta("c")}</b></div>`;
   const tb = document.getElementById("tbNotas"); tb.innerHTML = "";
   const lista = todas.filter(n => (!sit || sitNota(n)[0] === sit) && (!q || semAcento((n.emit + " " + n.nnf).toLowerCase()).includes(q)));
   if (!lista.length) tb.innerHTML = `<tr><td colspan="8"><i>${db ? "Nenhuma nota encontrada." : "Sem armazenamento compartilhado, aparece aqui só a nota aberta."}</i></td></tr>`;
   for (const n of lista) {
     const [k, txtS, cls] = sitNota(n), bs = n.boletos || [], pagos = bs.filter(b => b.pago).length, tr = document.createElement("tr");
-    tr.innerHTML = `<td>${dataBr(n.criado)}</td><td>${h(n.emit)}</td><td>${h(rotNota(n))}</td><td class="n">${n.itens || "-"}</td><td class="n">${n.vNF ? br(n.vNF) : "-"}</td><td><span class="chip ${cls}">${txtS}</span></td><td>${bs.length ? pagos + " de " + bs.length + " pagos" : "-"}</td>` +
-      `<td style="white-space:nowrap"><a data-a="abrir" style="cursor:pointer;color:#0b57d0;text-decoration:underline">abrir</a> · <a data-a="forn" title="corrigir o nome do fornecedor" style="cursor:pointer;color:#0b57d0;text-decoration:underline">fornecedor</a> · <a data-a="concl" style="cursor:pointer;color:#0b57d0;text-decoration:underline">${n.concluida ? "reabrir" : "concluir"}</a> · <a data-a="excl" style="cursor:pointer;color:#b91c1c;text-decoration:underline">excluir</a></td>`;
+    const prox = bs.filter(b => !b.pago && b.venc).map(b => b.venc).sort()[0];
+    tr.innerHTML = `<td>${dataBr(n.criado)}</td><td><span class="forn">${h(n.emit)}</span></td><td>${h(rotNota(n))}</td><td class="n">${n.itens || "-"}</td><td class="n"><b>${n.vNF ? br(n.vNF) : "-"}</b></td><td><span class="chip ${cls}">${txtS}</span></td><td>${bs.length ? pagos + " de " + bs.length + " pagos" + (prox ? `<span class="sub">próximo ${dataBr(prox)}</span>` : "") : "-"}</td>` +
+      `<td><span class="acoes-lin"><a data-a="abrir">abrir</a><a data-a="forn" title="corrigir o nome do fornecedor">fornecedor</a><a data-a="concl">${n.concluida ? "reabrir" : "concluir"}</a><a data-a="excl" class="perigo">excluir</a></span></td>`;
     tr.querySelector("[data-a=abrir]").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(n.id); });
     tr.querySelector("[data-a=concl]").addEventListener("click", () => salvarMeta(n.id, { concluida: n.concluida ? null : new Date().toISOString() }));
     tr.querySelector("[data-a=forn]").addEventListener("click", () => { const v = prompt("Nome do fornecedor desta nota:", n.emit || ""); if (v != null && v.trim()) renomearFornecedor(n.id, v); });
@@ -3147,6 +3232,7 @@ async function hjCarregar() {
   clearTimeout(HJ.t); if (vista === "hoje") HJ.t = setTimeout(() => { if (vista === "hoje") hjCarregar(); }, 120000);
 }
 function hjDesenhar() {
+  const h_ = window.h || (t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]));
   const el = document.getElementById("hjPainel"); if (!el || vista !== "hoje") return;
   const V = HJ.vendas, h = V ? V.hojeIso : vdIso(new Date()), ontem = vdMais(h, -1);
   const vd = (l, d) => (V && V.porDia[l + "|" + d]) || 0;
@@ -3164,32 +3250,50 @@ function hjDesenhar() {
   const listas = [...OL.listas.values()].filter(L => L.status === "aberto" || L.status === "enviado");
   const nts = fonteNotas().filter(n => !n.concluida), ntsErro = nts.filter(n => (n.envio && n.envio.status === "erro") || (n.envio2 && n.envio2.status === "erro"));
   const lk = (txt, v) => `<a href="#" data-v="${v}" style="color:#0b57d0">${txt}</a>`;
+  const SEM = ["Domingo passado", "Segunda passada", "Terça passada", "Quarta passada", "Quinta passada", "Sexta passada", "Sábado passado"];
+  const dHoje = new Date(h + "T12:00:00"), dataLonga = dHoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const spark = l => { const vs = []; for (let i = 7; i >= 1; i--) vs.push(vd(l, vdMais(h, -i))); const mx = Math.max(...vs), mn = Math.min(...vs), W = 120, H = 40, p = 4;
+    if (!V || mx <= 0) return ""; const pts = vs.map((v, i) => [p + i * (W - 2 * p) / (vs.length - 1), H - p - (mx === mn ? .5 : (v - mn) / (mx - mn)) * (H - 2 * p)]);
+    const last = pts[pts.length - 1]; return `<svg class="sparkline" viewBox="0 0 ${W} ${H}" aria-label="vendas dos últimos 7 dias fechados"><title>vendas dos últimos 7 dias (até ontem)</title><path d="M${pts.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join(" L")}"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3"/></svg>`; };
+  const cardVenda2 = l => { const hj = vd(l, h), m = media7(l), sp = semana(l), ai = agenteInfo && agenteInfo[l], on = ai && ai.online, pc = m > 0 && hj > 0 ? (hj / m - 1) * 100 : null;
+    return `<article class="sales-card${l === 2 ? " l2" : ""}"><div class="sales-top"><div><h3>Loja ${l} — vendas de hoje</h3><div class="loja-nome">${l === 1 ? "Jardim Soraia" : "Limoeiro"}</div></div>${ai ? `<span class="badge ${on ? "ok" : "av"}" title="PC da loja (agente)"><span class="dot"></span>${on ? "PC online" : "PC sem contato"}</span>` : ""}</div>
+      <div class="sales-meio"><div><div class="sales-num">${V ? orBrl(hj) : "…"}</div>${pc != null ? `<span class="badge ${pc >= 0 ? "ok" : "av"}">${pc >= 0 ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>+` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>`}${br(pc, 0)}% vs média</span>` : `<span class="badge neutro">sem comparação ainda</span>`}</div>${spark(l)}</div>
+      <div class="sales-comp"><div><span>Ontem</span><strong>${orBrl(vd(l, ontem))}</strong></div><div><span>${SEM[dHoje.getDay()]}</span><strong>${orBrl(sp)}</strong></div><div><span>Média 7 dias</span><strong>${orBrl(m)}</strong></div></div></article>`; };
+  const tcard = (tit, ico, cont, v, corpo, wide) => `<article class="task-card${wide ? " wide" : ""}"><div class="task-head"><span class="task-icon">${ico}</span>${tit}<span class="task-count">${cont}</span></div><div class="task-body">${corpo}</div><a class="task-link" href="#" data-v="${v}">Ver ${tit.toLowerCase()}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></article>`;
+  const row = (cls, esq, dir) => `<div class="task-row${cls ? " " + cls : ""}"><span>${esq}</span>${dir}</div>`;
+  const valL = [...vv, ...v30].reduce((a, v) => { const l = lojaValidade(v); a[l === 2 ? 2 : l === 1 ? 1 : 0]++; return a; }, [0, 0, 0]);
+  const tf = typeof TF !== "undefined" ? (() => { const docs = [...TF.docs.values()]; return { pend: docs.filter(t => t.status === "enviada"), dv: docs.filter(t => t.status === "divergente"), sd: tfSaldo() }; })() : null;
+  const totHoje = vd(1, h) + vd(2, h);
   el.innerHTML = `
-    <div class="bcards" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${cardVenda(1)}${cardVenda(2)}</div>
-    <div class="bcards" style="margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-      <div class="bcard"><b>Boletos</b>
-        ${bv.length ? `<div><span class="chip falta">${bv.length} vencido${bv.length > 1 ? "s" : ""}</span> ${orBrl(soma(bv))}</div>` : ""}
-        ${bh.length ? `<div><span class="chip av">${bh.length} vence${bh.length > 1 ? "m" : ""} hoje</span> ${orBrl(soma(bh))}</div>` : ""}
-        <div>${b7.length} nos próximos 7 dias · ${orBrl(soma(b7))}</div>
-        ${l2rec.length ? `<div class="orig" title="parte da Loja 2 em boletos já vencidos ou de hoje que ainda não está marcada como recebida">Loja 2 me deve ${orBrl(l2soma)} (${l2rec.length} boleto${l2rec.length > 1 ? "s" : ""})</div>` : ""}
-        ${!bv.length && !bh.length && !b7.length ? `<div class="orig">nada vencendo nesta semana</div>` : ""}
-        <div>${lk("ver boletos →", "boletos")}</div></div>
-      <div class="bcard"><b>Validades</b>
-        ${vv.length ? `<div><span class="chip falta">${vv.length} vencido${vv.length > 1 ? "s" : ""}</span></div>` : ""}
-        <div>${v30.length} vence${v30.length === 1 ? "" : "m"} em 30 dias</div>
-        ${!vv.length && !v30.length ? `<div class="orig">nada perto de vencer</div>` : ""}
-        <div>${lk("ver validades →", "validades")}</div></div>
-      <div class="bcard"><b>Orçamentos</b>
-        <div>${orcs.length} em aberto · ${orBrl(orcTot)}${orcVenc.length ? ` <span class="chip av">${orcVenc.length} passaram da validade</span>` : ""}</div>
-        <div>${listas.length} lista${listas.length === 1 ? "" : "s"} escolar${listas.length === 1 ? "" : "es"} em andamento</div>
-        <div>${lk("ver orçamentos →", "orcamentos")}</div></div>
-      ${typeof TF !== "undefined" ? (() => { const pend = [...TF.docs.values()].filter(t => t.status === "enviada"), dv = [...TF.docs.values()].filter(t => t.status === "divergente"), sd = tfSaldo(); return `<div class="bcard"><b>Transferências</b><div>${pend.length} aguardando conferência${dv.length ? ` · <span class="chip falta">${dv.length} com divergência</span>` : ""}</div><div>${sd.saldo ? (sd.saldo > 0 ? "Loja 2 deve à Loja 1 " : "Loja 1 deve à Loja 2 ") + orBrl(Math.abs(sd.saldo)) : "acerto zerado"}</div><div>${lk("ver transferências →", "transf")}</div></div>`; })() : ""}
-      <div class="bcard"><b>Notas de entrada</b>
-        <div>${nts.length} em andamento${ntsErro.length ? ` · <span class="chip falta">${ntsErro.length} com erro no envio</span>` : ""}</div>
-        <div class="orig">${V && V.ult ? "vendas atualizadas " + new Date(V.ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "vendas: carregando…"}</div>
-        <div>${lk("ver notas →", "notas")}</div></div>
+    <div class="pg-head"><div><h1 class="pg-title">Hoje</h1><div class="pg-sub">${dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)} · as duas lojas num lugar só</div></div>
+      <div class="pg-acoes"><button class="sec btn-ico" id="hjAtu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg> Atualizar</button><button class="zap btn-ico" id="hjZap" title="abre o WhatsApp com o resumo pronto para mandar (escolha o contato ou o grupo)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg> Mandar resumo no WhatsApp</button></div></div>
+    <div class="sec-title"><h2>Vendas do dia</h2><span class="sec-linha"></span><span class="sec-extra">Total <b>${V ? orBrl(totHoje) : "…"}</b></span></div>
+    <div class="sales-grid">${cardVenda2(1)}${cardVenda2(2)}</div>
+    <div class="sec-title"><h2>O que precisa de atenção</h2><span class="sec-linha"></span></div>
+    <div class="tasks-grid">
+      ${tcard("Boletos", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg>`, `${bol.length} em aberto`, "boletos",
+        (bv.length ? row("erro", `<strong>${bv.length}</strong> vencido${bv.length > 1 ? "s" : ""}`, `<strong>${orBrl(soma(bv))}</strong>`) : "") +
+        (bh.length ? row("av", `<strong>${bh.length}</strong> vence${bh.length > 1 ? "m" : ""} hoje`, `<strong>${orBrl(soma(bh))}</strong>`) : "") +
+        row(b7.length ? "" : "vazio", `<strong>${b7.length}</strong> nos próximos 7 dias`, `<strong>${orBrl(soma(b7))}</strong>`) +
+        (l2rec.length ? `<div class="debt" title="parte da Loja 2 em boletos já vencidos ou de hoje que ainda não está marcada como recebida"><span>Loja 2 me deve (${l2rec.length} boleto${l2rec.length > 1 ? "s" : ""})</span><strong>${orBrl(l2soma)}</strong></div>` : ""))}
+      ${tcard("Validades", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 2v3"/><path d="M17 15.5v1.7l1 .625"/><path d="M21 8.936V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h3.935"/><path d="M3 9h9.873"/><path d="M8 2v3"/><circle cx="17" cy="17" r="5"/></svg>`, `${val.length} controlada${val.length === 1 ? "" : "s"}`, "validades",
+        (vv.length ? row("erro", `<strong>${vv.length}</strong> produto${vv.length > 1 ? "s" : ""} vencido${vv.length > 1 ? "s" : ""}`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`) : "") +
+        row(v30.length ? "av" : "vazio", `<strong>${v30.length}</strong> vence${v30.length === 1 ? "" : "m"} em 30 dias`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/></svg>`) +
+        (valL[1] || valL[2] ? `<div class="task-nota">Jardim Soraia <span class="badge l1">${valL[1]}</span> · Limoeiro <span class="badge l2">${valL[2]}</span></div>` : ""))}
+      ${tcard("Orçamentos", `<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>`, `${orcs.length} em aberto`, "orcamentos",
+        row(orcs.length ? "" : "vazio", `<strong>${orcs.length}</strong> em aberto`, `<strong>${orBrl(orcTot)}</strong>`) +
+        (orcVenc.length ? row("av", `<strong>${orcVenc.length}</strong> passaram da validade`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/></svg>`) : "") +
+        row(listas.length ? "" : "vazio", `<strong>${listas.length}</strong> lista${listas.length === 1 ? "" : "s"} escolar${listas.length === 1 ? "" : "es"}`, listas.length ? `<span class="badge neutro">em andamento</span>` : ""))}
+      ${tf ? tcard("Transferências", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>`, `${tf.pend.length + tf.dv.length} pendente${tf.pend.length + tf.dv.length === 1 ? "" : "s"}`, "transf",
+        row(tf.pend.length ? "av" : "vazio", `<strong>${tf.pend.length}</strong> aguardando conferência`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/></svg>`) +
+        (tf.dv.length ? row("erro", `<strong>${tf.dv.length}</strong> com divergência`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`) : "") +
+        `<div class="task-nota">${tf.sd.saldo ? (tf.sd.saldo > 0 ? "Loja 2 deve à Loja 1 " : "Loja 1 deve à Loja 2 ") + "<strong>" + orBrl(Math.abs(tf.sd.saldo)) + "</strong>" : "Acerto entre as lojas zerado"}</div>`) : ""}
+      ${tcard("Notas de entrada", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`, `${nts.length} em andamento`, "notas",
+        `<div class="task-dupla"><div>` + row(nts.length ? "" : "vazio", `<strong>${nts.length}</strong> em andamento`, nts.length ? `<span class="badge neutro">conferir</span>` : "") +
+        (ntsErro.length ? row("erro", `<strong>${ntsErro.length}</strong> com erro no envio`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`) : "") + `</div>` +
+        (() => { const u = [...fonteNotas()].sort((x, y) => (y.criado || "").localeCompare(x.criado || ""))[0]; return u ? `<div style="padding-top:6px"><span class="eyebrow">Última nota lançada</span><div style="font-weight:800;color:var(--azul);margin-top:6px">${h_(u.emit || "")}</div><div class="task-nota" style="margin-top:3px">${h_(rotNota(u))}${u.itens ? " · " + u.itens + " itens" : ""}${u.vNF ? " · " + orBrl(u.vNF) : ""}</div></div>` : "<div></div>"; })() + `</div>`, true)}
     </div>
-    <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button class="sec" id="hjZap" title="abre o WhatsApp com o resumo pronto para mandar (escolha o contato ou o grupo)">Mandar resumo no WhatsApp</button><button class="sec" id="hjAtu">Atualizar</button></div>`;
+    <div class="rodape-pg"><span>${V && V.ult ? "Vendas atualizadas às " + new Date(V.ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Vendas: carregando…"} · o painel se atualiza sozinho a cada 2 minutos</span><span>Valores do movimento de hoje</span></div>`;
   for (const a of el.querySelectorAll("a[data-v]")) a.addEventListener("click", ev => { ev.preventDefault(); mostrar(a.dataset.v); });
   el.querySelector("#hjAtu").addEventListener("click", () => { HJ.vendas = null; hjDesenhar(); hjCarregar(); });
   el.querySelector("#hjZap").addEventListener("click", () => {

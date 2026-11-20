@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="62">
+<meta name="versao" content="63">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --azul:#1F3864; --claro:#DDEBF7; --borda:#c9d3e0; --verde:#375623; --alerta:#b45309; --erro:#b91c1c; --ok:#166534; --cinza:#5b6472; }
@@ -128,7 +128,7 @@
   <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
 </div>
 <nav id="abas" style="display:none">
-  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button><button class="aba" data-v="transf">Transferências</button>
+  <button class="aba" data-v="hoje">Hoje</button><button class="aba ativa" data-v="entrada">Entrada</button><button class="aba" data-v="notas">Notas</button><button class="aba" data-v="produtos">Produtos</button><button class="aba" data-v="vendas">Vendas</button><button class="aba" data-v="boletos">Boletos</button><button class="aba" data-v="validades">Validades</button><button class="aba" data-v="avisos">Avisos</button><button class="aba" data-v="orcamentos">Orçamentos</button><button class="aba" data-v="transf">Transferências</button><button class="aba" data-v="compras">Compras</button>
   <span id="alertas"></span>
 </nav>
 <main id="principal" style="display:none">
@@ -286,6 +286,7 @@
   </div>
   <div id="tfEd" class="painel" style="display:none"></div>
  </div>
+ <div id="vCompras" style="display:none"><div class="painel"><b>Sugestão de compra</b> <span class="orig">— o que está acabando, pelo ritmo de venda do caixa e o estoque do cadastro; marque os itens e monte o pedido</span><div id="cpPainel" style="margin-top:8px"></div></div></div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
   <div class="painel"><b>Validades vencidas e dos próximos 30 dias</b><div id="avVal" style="margin-top:6px"></div></div>
@@ -1285,13 +1286,14 @@ async function salvarMeta(chave, patch) {
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 function mostrar(v) {
   vista = v;
-  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   redesenharTudo();
   if (v === "vendas") vdCarregar();
   if (v === "orcamentos") orDesenharLista();
   if (v === "hoje") { hjDesenhar(); hjCarregar(); }
   if (v === "transf") tfDesenharLista();
+  if (v === "compras") cpDesenhar();
 }
 const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
   : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
@@ -2233,6 +2235,22 @@ async function novaManual() {
   if (db) { await db.doc("notas/" + chave).set({ emit: nome, nnf: "sem nota", vNF: 0, itens: 0, criado: d.toISOString(), cfg: { ...cfgAtual(), gPct: 100, fb: 1 }, boletos: [] }); listaNotas.push({ id: chave, emit: nome, nnf: "sem nota", criado: d.toISOString(), boletos: [] }); await abrirNota(chave); }
   else { if (unsubItens) unsubItens(); xmlTexto = ""; doc = null; cab = cabManual(chave, nome); itens = []; baixadoEm = null; envioAtual = null; envio2Atual = null; aplicarDest("1"); metaLocal = { id: chave, emit: nome, nnf: "sem nota", criado: d.toISOString(), boletos: [] }; desenhar(); redesenharTudo(); }
   document.getElementById("addEan").focus();
+}
+// cria uma entrada sem nota já com itens (usada pelo pedido de compra da aba Compras)
+async function novaEntradaManual(nome, lista, loja) {
+  if (!db) return msg("Sem conexão com a nuvem.");
+  const d = new Date(), p = v => String(v).padStart(2, "0");
+  const chave = `M${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  await db.doc("notas/" + chave).set({ emit: nome, nnf: "sem nota", vNF: 0, itens: lista.length, criado: d.toISOString(), cfg: { ...cfgAtual(), gPct: 100, fb: 1, gDest: String(loja || 1) }, boletos: [] });
+  listaNotas.push({ id: chave, emit: nome, nnf: "sem nota", criado: d.toISOString(), boletos: [] });
+  const base = Date.now() * 10;
+  for (const [i, x] of lista.entries()) {
+    const it = itemManual({ n: base + i, xprod: String(x.desc || "").slice(0, 120), qtd: Number(x.qtd) || 0, vun: Number(x.custo) || 0, ean: x.ean || "", pv: Number(x.venda) > 0 ? r2(Number(x.venda)) : null });
+    it.desc = String(x.desc || "").slice(0, 60);
+    await db.doc(`notas/${chave}/itens/${idItem(it.n)}`).set(estadoItem(it));
+  }
+  mostrar("entrada"); await abrirNota(chave);
+  msg(`Entrada "${nome}" criada com ${lista.length} item(ns) e preço de venda atual mantido. Quando a mercadoria chegar, confira quantidades e custos e envie ao Gestão.`);
 }
 function desenharNotas() {
   const abertas = listaNotas.filter(n => !n.concluida);
@@ -3258,6 +3276,98 @@ function tfLigar() {
   document.getElementById("tfNova").addEventListener("click", tfNova);
   document.getElementById("tfFiltro").addEventListener("change", tfDesenharLista);
 }
+// ===================== Compras (sugestão de compra) =====================
+// RPC sugestao_compra(loja, dias, cobertura): giro por produto pelos cupons do caixa × estoque do cadastro. Estoque negativo é tratado como zero (desconhecido).
+// Itens marcados para ignorar ficam em config/compras {ignorar: [ean...]}; a lista de compra montada fica em memória até virar texto/CSV.
+const CP = { dados: null, loja: 1, dias: 60, cob: 30, ignorar: new Set(), pedido: new Map(), carregando: false, grupos: null, q: "", grupo: "", soSug: true, ocultarNeg: false, ordem: "valor" };
+async function cpCarregar() {
+  if (!supa || CP.carregando) return; CP.carregando = true; cpDesenhar();
+  try {
+    const { data, error } = await supa.rpc("sugestao_compra", { p_loja: CP.loja, p_dias: CP.dias, p_cobertura: CP.cob });
+    if (error) throw error;
+    CP.dados = data || []; const L = await prListas(); CP.grupos = new Map((L[CP.loja].G || []).map(([id, n]) => [String(id), n]));
+  } catch (e) { msg("Não consegui calcular a sugestão: " + (e.message || e)); CP.dados = []; }
+  CP.carregando = false; cpDesenhar();
+}
+function cpLinhas() {
+  const q = olNorm(CP.q), ws = q.split(" ").filter(Boolean);
+  return (CP.dados || []).filter(r => !CP.ignorar.has(r.ean) && (!CP.soSug || Number(r.sugestao) > 0 || CP.pedido.has(r.ean)) && (!CP.grupo || String(r.grupo) === CP.grupo) && (!CP.ocultarNeg || Number(r.estoque) >= 0)
+    && (!ws.length || ws.every(w => olNorm(r.descricao + " " + r.ean + " " + (r.fornecedor || "")).includes(w))))
+    .sort((a, b) => CP.ordem === "valor" ? (Number(b.sugestao) * Number(b.custo || 0)) - (Number(a.sugestao) * Number(a.custo || 0)) : CP.ordem === "giro" ? Number(b.media_dia) - Number(a.media_dia) : CP.ordem === "cob" ? Number(a.cobertura_dias) - Number(b.cobertura_dias) : String(a.descricao).localeCompare(String(b.descricao)));
+}
+function cpDesenhar() {
+  const el = document.getElementById("cpPainel"); if (!el) return;
+  const ped = [...CP.pedido.values()], pedTot = ped.reduce((a, p) => a + p.qtd * (p.custo || 0), 0);
+  const topo = `<div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <label class="c">Loja<select id="cpLoja"><option value="1" ${CP.loja === 1 ? "selected" : ""}>Loja 1</option><option value="2" ${CP.loja === 2 ? "selected" : ""}>Loja 2</option></select></label>
+      <label class="c" title="período de vendas usado para calcular o giro">Giro dos últimos<select id="cpDias"><option value="30" ${CP.dias === 30 ? "selected" : ""}>30 dias</option><option value="60" ${CP.dias === 60 ? "selected" : ""}>60 dias</option><option value="90" ${CP.dias === 90 ? "selected" : ""}>90 dias</option></select></label>
+      <label class="c" title="para quantos dias de venda você quer ter estoque">Cobrir<select id="cpCob"><option value="15" ${CP.cob === 15 ? "selected" : ""}>15 dias</option><option value="30" ${CP.cob === 30 ? "selected" : ""}>30 dias</option><option value="45" ${CP.cob === 45 ? "selected" : ""}>45 dias</option><option value="60" ${CP.cob === 60 ? "selected" : ""}>60 dias</option></select></label>
+      <button id="cpCalc">${CP.dados ? "Recalcular" : "Calcular"}</button>
+      <label class="c">Grupo<select id="cpGrupo"><option value="">todos</option>${[...(CP.grupos || new Map()).entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => `<option value="${id}" ${CP.grupo === id ? "selected" : ""}>${escH(n)}</option>`).join("")}</select></label>
+      <label class="c">Filtrar<input type="text" id="cpQ" value="${orA(CP.q)}" placeholder="produto, código ou fornecedor" style="width:200px"></label>
+      <label class="c">Ordem<select id="cpOrd"><option value="valor" ${CP.ordem === "valor" ? "selected" : ""}>valor a comprar</option><option value="giro" ${CP.ordem === "giro" ? "selected" : ""}>mais vendidos</option><option value="cob" ${CP.ordem === "cob" ? "selected" : ""}>acaba antes</option><option value="nome" ${CP.ordem === "nome" ? "selected" : ""}>nome</option></select></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="cpSoSug" ${CP.soSug ? "checked" : ""}> só com sugestão</label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:4px" title="estoque negativo no Gestão = contagem não confiável"><input type="checkbox" id="cpNeg" ${CP.ocultarNeg ? "checked" : ""}> ocultar estoque negativo</label>
+    </div>`;
+  let corpo = "";
+  if (CP.carregando) corpo = `<div class="orig" style="margin-top:8px">calculando o giro de ${CP.dias} dias… (alguns segundos)</div>`;
+  else if (!CP.dados) corpo = `<div class="orig" style="margin-top:8px">Escolha a loja e clique em Calcular. A conta usa as vendas do caixa (desde setembro) e o estoque atual do cadastro.</div>`;
+  else {
+    const L = cpLinhas(), base = CP.dados[0] ? CP.dados[0].dias_base : CP.dias;
+    const cobChip = d => d == null ? "" : d < 7 ? `<span class="chip falta">${br(d, 0)} d</span>` : d < 15 ? `<span class="chip av">${br(d, 0)} d</span>` : `<span class="chip ok">${br(d, 0)} d</span>`;
+    corpo = `<div class="orig" style="margin-top:6px">${CP.dados.length} produtos venderam na Loja ${CP.loja} nos últimos ${base} dias${base < CP.dias ? ` (o histórico do caixa começa em setembro, então a média usa ${base} dias)` : ""}; ${L.length} na lista abaixo. <b>Sugestão</b> = média diária × ${CP.cob} dias − estoque atual (estoque negativo conta como zero).</div>
+      <div style="overflow:auto;margin-top:6px;max-height:70vh"><table><thead><tr><th></th><th>Produto</th><th class="n" title="unidades vendidas no período">Vend.</th><th class="n" title="média por semana">/sem</th><th class="n">Estoque</th><th class="n" title="dias até acabar, no ritmo atual">Dura</th><th class="n">Sugestão</th><th class="n">Custo</th><th class="n">Total</th><th>Última compra (site)</th><th></th></tr></thead><tbody>
+      ${L.slice(0, 400).map(r => { const p = CP.pedido.get(r.ean), q = p ? p.qtd : Number(r.sugestao), neg = Number(r.estoque) < 0;
+        return `<tr data-e="${r.ean}" class="${p ? "pok" : ""}"><td><input type="checkbox" data-sel ${p ? "checked" : ""} title="incluir no pedido"></td>
+        <td>${escH(r.descricao)}<div class="orig mono" style="font-size:10px">${escH(r.ean)}${r.grupo && CP.grupos && CP.grupos.get(String(r.grupo)) ? " · " + escH(CP.grupos.get(String(r.grupo))) : ""} · venda ${orBrl(r.venda)}</div></td>
+        <td class="n">${br(r.vendidos, 0)}<div class="orig" style="font-size:10px">${r.dias_com_venda} dia${r.dias_com_venda > 1 ? "s" : ""}</div></td><td class="n">${br(Number(r.media_dia) * 7, 1)}</td>
+        <td class="n" ${neg ? 'style="color:#b42318" title="estoque negativo no Gestão: contagem não confiável"' : ""}>${br(r.estoque, 0)}${neg ? " ⚠" : ""}</td><td class="n">${neg ? `<span class="chip falta" title="sem estoque confiável">?</span>` : cobChip(Number(r.cobertura_dias))}</td>
+        <td class="n"><input type="number" data-q min="0" step="1" value="${q}" style="width:64px;text-align:right"></td><td class="n">${br(r.custo || 0, 2)}</td><td class="n"><b>${orBrl(q * (r.custo || 0))}</b></td>
+        <td style="font-size:11px">${r.fornecedor ? escH(r.fornecedor.slice(0, 28)) + `<div class="orig">${new Date(r.ult_compra).toLocaleDateString("pt-BR")}</div>` : `<span class="orig">—</span>`}</td>
+        <td><a href="#" data-ign title="não sugerir mais este produto" style="color:#8a94a6">ignorar</a></td></tr>`; }).join("")}
+      </tbody></table>${L.length > 400 ? `<div class="orig">mostrando 400 de ${L.length}; use o filtro</div>` : ""}</div>`;
+  }
+  const rodape = ped.length ? `<div class="painel" style="background:#e6f6e6;margin-top:8px"><b>Pedido: ${ped.length} produto(s) · ${orBrl(pedTot)} a custo</b>
+      <div class="linha" style="gap:6px;flex-wrap:wrap;margin-top:4px"><button class="sec" id="cpZap">Texto p/ WhatsApp</button><button class="sec" id="cpCopiar">Copiar lista</button><button class="sec" id="cpCsv">Baixar planilha (CSV)</button><button class="sec" id="cpEntrada" title="abre uma entrada sem nota já com estes itens e quantidades, para quando a mercadoria chegar">Criar entrada sem nota</button><button class="sec" id="cpLimpar">Limpar pedido</button></div>
+      <div class="orig" style="margin-top:4px">${[...new Set(ped.map(p => p.fornecedor || "fornecedor não identificado"))].map(f => `${escH(f)}: ${ped.filter(p => (p.fornecedor || "fornecedor não identificado") === f).length}`).join(" · ")}</div></div>` : "";
+  el.innerHTML = topo + corpo + rodape + (CP.ignorar.size ? `<div class="orig" style="margin-top:6px">${CP.ignorar.size} produto(s) ignorado(s) <a href="#" id="cpVerIgn">(ver / restaurar)</a></div>` : "");
+  const g = id => el.querySelector("#" + id), rec = () => { CP.dados = null; cpCarregar(); };
+  g("cpLoja").addEventListener("change", ev => { CP.loja = Number(ev.target.value); CP.grupo = ""; CP.pedido.clear(); rec(); });
+  g("cpDias").addEventListener("change", ev => { CP.dias = Number(ev.target.value); rec(); }); g("cpCob").addEventListener("change", ev => { CP.cob = Number(ev.target.value); rec(); });
+  g("cpCalc").addEventListener("click", rec);
+  g("cpGrupo").addEventListener("change", ev => { CP.grupo = ev.target.value; cpDesenhar(); }); g("cpOrd").addEventListener("change", ev => { CP.ordem = ev.target.value; cpDesenhar(); });
+  g("cpSoSug").addEventListener("change", ev => { CP.soSug = ev.target.checked; cpDesenhar(); }); g("cpNeg").addEventListener("change", ev => { CP.ocultarNeg = ev.target.checked; cpDesenhar(); });
+  const qi = g("cpQ"); qi.addEventListener("input", () => { CP.q = qi.value; clearTimeout(CP.qt); CP.qt = setTimeout(() => { cpDesenhar(); const i = document.getElementById("cpQ"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 350); });
+  for (const tr of el.querySelectorAll("tr[data-e]")) {
+    const r = (CP.dados || []).find(x => x.ean === tr.dataset.e); if (!r) continue;
+    const sel = tr.querySelector("[data-sel]"), qi2 = tr.querySelector("[data-q]");
+    const por = () => { const q = Math.max(0, parseFloat(qi2.value) || 0); if (sel.checked && q > 0) CP.pedido.set(r.ean, { ean: r.ean, desc: r.descricao, qtd: q, custo: Number(r.custo) || 0, fornecedor: r.fornecedor, venda: Number(r.venda) || 0 }); else CP.pedido.delete(r.ean); cpDesenhar(); };
+    sel.addEventListener("change", por); qi2.addEventListener("change", () => { if (!sel.checked) sel.checked = true; por(); });
+    tr.querySelector("[data-ign]").addEventListener("click", ev => { ev.preventDefault(); CP.ignorar.add(r.ean); CP.pedido.delete(r.ean); cpSalvarIgn(); cpDesenhar(); });
+  }
+  if (g("cpVerIgn")) g("cpVerIgn").addEventListener("click", ev => { ev.preventDefault(); const nomes = [...CP.ignorar].map(e => { const r = (CP.dados || []).find(x => x.ean === e); return (r ? r.descricao : e); }); if (confirm("Ignorados:\n" + nomes.join("\n") + "\n\nRestaurar todos?")) { CP.ignorar.clear(); cpSalvarIgn(); cpDesenhar(); } });
+  if (ped.length) {
+    const texto = () => { const porF = {}; for (const p of ped) (porF[p.fornecedor || "Fornecedor não identificado"] = porF[p.fornecedor || "Fornecedor não identificado"] || []).push(p);
+      const T = [`*Pedido de compra — Loja ${CP.loja} — ${new Date().toLocaleDateString("pt-BR")}*`, `(giro de ${CP.dias} dias, para cobrir ${CP.cob} dias)`, ""];
+      for (const f of Object.keys(porF).sort()) { T.push(`*${f}*`); for (const p of porF[f]) T.push(`• ${br(p.qtd, 0)}× ${p.desc} (${p.ean}) ~${orBrl(p.qtd * p.custo)}`); T.push(""); }
+      T.push(`Total estimado a custo: ${orBrl(pedTot)}`); return T.join("\n"); };
+    g("cpZap").addEventListener("click", () => window.open("https://wa.me/?text=" + encodeURIComponent(texto()), "_blank"));
+    g("cpCopiar").addEventListener("click", async () => { try { await navigator.clipboard.writeText(texto()); msg("Lista copiada."); } catch (_e) { prompt("Copie:", texto()); } });
+    g("cpCsv").addEventListener("click", () => { const linhas = [["ean", "produto", "fornecedor", "quantidade", "custo", "total", "preco_venda"], ...ped.map(p => [p.ean, p.desc, p.fornecedor || "", p.qtd, String(p.custo).replace(".", ","), String(r2(p.qtd * p.custo)).replace(".", ","), String(p.venda).replace(".", ",")])]; const csv = "﻿" + linhas.map(l => l.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = `pedido-compra-loja${CP.loja}-${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); });
+    g("cpLimpar").addEventListener("click", () => { CP.pedido.clear(); cpDesenhar(); });
+    g("cpEntrada").addEventListener("click", () => cpCriarEntrada(ped));
+  }
+}
+function cpSalvarIgn() { if (db) db.doc("config/compras").set({ ignorar: [...CP.ignorar] }).catch(() => {}); }
+function cpCriarEntrada(ped) {
+  if (typeof novaEntradaManual !== "function") return msg("Abra a aba Entrada e use 'Nova entrada sem nota'; a lista está copiada.");
+  const itens = ped.map(p => ({ ean: p.ean, desc: p.desc, qtd: p.qtd, custo: p.custo, venda: p.venda }));
+  novaEntradaManual(`Pedido de compra Loja ${CP.loja} ${new Date().toLocaleDateString("pt-BR")}`, itens, CP.loja);
+}
+function cpLigar() {
+  if (!db) return;
+  db.doc("config/compras").onSnapshot(d => { CP.ignorar = new Set(d.exists && d.data().ignorar || []); if (vista === "compras") cpDesenhar(); }, () => {});
+}
 function orLigar() {
   if (!db) return;
   db.collection("orcamentos").onSnapshot(s => { const atualId = OR.atual && OR.atual.id; OR.docs = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (atualId) { const a = OR.docs.get(atualId); if (a && JSON.stringify(a) !== JSON.stringify(OR.atual) && !OR.salvarT) { OR.atual = a; orDesenharEd(); } else if (a) OR.docs.set(atualId, OR.atual); } orDesenharLista(); }, () => {});
@@ -3265,7 +3375,7 @@ function orLigar() {
   document.getElementById("orNovo").addEventListener("click", orNovo);
   document.getElementById("orFiltro").addEventListener("change", orDesenharLista);
   document.getElementById("orCfgLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("orCfgBox"); if (b.style.display === "none") { orDesenharCfg(); b.style.display = ""; } else b.style.display = "none"; });
-  olLigar(); tfLigar();
+  olLigar(); tfLigar(); cpLigar();
 }
 function ligarOuvintes() {
   orLigar();

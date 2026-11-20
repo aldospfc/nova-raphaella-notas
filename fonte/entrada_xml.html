@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="70">
+<meta name="versao" content="71">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -21,8 +21,8 @@
   .linha { display: flex; gap: 14px 18px; flex-wrap: wrap; align-items: flex-end; }
   label.c { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 700; color: var(--cinza); }
   input, select, button { font: inherit; }
-  input[type=text], input[type=number], input[type=email], input[type=password], input[type=date], input[type=search], input[type=tel], input:not([type]), select, textarea { border: 1px solid var(--borda); border-radius: 5px; padding: 5px 8px; background: #fff; color: var(--texto); font-weight: 600; }
-  td input[type=text], td input[type=number], td input[type=date], td input:not([type]), td select { padding: 3px 5px; border-radius: 4px; }
+  input[type=text], input[type=number], input[type=email], input[type=password], input[type=date], input[type=time], input[type=search], input[type=tel], input:not([type]), select, textarea { border: 1px solid var(--borda); border-radius: 5px; padding: 5px 8px; background: #fff; color: var(--texto); font-weight: 600; }
+  td input[type=text], td input[type=number], td input[type=date], td input[type=time], td input:not([type]), td select { padding: 3px 5px; border-radius: 4px; }
   input:focus, select:focus, textarea:focus { outline: 2px solid var(--loja1); outline-offset: 0; border-color: var(--loja1); }
   input[type=checkbox], input[type=radio] { accent-color: var(--loja1); }
   input[type=file] { font-size: 12px; color: var(--cinza); }
@@ -3603,9 +3603,12 @@ function cpLigar() {
   db.doc("config/compras").onSnapshot(d => { CP.ignorar = new Set(d.exists && d.data().ignorar || []); if (vista === "compras") cpDesenhar(); }, () => {});
 }
 // ===================== Promoções =====================
-// Tabela promocoes (Supabase): preço promocional por produto e loja com início e fim; a função promocoes_rodar (a cada 15 min no banco, e na hora quando o site chama)
+// Tabela promocoes (Supabase): preço promocional por produto e loja com início e fim (data e, opcional, hora; "diario" = todo dia só entre hora_ini e hora_fim);
+// a função promocoes_rodar (a cada minuto no banco, e na hora quando o site chama)
 // gera os pedidos na fila para o Gestão + caixas no início e devolve o preço normal no fim. Só preço de item; combos dependem do caixa (ver investigação).
 const PM = { lista: [], novo: null, filtro: "vigentes", busca: [] };
+const pmH = t => t ? String(t).slice(0, 5) : "";
+const pmPer = p => p.diario ? `${orData(p.inicio)} a ${orData(p.fim)}, todo dia ${pmH(p.hora_ini) || "00:00"}–${pmH(p.hora_fim) || "24:00"}` : `${orData(p.inicio)}${p.hora_ini ? " " + pmH(p.hora_ini) : ""} – ${orData(p.fim)}${p.hora_fim ? " " + pmH(p.hora_fim) : ""}`;
 const pmDesc = (de, por) => de > 0 ? Math.round((1 - por / de) * 1000) / 10 : 0;
 async function pmCarregar() {
   if (!supa) return;
@@ -3613,21 +3616,22 @@ async function pmCarregar() {
   PM.lista = data || []; pmDesenhar();
 }
 function pmNovo(pre) {
-  PM.novo = { nome: "", lojas: { 1: true, 2: false }, inicio: vdIso(new Date()), fim: vdMais(vdIso(new Date()), 7), itens: [] };
+  PM.novo = { nome: "", lojas: { 1: true, 2: false }, inicio: vdIso(new Date()), fim: vdMais(vdIso(new Date()), 7), hora_ini: "", hora_fim: "", diario: false, itens: [] };
   pmDesenhar(); if (pre) pmBuscar(pre, true); else setTimeout(() => { const q = document.getElementById("pmQ"); if (q) q.focus(); }, 50);
 }
 function pmDesenhar() {
   const el = document.getElementById("pmPainel"); if (!el) return;
   const hoje = vdIso(new Date()), f = PM.filtro;
-  const vis = PM.lista.filter(p => f === "todas" ? true : f === "vigentes" ? (p.status === "ativa" || p.status === "agendada") : p.status === f);
-  const stChip = p => p.status === "ativa" ? `<span class="chip ok">ativa até ${orData(p.fim)}</span>` : p.status === "agendada" ? `<span class="chip av">começa ${orData(p.inicio)}</span>` : p.status === "encerrada" ? `<span class="chip" style="background:#eee">encerrada</span>` : `<span class="chip" style="background:#eee">cancelada</span>`;
+  const vis = PM.lista.filter(p => f === "todas" ? true : f === "vigentes" ? (p.status === "ativa" || p.status === "agendada" || p.status === "pausada") : p.status === f);
+  const stChip = p => p.status === "ativa" ? `<span class="chip ok">ativa até ${p.diario ? (pmH(p.hora_fim) || "24:00") + " de hoje" : orData(p.fim) + (p.hora_fim ? " " + pmH(p.hora_fim) : "")}</span>` : p.status === "agendada" ? `<span class="chip av">começa ${orData(p.inicio)}${p.hora_ini ? " " + pmH(p.hora_ini) : ""}</span>` : p.status === "pausada" ? `<span class="chip novo" title="promoção diária fora do horário: preço normal agora">fora do horário · volta ${pmH(p.hora_ini) || "00:00"}</span>` : p.status === "encerrada" ? `<span class="chip" style="background:#eee">encerrada</span>` : `<span class="chip" style="background:#eee">cancelada</span>`;
   const n = PM.novo;
   const form = n ? `<div class="painel" style="border:1px solid #0b57d0;margin-bottom:8px">
     <div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
       <label class="c">Nome da promoção<input type="text" id="pmNome" value="${orA(n.nome)}" placeholder="ex.: Semana do caderno" style="width:220px"></label>
       <label class="c">Lojas<span class="linha" style="gap:8px"><label><input type="checkbox" id="pmL1" ${n.lojas[1] ? "checked" : ""}> Loja 1</label><label><input type="checkbox" id="pmL2" ${n.lojas[2] ? "checked" : ""}> Loja 2</label></span></label>
-      <label class="c">Início<input type="date" id="pmIni" value="${n.inicio}"></label>
-      <label class="c">Fim (último dia)<input type="date" id="pmFim" value="${n.fim}"></label>
+      <label class="c">Início<span class="linha" style="gap:4px;flex-wrap:nowrap"><input type="date" id="pmIni" value="${n.inicio}"><input type="time" id="pmHi" value="${n.hora_ini}" title="hora de início (em branco = começo do dia)" style="width:92px"></span></label>
+      <label class="c">Fim (último dia)<span class="linha" style="gap:4px;flex-wrap:nowrap"><input type="date" id="pmFim" value="${n.fim}"><input type="time" id="pmHf" value="${n.hora_fim}" title="hora de fim (em branco = até o fim do dia)" style="width:92px"></span></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding-bottom:6px" title="a promoção vale todos os dias entre as datas, mas só entre a hora de início e a de fim; fora do horário o preço normal volta"><input type="checkbox" id="pmDiario" ${n.diario ? "checked" : ""}> Todo dia, só nesse horário</label>
       <label class="c">Desconto geral %<input type="number" id="pmPct" min="0" max="90" step="1" placeholder="aplica a todos" style="width:90px" title="preenche o preço promocional de todos os itens com este desconto sobre o preço atual"></label>
     </div>
     <div class="linha" style="gap:8px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
@@ -3642,15 +3646,15 @@ function pmDesenhar() {
         <td class="n">${mg == null ? "" : `<span class="chip ${mg < 0 ? "falta" : mg < 20 ? "av" : "ok"}">${br(mg, 0)}%</span>`}</td><td><a href="#" data-rm="${k}" style="color:#b42318">✕</a></td></tr>`; }).join(""); }).join("") || `<tr><td colspan="7" class="orig">Adicione os produtos da promoção.</td></tr>`}
     </tbody></table></div>
     <div class="linha" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button id="pmSalvar">Ativar promoção</button><button class="sec" id="pmCancelarNovo">Descartar</button>
-      <span class="orig">No início, o preço promocional vai ao Gestão e aos caixas; no dia seguinte ao fim, o preço normal volta sozinho. A margem é sobre o custo do cadastro.</span></div></div>` : "";
+      <span class="orig">Na data e hora de início, o preço promocional vai ao Gestão e aos caixas; no fim (ou fora do horário, nas diárias), o preço normal volta sozinho — o sistema confere a cada minuto. Sem hora = dia inteiro. A margem é sobre o custo do cadastro.</span></div></div>` : "";
   el.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div class="linha" style="gap:8px;align-items:center"><select id="pmFiltro"><option value="vigentes" ${f === "vigentes" ? "selected" : ""}>ativas e agendadas</option><option value="ativa" ${f === "ativa" ? "selected" : ""}>ativas</option><option value="agendada" ${f === "agendada" ? "selected" : ""}>agendadas</option><option value="encerrada" ${f === "encerrada" ? "selected" : ""}>encerradas</option><option value="todas" ${f === "todas" ? "selected" : ""}>todas</option></select>
       <span class="orig">${vis.length} item(ns)</span></div>
-      <div class="linha" style="gap:8px">${n ? "" : `<button id="pmNovoB">Nova promoção</button>`}<button class="sec" id="pmRodar" title="aplica agora o que está agendado para hoje e encerra o que venceu (o banco faz isso sozinho a cada 15 min)">Processar agora</button></div></div>
+      <div class="linha" style="gap:8px">${n ? "" : `<button id="pmNovoB">Nova promoção</button>`}<button class="sec" id="pmRodar" title="aplica agora o que está agendado para hoje e encerra o que venceu (o banco faz isso sozinho a cada minuto)">Processar agora</button></div></div>
     ${form}
     ${vis.length ? `<div style="overflow:auto"><table><thead><tr><th>Produto</th><th>Loja</th><th>Promoção</th><th class="n">De</th><th class="n">Por</th><th class="n">Desc.</th><th>Período</th><th>Situação</th><th></th></tr></thead><tbody>
-    ${vis.map(p => `<tr class="${p.status === "ativa" ? "pok" : ""}"><td>${escH(p.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(p.ean)}</div></td><td>Loja ${p.loja_id}</td><td>${escH(p.nome || "")}</td><td class="n"><s>${orBrl(p.preco_normal)}</s></td><td class="n"><b>${orBrl(p.preco_promo)}</b></td><td class="n">${br(pmDesc(Number(p.preco_normal), Number(p.preco_promo)), 1)}%</td><td>${orData(p.inicio)} – ${orData(p.fim)}</td><td>${stChip(p)}${p.fila_ini && p.status === "ativa" ? ` <span class="orig" data-fila="${p.fila_ini}"></span>` : ""}</td>
-      <td style="white-space:nowrap">${p.status === "ativa" ? `<a href="#" data-enc="${p.id}" style="color:#b42318">encerrar agora</a>` : p.status === "agendada" ? `<a href="#" data-canc="${p.id}" style="color:#b42318">cancelar</a>` : `<a href="#" data-del="${p.id}" style="color:#8a94a6">apagar</a>`}</td></tr>`).join("")}</tbody></table></div>` : `<div class="orig">Nenhuma promoção ${f === "todas" ? "cadastrada" : "neste filtro"}.</div>`}`;
+    ${vis.map(p => `<tr class="${p.status === "ativa" ? "pok" : ""}"><td>${escH(p.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(p.ean)}</div></td><td>Loja ${p.loja_id}</td><td>${escH(p.nome || "")}</td><td class="n"><s>${orBrl(p.preco_normal)}</s></td><td class="n"><b>${orBrl(p.preco_promo)}</b></td><td class="n">${br(pmDesc(Number(p.preco_normal), Number(p.preco_promo)), 1)}%</td><td>${pmPer(p)}</td><td>${stChip(p)}${p.fila_ini && p.status === "ativa" ? ` <span class="orig" data-fila="${p.fila_ini}"></span>` : ""}</td>
+      <td style="white-space:nowrap">${p.status === "ativa" ? `<a href="#" data-enc="${p.id}" style="color:#b42318">encerrar agora</a>` : p.status === "agendada" || p.status === "pausada" ? `<a href="#" data-canc="${p.id}" style="color:#b42318">${p.status === "pausada" ? "encerrar" : "cancelar"}</a>` : `<a href="#" data-del="${p.id}" style="color:#8a94a6">apagar</a>`}</td></tr>`).join("")}</tbody></table></div>` : `<div class="orig">Nenhuma promoção ${f === "todas" ? "cadastrada" : "neste filtro"}.</div>`}`;
   const g = id => el.querySelector("#" + id);
   g("pmFiltro").addEventListener("change", ev => { PM.filtro = ev.target.value; pmDesenhar(); });
   if (g("pmNovoB")) g("pmNovoB").addEventListener("click", () => pmNovo());
@@ -3662,6 +3666,7 @@ function pmDesenhar() {
     g("pmNome").addEventListener("input", ev => n.nome = ev.target.value);
     g("pmL1").addEventListener("change", ev => { n.lojas[1] = ev.target.checked; pmCompletar(); }); g("pmL2").addEventListener("change", ev => { n.lojas[2] = ev.target.checked; pmCompletar(); });
     g("pmIni").addEventListener("change", ev => n.inicio = ev.target.value); g("pmFim").addEventListener("change", ev => n.fim = ev.target.value);
+    g("pmHi").addEventListener("change", ev => n.hora_ini = ev.target.value); g("pmHf").addEventListener("change", ev => n.hora_fim = ev.target.value); g("pmDiario").addEventListener("change", ev => n.diario = ev.target.checked);
     g("pmPct").addEventListener("change", ev => { const pct = parseFloat(ev.target.value); if (!(pct >= 0)) return; for (const i of n.itens) { const ref = i.lojas[1] || i.lojas[2]; if (ref) i.promo = Math.round(ref.venda * (1 - pct / 100) * 10) / 10; } pmDesenhar(); });
     g("pmBuscarB").addEventListener("click", () => pmBuscar(g("pmQ").value.trim())); g("pmQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); pmBuscar(g("pmQ").value.trim(), true); } });
     g("pmCam").addEventListener("click", () => lerCamera(c => pmBuscar(c, true)));
@@ -3698,11 +3703,15 @@ async function pmCompletar() {
 async function pmSalvar() {
   const n = PM.novo; if (!n) return; const lojas = [1, 2].filter(l => n.lojas[l]);
   if (!lojas.length) return msg("Marque pelo menos uma loja."); if (!n.inicio || !n.fim || n.fim < n.inicio) return msg("Confira as datas de início e fim.");
+  if (n.diario && (!n.hora_ini || !n.hora_fim || n.hora_fim <= n.hora_ini)) return msg("Na promoção de todo dia, informe a hora de início e a de fim (fim depois do início, no mesmo dia).");
+  if (!n.diario && n.inicio === n.fim && n.hora_ini && n.hora_fim && n.hora_fim <= n.hora_ini) return msg("A hora de fim precisa ser depois da hora de início.");
+  const agoraL = vdIso(new Date()) + " " + new Date().toTimeString().slice(0, 5), iniL = n.inicio + " " + (n.hora_ini || "00:00");
+  if (!n.diario && (n.fim + " " + (n.hora_fim || "24:00")) <= agoraL) return msg("O fim da promoção já passou.");
   const linhas = [];
-  for (const i of n.itens) { if (!(i.promo > 0)) continue; for (const l of lojas) { const p = i.lojas[l]; if (!p) continue; if (i.promo >= p.venda) continue; linhas.push({ loja_id: l, ean: i.ean, id_gestao: p.id, descricao: p.desc || i.desc, preco_normal: p.venda, preco_promo: r2(i.promo), custo: p.custo, inicio: n.inicio, fim: n.fim, status: "agendada", nome: n.nome || null, criado_por: window.__email || null }); } }
+  for (const i of n.itens) { if (!(i.promo > 0)) continue; for (const l of lojas) { const p = i.lojas[l]; if (!p) continue; if (i.promo >= p.venda) continue; linhas.push({ loja_id: l, ean: i.ean, id_gestao: p.id, descricao: p.desc || i.desc, preco_normal: p.venda, preco_promo: r2(i.promo), custo: p.custo, inicio: n.inicio, fim: n.fim, hora_ini: n.hora_ini || null, hora_fim: n.hora_fim || null, diario: !!n.diario, status: "agendada", nome: n.nome || null, criado_por: window.__email || null }); } }
   if (!linhas.length) return msg("Nenhum item com preço promocional menor que o atual.");
   const abaixo = linhas.filter(x => x.custo > 0 && x.preco_promo < x.custo);
-  if (!confirm(`Ativar "${n.nome || "promoção"}" com ${linhas.length} item(ns)/loja, de ${orData(n.inicio)} a ${orData(n.fim)}?` + (abaixo.length ? `\n\nATENÇÃO: ${abaixo.length} item(ns) ficam ABAIXO DO CUSTO.` : "") + (n.inicio <= vdIso(new Date()) ? "\n\nComo começa hoje, o preço vai ao Gestão e aos caixas agora." : ""))) return;
+  if (!confirm(`Ativar "${n.nome || "promoção"}" com ${linhas.length} item(ns)/loja, ${pmPer(n)}?` + (abaixo.length ? `\n\nATENÇÃO: ${abaixo.length} item(ns) ficam ABAIXO DO CUSTO.` : "") + (!n.diario && iniL <= agoraL ? "\n\nComo já começou, o preço vai ao Gestão e aos caixas agora." : ""))) return;
   const { error } = await supa.from("promocoes").insert(linhas); if (error) return msg("Não consegui salvar: " + error.message);
   PM.novo = null; await pmRodar(true);
 }

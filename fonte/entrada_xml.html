@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="80">
+<meta name="versao" content="81">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2330,13 +2330,38 @@ async function vdCarregar() {
   const dia = e.value, loja = Number(document.getElementById("vdLoja").value), de = vdMais(dia, -35);
   let q = supa.from("vendas_hora").select("loja_id, data, hora, pdv, qtd, valor, atualizado_em").eq("oper", "V").gte("data", de).lte("data", dia).order("data").limit(5000);
   let q2 = supa.from("vendas_pgto").select("loja_id, data, pdv, meio, qtd, valor").eq("data", dia);
-  if (loja) { q = q.eq("loja_id", loja); q2 = q2.eq("loja_id", loja); }
-  const [r, r2] = await Promise.all([q, q2]);
+  let q3 = supa.from("cupons").select(VD_CP_COLS).eq("data", dia).order("hora", { ascending: false }).limit(1000);
+  if (loja) { q = q.eq("loja_id", loja); q2 = q2.eq("loja_id", loja); q3 = q3.eq("loja_id", loja); }
+  const [r, r2, r3] = await Promise.all([q, q2, q3]);
   if (r.error) { document.getElementById("vdRes").innerHTML = "<div>Não consegui ler as vendas: " + escH(r.error.message) + "</div>"; return; }
   VD.vh = r.data || []; VD.pg = (r2.data || []); VD.dia = dia;
+  VD.cp = r3.error ? [] : (r3.data || []); VD.cpErro = r3.error ? r3.error.message : "";
+  vdAoVivo();
   vdDesenhar();
-  vdCupons();
+  vdDesenharCupons();
   clearTimeout(VD.t); if (vista === "vendas" && dia === vdIso(new Date())) VD.t = setTimeout(() => { if (vista === "vendas") vdCarregar(); }, 120000);
+}
+// Os cupons chegam a cada 30 s; os totais do Gestão (vendas_hora) a cada 5 min e os pagamentos só depois do fechamento do caixa.
+// Para cada loja, quando os cupons do dia já somam mais que o Gestão, as vendas por hora e as formas de pagamento passam a vir dos cupons.
+function vdAoVivo() {
+  VD.vivo = {}; const dia = VD.dia; if (!VD.cp.length) return;
+  for (const l of [1, 2]) {
+    const cps = VD.cp.filter(c => c.loja_id === l && !c.cancelado && !c.gemeo); if (!cps.length) continue;
+    const tc = cps.reduce((a, c) => a + Number(c.total || 0), 0), ult = cps.map(c => c.hora || "").sort().pop();
+    const tv = VD.vh.filter(x => x.data === dia && x.loja_id === l).reduce((a, x) => a + Number(x.valor || 0), 0);
+    const tp = VD.pg.filter(x => x.loja_id === l).reduce((a, x) => a + Number(x.valor || 0), 0);
+    VD.vivo[l] = { ult, n: cps.length };
+    if (tc > tv + 0.005) {
+      const ph = new Map();
+      for (const c of cps) { const h = Number(String(c.hora || "0").slice(0, 2)), o = ph.get(h) || { loja_id: l, data: dia, hora: h, pdv: 1, qtd: 0, valor: 0, atualizado_em: null }; o.valor += Number(c.total || 0); o.qtd += (c.itens || []).filter(i => i[8] !== "S").reduce((a, i) => a + Number(i[3] || 0), 0); ph.set(h, o); }
+      VD.vh = VD.vh.filter(x => !(x.data === dia && x.loja_id === l)).concat([...ph.values()]); VD.vivo[l].vendas = true;
+    }
+    if (tc > tp + 0.005) {
+      const pm = new Map();
+      for (const c of cps) for (const p of c.pgtos || []) { const k = c.pdv + "|" + p[0], o = pm.get(k) || { loja_id: l, data: dia, pdv: c.pdv, meio: Number(p[0]), qtd: 0, valor: 0 }; o.qtd++; o.valor += Number(p[2] || 0); pm.set(k, o); }
+      VD.pg = VD.pg.filter(x => x.loja_id !== l).concat([...pm.values()]); VD.vivo[l].pgtos = true;
+    }
+  }
 }
 function vdDesenhar() {
   const dia = VD.dia, hoje = vdIso(new Date()), ehHoje = dia === hoje, horaAgora = new Date().getHours();
@@ -2354,7 +2379,8 @@ function vdDesenhar() {
     `<div><small>${vdSem(dia)} passada${ehHoje ? " até esta hora" : ""}</small><b>R$ ${br(totSem)}${dif(tot, totSem)}</b></div>` +
     `<div><small>Média das últimas ${ant.length || 4} ${vdSem(dia)}${ehHoje ? " até esta hora" : ""}</small><b>R$ ${br(media)}${dif(tot, media)}</b></div>` +
     `<div><small>No mês (${mes.split("-").reverse().join("/")}) até este dia</small><b>R$ ${br(totMes)}</b></div>`;
-  document.getElementById("vdAtu").textContent = ult ? "atualizado às " + new Date(ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : (ehHoje && !a.length ? "sem vendas registradas hoje ainda" : "");
+  const vivo = Object.entries(VD.vivo || {}).filter(([, v]) => v.vendas || v.pgtos);
+  document.getElementById("vdAtu").innerHTML = ehHoje && vivo.length ? `<span class="chip ok" style="padding:0 6px">ao vivo</span> última venda ${vivo.map(([l, v]) => "L" + l + " " + escH(String(v.ult).slice(0, 5))).join(" · ")}` : ult ? "atualizado às " + new Date(ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : (ehHoje && !a.length ? "sem vendas registradas hoje ainda" : "");
   // por hora
   const horas = [...new Set([...a, ...sem].map(x => x.hora))].sort((x, y) => x - y), porH = (l, h) => soma(l.filter(x => x.hora === h), "valor");
   const maxH = Math.max(1, ...horas.map(h => Math.max(porH(a, h), porH(sem, h))));
@@ -2367,6 +2393,7 @@ function vdDesenhar() {
     [...porMeio].sort((x, y) => y[1].v - x[1].v).map(([m, o]) => `<tr><td>${escH(VD_MEIO_NOME[m] || m)}</td><td class="n">${br(o.q, 0)}</td><td class="n">R$ ${br(o.v)}</td><td class="n">${totPg > 0 ? br(o.v / totPg * 100, 0) : 0}%</td></tr>`).join("") +
     `<tr><td><b>Total</b></td><td></td><td class="n"><b>R$ ${br(totPg)}</b></td><td></td></tr></tbody></table>` + (Math.abs(totPg - tot) > 0.05 ? `<div class="orig" style="margin-top:4px">O total dos pagamentos (R$ ${br(totPg)}) difere das vendas do dia (R$ ${br(tot)}): acontece quando o caixa não é fechado no mesmo dia.</div>` : "")
     : `<span class="orig">Ainda sem pagamentos deste dia (o caixa não foi fechado, ou não houve venda).</span>`;
+  if (Object.values(VD.vivo || {}).some(v => v.pgtos)) document.getElementById("vdPg").insertAdjacentHTML("beforeend", `<div class="orig" style="margin-top:4px">Somado venda a venda pelos cupons (o caixa ainda não fechou). Pix passado na maquininha e finalizado como dinheiro aparece em Dinheiro.</div>`);
   // últimos 30 dias
   const dias = []; for (let i = 0; i < 31; i++) dias.push(vdMais(dia, -i));
   const linhas = dias.map(d => { const l = doDia(d); return { d, l1: soma(l.filter(x => x.loja_id === 1), "valor"), l2: soma(l.filter(x => x.loja_id === 2), "valor"), t: soma(l, "valor"), q: soma(l, "qtd") }; });
@@ -2833,6 +2860,7 @@ async function entrarNoSistema(sessao) {
   setInterval(() => cadastroDaNuvem(true), 5 * 60 * 1000);
   ligarOuvintes();
   lerAgente(); setInterval(lerAgente, 60000);
+  vivoIniciar();
   { const hv = location.hash.slice(1); // abre na aba do endereço (#notas…); no celular, sem aba no endereço, abre no painel do dia
     if (ABAS_V.includes(hv)) { if (hv !== vista) mostrar(hv, true); } else if (window.innerWidth < 800) mostrar("hoje", true);
     try { history.replaceState({ v: vista }, "", "#" + vista); } catch (e) {} }
@@ -2842,6 +2870,25 @@ function incluirUsuario() {
   b.innerHTML = `<b>Incluir usuário</b><br><label class="c" style="margin-top:6px">E-mail<input type="email" id="nuEmail" style="width:100%"></label><label class="c" style="margin-top:6px">Nome<input type="text" id="nuNome" style="width:100%"></label><div class="linha" style="margin-top:8px;gap:8px"><button id="nuOk">Incluir</button><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div><div id="nuMsg" class="orig" style="margin-top:6px">A pessoa cria a conta na tela de entrada com esse e-mail.</div>`;
   b.querySelector("#bx").onclick = () => b.style.display = "none";
   b.querySelector("#nuOk").onclick = async () => { const r = await supa.rpc("incluir_usuario", { p_email: b.querySelector("#nuEmail").value.trim(), p_nome: b.querySelector("#nuNome").value.trim() }); b.querySelector("#nuMsg").textContent = r.error ? "Erro: " + r.error.message : "Incluído."; };
+}
+// Ao vivo: cada cupom que o PC da loja sobe (a cada 30 s) avisa a página, que atualiza Hoje e Vendas sem recarregar
+let vivoT = null, vivoCanal = null;
+function vivoIniciar() {
+  if (!supa || vivoCanal) return;
+  vivoCanal = supa.channel("cupons-vivo").on("postgres_changes", { event: "*", schema: "public", table: "cupons" }, ev => {
+    const c = ev.new || {}; if (c.data && c.data !== vdIso(new Date())) return; // só interessa o dia de hoje (ignora a reenvio de dias antigos)
+    clearTimeout(vivoT); vivoT = setTimeout(vivoAtualizar, 1500);
+  }).subscribe();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) vivoAtualizar(); }); // celular que voltou do bloqueio
+}
+function vivoAtualizar() {
+  const hoje = vdIso(new Date());
+  if (vista === "hoje") hjCarregar();
+  else if (vista === "vendas") {
+    const modo = document.getElementById("vdModo").value, filtro = vdTemFiltro(vdFiltros());
+    if (modo === "dia" && !filtro) { if ((document.getElementById("vdDia").value || hoje) === hoje && !VD.cpBusca) vdCarregar(); }
+    else if (modo !== "dia" ? (document.getElementById("vdAte").value || "") >= hoje : (document.getElementById("vdDia").value || hoje) === hoje) vdPeriodo();
+  }
 }
 function mostrarLogin(sim) {
   document.body.classList.toggle("logado", !sim);
@@ -3500,7 +3547,12 @@ async function hjCarregar() {
     const r = await supa.from("vendas_hora").select("loja_id, data, valor, qtd, atualizado_em").eq("oper", "V").gte("data", de).lte("data", hojeIso).limit(5000);
     const porDia = {}; let ult = null;
     for (const v of r.data || []) { const k = v.loja_id + "|" + v.data; porDia[k] = (porDia[k] || 0) + (Number(v.valor) || 0); if (!ult || (v.atualizado_em || "") > ult) ult = v.atualizado_em; }
-    HJ.vendas = { porDia, ult, hojeIso };
+    // hoje: os cupons chegam a cada 30 s (o total do Gestão, a cada 5 min); vale o que for maior
+    const rc = await supa.from("cupons").select("loja_id, total, cancelado, gemeo, hora").eq("data", hojeIso).limit(3000);
+    const vivo = {};
+    for (const c of rc.data || []) { if (c.cancelado || c.gemeo) continue; const o = vivo[c.loja_id] || (vivo[c.loja_id] = { t: 0, n: 0, ult: "" }); o.t += Number(c.total || 0); o.n++; if ((c.hora || "") > o.ult) o.ult = c.hora; }
+    for (const l of [1, 2]) if (vivo[l] && vivo[l].t > (porDia[l + "|" + hojeIso] || 0)) porDia[l + "|" + hojeIso] = vivo[l].t;
+    HJ.vendas = { porDia, ult, hojeIso, vivo };
     await lerAgente();
   } catch (e) { console.warn("hoje", e); }
   HJ.carregando = false; hjDesenhar();
@@ -3533,6 +3585,7 @@ function hjDesenhar() {
   const cardVenda2 = l => { const hj = vd(l, h), m = media7(l), sp = semana(l), ai = agenteInfo && agenteInfo[l], on = ai && ai.online, pc = m > 0 && hj > 0 ? (hj / m - 1) * 100 : null;
     return `<article class="sales-card${l === 2 ? " l2" : ""}"><div class="sales-top"><div><h3>Loja ${l} — vendas de hoje</h3><div class="loja-nome">${l === 1 ? "Jardim Soraia" : "Limoeiro"}</div></div>${ai ? `<span class="badge ${on ? "ok" : "av"}" title="PC da loja (agente)"><span class="dot"></span>${on ? "PC online" : "PC sem contato"}</span>` : ""}</div>
       <div class="sales-meio"><div><div class="sales-num">${V ? orBrl(hj) : "…"}</div>${pc != null ? `<span class="badge ${pc >= 0 ? "ok" : "av"}">${pc >= 0 ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>+` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>`}${br(pc, 0)}% vs média</span>` : `<span class="badge neutro">sem comparação ainda</span>`}</div>${spark(l)}</div>
+      ${V && V.vivo && V.vivo[l] ? `<div class="orig" style="margin:2px 0 6px">${br(V.vivo[l].n, 0)} cupons · última venda às ${h_(String(V.vivo[l].ult).slice(0, 5))}</div>` : ""}
       <div class="sales-comp"><div><span>Ontem</span><strong>${orBrl(vd(l, ontem))}</strong></div><div><span>${SEM[dHoje.getDay()]}</span><strong>${orBrl(sp)}</strong></div><div><span>Média 7 dias</span><strong>${orBrl(m)}</strong></div></div></article>`; };
   const tcard = (tit, ico, cont, v, corpo, wide) => `<article class="task-card${wide ? " wide" : ""}"><div class="task-head"><span class="task-icon">${ico}</span>${tit}<span class="task-count">${cont}</span></div><div class="task-body">${corpo}</div><a class="task-link" href="#" data-v="${v}">Ver ${tit.toLowerCase()}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></article>`;
   const row = (cls, esq, dir) => `<div class="task-row${cls ? " " + cls : ""}"><span>${esq}</span>${dir}</div>`;

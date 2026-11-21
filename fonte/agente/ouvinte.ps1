@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.3"
+$Versao = "2.8.4"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -369,7 +369,7 @@ function SobeVendas {
   Escreve ("Vendas: historico enviado (" + $vh.Count + " linhas por hora, " + $pg.Count + " de pagamentos).")
 }
 
-# Cupons: o Servidor PDV guarda um arquivo pequeno por cupom (BkLog_PDV\<Mes_Ano>\<caixa>\lg_*.mzip). De 5 em 5 minutos
+# Cupons: o Servidor PDV guarda um arquivo pequeno por cupom (BkLog_PDV\<Mes_Ano>\<caixa>\lg_*.mzip). De 30 em 30 segundos (2.8.4; antes 5 min)
 # le os arquivos novos (so leitura) e manda para a nuvem: data, hora, caixa, itens, formas de pagamento e NFC-e.
 # Na primeira vez pega os ultimos 3 meses, aos poucos (1500 arquivos por vez) para nao segurar os envios do site.
 $EncCup = [Text.Encoding]::GetEncoding(1252)
@@ -433,6 +433,7 @@ function SobeCupons {
   $m = $hoje1.AddMonths(-2)
   if (-not $inicial) { $m = $desde.Date.AddDays(1 - $desde.Day); if ($m -lt $hoje1.AddMonths(-12)) { $m = $hoje1.AddMonths(-12) } }
   $arqs = New-Object System.Collections.ArrayList
+  $recente = (Get-Date).AddSeconds(-5)
   while ($m -le $hoje1) {
     $p = Join-Path $raizBk ($meses[$m.Month - 1] + "_" + $m.Year)
     $m = $m.AddMonths(1)
@@ -441,6 +442,7 @@ function SobeCupons {
       foreach ($f in (Get-ChildItem $sub.FullName -Filter "lg_*.mzip")) {
         if ($f.PSIsContainer) { continue }
         if ($f.LastWriteTime -le $desde) { continue }
+        if ($f.LastWriteTime -gt $recente) { continue } # ainda pode estar sendo gravado: fica para a proxima passada
         if ($f.Name -match "StsPDV|_Ger\d|_RZ\d") { continue }
         [void]$arqs.Add($f)
       }
@@ -573,7 +575,7 @@ Escreve ("Ouvinte " + $Versao + " iniciado (PID " + $PID + ").")
 $ultimaBatida = Get-Date "2000-01-01"
 $ultimaVenda = (Get-Date).AddSeconds(-270)
 $erroVenda = ""
-$ultimoCupom = (Get-Date).AddSeconds(-240)
+$ultimoCupom = (Get-Date).AddSeconds(-30)
 $erroCupom = ""
 $ultimoErro = ""
 while ($true) {
@@ -586,9 +588,9 @@ while ($true) {
       $ultimaVenda = Get-Date
       try { SobeVendas; $erroVenda = "" } catch { $mv = $_.Exception.Message; if ($mv -ne $erroVenda) { Escreve ("Vendas: " + $mv); $erroVenda = $mv } }
     }
-    if (((Get-Date) - $ultimoCupom).TotalSeconds -ge 300) {
+    if (((Get-Date) - $ultimoCupom).TotalSeconds -ge 30) {
       $ultimoCupom = Get-Date
-      try { $temMais = SobeCupons; $erroCupom = ""; if ($temMais -eq $true) { $ultimoCupom = (Get-Date).AddSeconds(-280) } } catch { $mc = $_.Exception.Message; if ($mc -ne $erroCupom) { Escreve ("Cupons: " + $mc); $erroCupom = $mc } }
+      try { $temMais = SobeCupons; $erroCupom = ""; if ($temMais -eq $true) { $ultimoCupom = (Get-Date).AddSeconds(-30) } } catch { $mc = $_.Exception.Message; if ($mc -ne $erroCupom) { Escreve ("Cupons: " + $mc); $erroCupom = $mc } }
     }
     $n = [int](Rpc "fila_pendente" @{ p_token = $cfg.token })
     if ($n -gt 0) {

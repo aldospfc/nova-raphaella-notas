@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="77">
+<meta name="versao" content="78">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -463,7 +463,7 @@
  <div id="vProdutos" style="display:none">
   <div class="painel" id="blPainel" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>E-commerce (Bling)</b><span id="blSt" class="badge neutro">verificando…</span><span id="blInfo" class="orig" style="margin:0"></span><span style="margin-left:auto;display:flex;gap:8px"><button class="sec" id="blTestar">Testar</button><button id="blLigar">Ligar ao Bling</button></span></div>
   <div class="painel" id="avPainel"><b>Mandar produto avulso ao e-commerce</b> <span class="orig">— sem nota: o produto passa a ter estoque unificado (Bling = Gestão da Loja 1). Se não existir no Bling, é criado um cadastro básico.</span>
-   <div class="linha" style="margin-top:8px;gap:8px"><input type="text" id="avQ" placeholder="código de barras ou nome (Loja 1)" style="flex:1;min-width:200px"><button class="sec" id="avBuscar">Buscar</button></div>
+   <div class="linha" style="margin-top:8px;gap:8px"><input type="text" id="avQ" placeholder="código de barras ou nome (Loja 1)" style="flex:1;min-width:200px"><button class="sec" id="avBuscar">Buscar</button><label class="c" style="min-width:220px">Fornecedor (para o custo no Bling)<select id="avForn"><option value="">— sem fornecedor (não grava custo) —</option></select></label></div>
    <div id="avRes" style="margin-top:8px"></div><div id="avLista" style="margin-top:10px"></div></div>
   <div class="painel"><b>Ajustar produto no Gestão</b> <span class="orig">— sem nota: nome, custo, venda, estoque, categoria, NCM/CEST, códigos auxiliares, ativar ou inativar</span>
    <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="nome do produto ou código de barras" style="flex:1;min-width:200px;font-size:16px;padding:6px"><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button></div>
@@ -3944,7 +3944,7 @@ async function estuGestao(itens, tipo, titulo) {
     sql.push(`UPDATE PRODUTOS SET ESTOQUE_ATUAL = ${novo}, ULT_ALTERACAO = CURRENT_DATE, ALT_PDV = 1 WHERE ${onde};`);
   }
   sql.push("SELECT CODIGO_BARRAS, SUBSTRING(DESCRICAO FROM 1 FOR 40) AS DESCRICAO, ESTOQUE_ATUAL FROM PRODUTOS WHERE CODIGO_BARRAS IN (" + itens.map(x => gSql(x.cod)).join(",") + ");");
-  const { data, error } = await supa.from("fila").insert({ loja_id: 1, tipo, titulo: titulo.slice(0, 110), conteudo: sql.join("\r\n"), status: "pendente" }).select("id").single();
+  const { data, error } = await supa.from("fila").insert({ loja_id: 1, tipo, titulo: titulo.slice(0, 110), conteudo: sql.join("\r\n") + "\r\nCOMMIT;\r\n", status: "pendente" }).select("id").single();
   if (error) throw new Error(error.message); return data.id;
 }
 async function estuRegistrarGestao(res, mapa) { // guarda o código usado no Gestão (para o acerto) e o lado Gestão no histórico
@@ -3977,7 +3977,7 @@ async function estuAbrirNota() {
     if (!confirm(`Mandar ${sel.length} item(ns) ao Bling?` + (novos.length ? `\n\n${novos.length} entram no estoque unificado agora: o estoque deles no Bling E no Gestão da Loja 1 passa a ser SÓ a quantidade desta nota.` : "") + (sel.length - novos.length ? `\n\n${sel.length - novos.length} já unificado(s): a nota soma no Bling.` : ""))) return;
     const st = b.querySelector("#estuSt"); st.textContent = "mandando ao Bling (uns segundos por item)…"; b.querySelector("#estuOk").disabled = true;
     const obs = `NF ${cab.nnf || ""} - ${cab.emit || ""}`.slice(0, 120);
-    const { data: r, error: e2 } = await supa.functions.invoke("bling", { body: { acao: "unificar", origem: "nota", obs, itens: sel.map(l => ({ ean: l.ean, codigo: l.it.cod || "", nome: (l.it.desc || l.it.xprod || "").slice(0, 120), ncm: l.it.ncm || "", cest: l.it.cest || "", origem: l.it.orig, preco: l.k.venda, custo: l.k.custoUn, qtd: l.q1 })) } });
+    const { data: r, error: e2 } = await supa.functions.invoke("bling", { body: { acao: "unificar", origem: "nota", obs, fornecedor_cnpj: cab.cnpj || "", itens: sel.map(l => ({ compra: l.k.qtdUn > 0 ? (l.it.vprod || 0) / l.k.qtdUn : 0, ean: l.ean, codigo: l.it.cod || "", nome: (l.it.desc || l.it.xprod || "").slice(0, 120), ncm: l.it.ncm || "", cest: l.it.cest || "", origem: l.it.orig, preco: l.k.venda, custo: l.k.custoUn, qtd: l.q1 })) } });
     b.querySelector("#estuOk").disabled = false;
     if (e2 || !r || !r.ok) { st.textContent = "Erro: " + ((r && r.msg) || (e2 && e2.message)); return; }
     const ok = r.itens.filter(x => x.ok), mapa = {}; for (const l of sel) mapa[l.ean] = { cod: l.it.aux || l.ean, q: l.q1 };
@@ -3985,7 +3985,8 @@ async function estuAbrirNota() {
     let filaId = null; try { filaId = await estuGestao(ok.filter(x => x.primeira).map(x => ({ cod: mapa[x.ean].cod, modo: "set", q: mapa[x.ean].q })), "ecommerce", "E-commerce: inicio do estoque unificado " + obs); } catch (e) { msg("Bling ok, mas não consegui pedir o acerto no Gestão: " + e.message); }
     await estuRegistrarGestao(r.itens, mapa);
     const falhas = r.itens.filter(x => !x.ok);
-    st.innerHTML = `<b style="color:var(--ok)">${ok.length} no Bling</b>${ok.filter(x => x.criado).length ? ` · ${ok.filter(x => x.criado).length} cadastro(s) criado(s) (completar pela skill)` : ""}${filaId ? " · acerto do Gestão enviado ao PC da loja" : ""}${falhas.length ? `<div class="aviso">${falhas.map(f => escH(f.ean + ": " + f.msg)).join("<br>")}</div>` : ""}`;
+    const cst = {}; for (const x of ok) { const c = /não gravado/.test(x.custo || "") ? "sem custo" : /atualizado/.test(x.custo || "") ? "custo atualizado" : /mantido/.test(x.custo || "") ? "custo mantido (o do Bling era maior)" : /gravado/.test(x.custo || "") ? "custo gravado" : ""; if (c) cst[c] = (cst[c] || 0) + 1; }
+    st.innerHTML = `<b style="color:var(--ok)">${ok.length} no Bling</b>${r.fornecedor ? (r.fornecedor.criado ? " · fornecedor cadastrado no Bling" : " · fornecedor já estava no Bling") : ""}${r.fornecedor_erro ? ` · <span class="aviso">${escH(r.fornecedor_erro)}</span>` : ""}${ok.filter(x => x.criado).length ? ` · ${ok.filter(x => x.criado).length} cadastro(s) criado(s) (completar pela skill)` : ""}<div class="orig">${Object.entries(cst).map(([k, v]) => escH(k) + ": " + v).join(" · ")}${ok.some(x => /não gravado/.test(x.custo || "")) ? "<br>" + ok.filter(x => /não gravado/.test(x.custo || "")).map(x => escH(x.ean + " — " + x.custo)).join("<br>") : ""}</div>${filaId ? " · acerto do Gestão enviado ao PC da loja" : ""}${falhas.length ? `<div class="aviso">${falhas.map(f => escH(f.ean + ": " + f.msg)).join("<br>")}</div>` : ""}`;
     msg(`${ok.length} item(ns) no e-commerce (Bling).` + (falhas.length ? ` ${falhas.length} com erro.` : ""));
     if (typeof desenharTabela === "function") try { desenharTabela(); } catch (e) {}
   };
@@ -4015,16 +4016,17 @@ async function avMandar(i, uni) {
   if (!(q > 0)) return msg(uni ? "Informe quantas unidades entram." : "Informe o saldo inicial (quantas unidades tem de verdade).");
   if (!confirm(uni ? `Somar ${q} un. de "${p.descricao}" no Bling e no Gestão da Loja 1?` : `Unificar "${p.descricao}" com o e-commerce?\n\nO estoque no Bling E no Gestão da Loja 1 passa a ser ${q} un.` + (Number(p.estoque) ? ` (hoje o Gestão diz ${br(Number(p.estoque), 0)}).` : "."))) return;
   msg("mandando ao Bling…");
-  const { data: r, error } = await supa.functions.invoke("bling", { body: { acao: "unificar", origem: "avulso", obs: "avulso pelo sistema", itens: [{ ean: p.ean, codigo: p.codigo_interno || "", nome: p.descricao, ncm: p.ncm || "", preco: Number(p.preco_venda) || 0, custo: Number(p.preco_compra) || 0, qtd: q, id_gestao: p.id_gestao }] } });
+  const { data: r, error } = await supa.functions.invoke("bling", { body: { acao: "unificar", origem: "avulso", obs: "avulso pelo sistema", fornecedor_cnpj: document.getElementById("avForn").value || "", itens: [{ ean: p.ean, codigo: p.codigo_interno || "", nome: p.descricao, ncm: p.ncm || "", preco: Number(p.preco_venda) || 0, custo: Number(p.preco_compra) || 0, qtd: q, id_gestao: p.id_gestao }] } });
   if (error || !r || !r.ok) return msg("Erro: " + ((r && r.msg) || (error && error.message)));
   const x = r.itens[0]; if (!x.ok) return msg("Bling recusou: " + x.msg);
   try { await estuGestao([{ cod: p.ean, modo: x.primeira ? "set" : "soma", q }], "ecommerce", (x.primeira ? "E-commerce: inicio do estoque unificado " : "E-commerce: entrada avulsa ") + p.ean); } catch (e) { return msg("Bling ok, mas o Gestão não recebeu o pedido: " + e.message); }
   await supa.from("estoque_unificado").update({ cod_gestao: p.ean, id_gestao: p.id_gestao }).eq("ean", p.ean);
-  msg(`"${p.descricao}" ${x.primeira ? "unificado" : "somado"}: Bling ${x.saldo != null ? "com " + br(x.saldo, 0) + " un." : "ok"}${x.criado ? " (cadastro básico criado no Bling)" : ""}; o Gestão da Loja 1 grava em segundos.`);
+  msg(`"${p.descricao}" ${x.primeira ? "unificado" : "somado"}: Bling ${x.saldo != null ? "com " + br(x.saldo, 0) + " un." : "ok"}${x.criado ? " (cadastro básico criado no Bling)" : ""} · ${x.custo || ""}; o Gestão da Loja 1 grava em segundos.`);
   avBuscar(); avListar();
 }
 async function avListar() {
   const el = document.getElementById("avLista"); if (!el || !supa) return;
+  const sf = document.getElementById("avForn"); if (sf && sf.options.length < 2) { const { data: fs } = await supa.from("fornecedores").select("cnpj,razao,fantasia").order("razao").limit(1000); for (const f of fs || []) { const o = document.createElement("option"); o.value = f.cnpj; o.textContent = (f.fantasia && f.fantasia !== f.razao ? f.fantasia + " — " : "") + f.razao; sf.appendChild(o); } }
   const { data } = await supa.from("estoque_unificado").select("ean,descricao,saldo_bling,inicio_em,criado_bling,ultimo_acerto,ultimo_erro").eq("ativo", true).order("inicio_em", { ascending: false }).limit(200);
   const l = data || []; if (!l.length) { el.innerHTML = `<span class="orig">Nenhum produto com estoque unificado ainda.</span>`; return; }
   el.innerHTML = `<details><summary style="cursor:pointer;font-weight:800;color:var(--azul)">Produtos com estoque unificado (${l.length})</summary><div style="overflow:auto;max-height:320px;margin-top:6px;border:1px solid var(--borda);border-radius:6px"><table><thead><tr><th>Produto</th><th class="n">Saldo no Bling</th><th>Desde</th><th></th></tr></thead><tbody>` +

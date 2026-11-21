@@ -8,6 +8,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // v1 (20/11/2026): conexão e consultas.
 // v2 (20/11/2026): checar (EANs no Bling + unificados) e unificar (cria cadastro básico se faltar, balanço na 1ª vez / entrada depois,
 //     no depósito Geral; grava estoque_unificado e o histórico estoque_unificado_mov). O lado do Gestão é mandado pelo site, pela fila.
+// v3 (20/11/2026): custo vai pelo vínculo produto × fornecedor (o Bling só guarda custo assim). Fornecedor achado pelo CNPJ;
+//     se não existir, é cadastrado com os dados do XML (tabela fornecedores). Regra do Aldo: custo só sobe (se o da nota for menor, mantém).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -89,6 +91,33 @@ async function saldoDeposito(idProduto: number, idDep: number): Promise<number |
   const d = (s.depositos || []).find((x: any) => x.id === idDep);
   return d ? Number(d.saldoFisico) : Number(s.saldoFisicoTotal ?? 0);
 }
+// fornecedor no Bling pelo CNPJ; cadastra com os dados do XML se faltar
+const fornCache: Record<string, number> = {};
+let tipoFornId: number | null | undefined;
+async function fornecedorBling(cnpj: string): Promise<{ id: number; criado: boolean } | null> {
+  cnpj = String(cnpj || "").replace(/\D/g, ""); if (cnpj.length !== 14 && cnpj.length !== 11) return null;
+  if (fornCache[cnpj]) return { id: fornCache[cnpj], criado: false };
+  const r = await bling(`/contatos?numeroDocumento=${cnpj}&limite=5`); await espera(340);
+  const c = (r.data || [])[0]; if (c) { fornCache[cnpj] = c.id; return { id: c.id, criado: false }; }
+  const f = ((await rest(`fornecedores?select=*&cnpj=eq.${cnpj}`)) || [])[0];
+  if (!f) throw new Error("fornecedor " + cnpj + " não está no Bling nem na aba Fornecedores");
+  if (tipoFornId === undefined) { try { const t = await bling("/contatos/tipos"); tipoFornId = ((t.data || []).find((x: any) => /fornecedor/i.test(x.descricao || "")) || {}).id ?? null; } catch { tipoFornId = null; } await espera(340); }
+  const corpo: any = { nome: f.razao, fantasia: f.fantasia || undefined, situacao: "A", tipo: cnpj.length === 14 ? "J" : "F", numeroDocumento: cnpj,
+    ie: f.ie || undefined, indicadorIe: f.ie ? "1" : "9", telefone: f.fone || undefined, email: f.email || undefined,
+    endereco: { geral: { endereco: f.logradouro || "", numero: f.numero || "", complemento: f.complemento || "", bairro: f.bairro || "", cep: f.cep || "", municipio: f.municipio || "", uf: f.uf || "" } },
+    ...(tipoFornId ? { tiposContato: [{ id: tipoFornId }] } : {}) };
+  const n = await bling("/contatos", { method: "POST", body: JSON.stringify(corpo) }); await espera(340);
+  fornCache[cnpj] = n.data?.id; return { id: n.data?.id, criado: true };
+}
+// custo pelo vínculo produto × fornecedor: cria se não houver; se houver, só troca quando o novo custo é MAIOR
+async function custoFornecedor(idProduto: number, idForn: number, custo: number, compra: number | undefined, codigo: string, descricao: string): Promise<string> {
+  const l = await bling(`/produtos/fornecedores?idProduto=${idProduto}&idFornecedor=${idForn}&limite=5`); await espera(340);
+  const v = (l.data || [])[0];
+  if (!v) { await bling("/produtos/fornecedores", { method: "POST", body: JSON.stringify({ produto: { id: idProduto }, fornecedor: { id: idForn }, precoCusto: custo, ...(compra ? { precoCompra: compra } : {}), ...(codigo ? { codigo } : {}), ...(descricao ? { descricao: descricao.slice(0, 120) } : {}), padrao: true }) }); return "custo gravado"; }
+  if (Number(v.precoCusto || 0) >= custo) return "custo mantido (o do Bling é maior ou igual)";
+  await bling(`/produtos/fornecedores/${v.id}`, { method: "PUT", body: JSON.stringify({ produto: { id: idProduto }, fornecedor: { id: idForn }, precoCusto: custo, ...(compra ? { precoCompra: compra } : {}), codigo: v.codigo || codigo || undefined, descricao: v.descricao || descricao || undefined, padrao: v.padrao ?? true }) });
+  return "custo atualizado (subiu)";
+}
 const origemBling = (o: any) => { const n = Number(o); return n === 1 ? 2 : n === 6 ? 7 : (Number.isFinite(n) ? n : 0); }; // compra no mercado interno: 1→2, 6→7
 
 function pagina(titulo: string, texto: string, ok: boolean) {
@@ -166,6 +195,8 @@ Deno.serve(async (req: Request) => {
     if (acao === "unificar") {
       const itens = (corpo?.itens || []).slice(0, 80), origem = corpo?.origem === "avulso" ? "avulso" : "nota", obs = String(corpo?.obs || "").slice(0, 200);
       const dep = await depositoGeral(); const res: any[] = [];
+      let forn: { id: number; criado: boolean } | null = null, fornErro = "";
+      if (corpo?.fornecedor_cnpj) { try { forn = await fornecedorBling(String(corpo.fornecedor_cnpj)); } catch (e) { fornErro = String((e as Error).message).slice(0, 200); } }
       for (const it of itens) {
         const ean = String(it.ean || "").trim(), qtd = Number(it.qtd);
         try {
@@ -188,19 +219,21 @@ Deno.serve(async (req: Request) => {
           const primeira = !(ja && ja.ativo), op = primeira ? "B" : "E", custo = Number(it.custo) > 0 ? Math.round(Number(it.custo) * 10000) / 10000 : undefined;
           await bling("/estoques", { method: "POST", body: JSON.stringify({ produto: { id: prod.id }, deposito: { id: dep.id }, operacao: op, quantidade: qtd, ...(custo ? { custo } : {}), observacoes: (primeira ? "Início do estoque unificado. " : "") + (obs || origem) }) });
           await espera(340);
+          let custoSt = forn ? "" : (fornErro ? "custo não gravado: " + fornErro : "custo não gravado (sem fornecedor)");
+          if (forn && custo) { try { custoSt = await custoFornecedor(prod.id, forn.id, custo, Number(it.compra) > 0 ? Math.round(Number(it.compra) * 10000) / 10000 : undefined, String(it.codigo || ""), String(it.nome || "")); } catch (e) { custoSt = "custo não gravado: " + String((e as Error).message).slice(0, 160); } }
           const saldo = await saldoDeposito(prod.id, dep.id).catch(() => null);
           await rest("estoque_unificado?on_conflict=ean", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({
             ean, loja_id: 1, id_gestao: it.id_gestao ?? ja?.id_gestao ?? null, descricao: it.nome || ja?.descricao || null, bling_id: prod.id, bling_codigo: prod.codigo || null, deposito_id: dep.id, ativo: true,
             ...(primeira ? { inicio_em: new Date().toISOString(), criado_por: email, criado_bling: criado } : {}), saldo_bling: saldo, ultimo_erro: null, atualizado_em: new Date().toISOString() }) });
           await rest("estoque_unificado_mov", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ean, origem, lado: "bling", operacao: op, quantidade: qtd, custo: custo ?? null, obs, por: email }) });
-          res.push({ ean, ok: true, primeira, criado, bling_id: prod.id, codigo: prod.codigo || null, saldo });
+          res.push({ ean, ok: true, primeira, criado, bling_id: prod.id, codigo: prod.codigo || null, saldo, custo: custoSt });
         } catch (e) {
           res.push({ ean, ok: false, msg: String((e as Error).message).slice(0, 300) });
           await rest("estoque_unificado_mov", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ean: ean || "?", origem, lado: "bling", operacao: "?", quantidade: qtd || 0, obs, por: email, ok: false, erro: String((e as Error).message).slice(0, 300) }) }).catch(() => {});
         }
         await espera(340);
       }
-      return resp({ ok: true, deposito: dep, itens: res });
+      return resp({ ok: true, deposito: dep, fornecedor: forn ? { id: forn.id, criado: forn.criado } : null, fornecedor_erro: fornErro || null, itens: res });
     }
     return resp({ ok: false, erro: "acao", msg: "ação desconhecida: " + acao }, 400);
   } catch (e) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="79">
+<meta name="versao" content="80">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -474,16 +474,27 @@
  <div id="vVendas" style="display:none">
   <div class="painel linha" style="gap:8px;flex-wrap:wrap"><b>Vendas</b>
    <select id="vdLoja"><option value="0">As duas lojas</option><option value="1">Loja 1</option><option value="2">Loja 2</option></select>
-   <button id="vdAnt" class="sec" title="dia anterior">◀</button><input type="date" id="vdDia"><button id="vdProx" class="sec" title="dia seguinte">▶</button><button id="vdHoje" class="sec">hoje</button>
-   <span id="vdAtu" class="orig" style="margin-left:auto"></span></div>
-  <div class="painel"><div class="resumo" id="vdRes"></div></div>
+   <select id="vdModo" title="período"><option value="dia">Um dia</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="mes">Este mês</option><option value="mesant">Mês passado</option><option value="ano">Este ano</option><option value="pers">Personalizado</option></select>
+   <span id="vdDiaBox" class="linha" style="gap:6px"><button id="vdAnt" class="sec" title="dia anterior">◀</button><input type="date" id="vdDia"><button id="vdProx" class="sec" title="dia seguinte">▶</button><button id="vdHoje" class="sec">hoje</button></span>
+   <span id="vdPerBox" class="linha" style="gap:6px;display:none">de <input type="date" id="vdDe"> até <input type="date" id="vdAte"></span>
+   <span id="vdAtu" class="orig" style="margin-left:auto"></span>
+   <div id="vdFiltros" class="linha" style="gap:8px;flex-wrap:wrap;width:100%;align-items:center">
+    <span class="orig" style="margin:0">Filtrar:</span>
+    <select id="vdFCx" title="caixa"><option value="0">Todos os caixas</option><option value="1">Caixa 1</option><option value="2">Caixa 2</option></select>
+    <select id="vdFMeio" title="forma de pagamento"><option value="">Todas as formas</option><option value="dinheiro">Dinheiro</option><option value="debito">Cartão de débito</option><option value="credito">Cartão de crédito</option><option value="pix">Pix</option><option value="convenio">Convênio</option></select>
+    <span class="linha" style="gap:4px" title="faixa de horário">das <select id="vdFHi"></select> às <select id="vdFHf"></select></span>
+    <input type="text" id="vdFProd" placeholder="produto ou código" style="min-width:150px;flex:1;max-width:260px">
+    <button id="vdFAplicar">Ver</button><button id="vdFLimpar" class="sec">limpar filtros</button>
+   </div></div>
+  <div id="vdPer" style="display:none"></div>
+  <div class="vd-dia"><div class="painel"><div class="resumo" id="vdRes"></div></div>
   <div class="painel"><b>Por hora</b> <span class="orig">— barra cinza: mesmo dia da semana passada</span><div id="vdHoras" style="margin-top:6px"></div></div>
   <div class="painel"><b>Formas de pagamento do dia</b> <span class="orig">— entram depois do fechamento do caixa. Pix passado na maquininha e finalizado como dinheiro aparece em Dinheiro.</span><div id="vdPg" style="margin-top:6px"></div></div>
   <div class="painel"><b>Cupons</b> <span class="orig" id="vdCpInfo"></span>
    <div class="linha" style="margin-top:6px;gap:8px;flex-wrap:wrap"><input type="text" id="vdCpQ" placeholder="produto, código de barras ou valor (ex.: 45,50)" style="flex:1;min-width:200px;font-size:16px;padding:6px"><button id="vdCpBuscar" class="sec" title="procura o produto ou o valor nos cupons dos 60 dias anteriores ao dia escolhido">buscar em 60 dias</button><button id="vdCpLimpar" class="sec">limpar</button></div>
    <div id="vdCp" style="margin-top:6px"></div></div>
   <div class="painel" style="overflow:auto"><b>Últimos 30 dias</b> <span class="orig">— toque num dia para abrir</span><table style="margin-top:6px"><thead><tr><th>Dia</th><th class="n">Loja 1</th><th class="n">Loja 2</th><th class="n">Total</th><th class="n">Itens</th><th style="width:40%"></th></tr></thead><tbody id="vdDias"></tbody></table></div>
- </div>
+ </div></div>
  <div id="vOrcamentos" style="display:none">
   <div class="painel">
     <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -2199,8 +2210,122 @@ const vdIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, 
 const vdMais = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return vdIso(d); };
 const vdSem = iso => ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(iso + "T12:00:00").getDay()];
 const VD_MEIOS = { 1: "Dinheiro", 2: "Cartão de débito", 3: "Cartão de crédito", 4: "Pix (QR na tela)", 5: "Convênio" };
+const VD_MEIO_NOME = { dinheiro: "Dinheiro", debito: "Cartão de débito", credito: "Cartão de crédito", pix: "Pix", convenio: "Convênio", outro: "Outra forma" };
+// os códigos do PDV não são iguais nas lojas: na Loja 2, 2 = crédito e 3 = débito (igual à função meio_cod do banco)
+const vdMeioCod = (loja, c) => ({ 1: "dinheiro", 4: "pix", 5: "convenio", 2: loja === 2 ? "credito" : "debito", 3: loja === 2 ? "debito" : "credito" })[c] || "outro";
+const vdMeioNome = n => { const u = String(n || "").toUpperCase(); return u.includes("DINHEIRO") ? "dinheiro" : u.includes("DEB") ? "debito" : u.includes("CRED") ? "credito" : u.includes("PIX") ? "pix" : u.includes("CONV") ? "convenio" : "outro"; };
+const vdPgTexto = c => (c.pgtos || []).map(p => escH(VD_MEIO_NOME[vdMeioNome(p[1])] || String(p[1] || "")) + ((c.pgtos || []).length > 1 ? " R$ " + br(Number(p[2])) : "")).join(" + ");
+// ----- período e filtros (consulta vendas_periodo no banco) -----
+const vdFiltros = () => ({ pdv: Number(document.getElementById("vdFCx").value), meio: document.getElementById("vdFMeio").value, hi: Number(document.getElementById("vdFHi").value), hf: Number(document.getElementById("vdFHf").value), prod: document.getElementById("vdFProd").value.trim() });
+const vdTemFiltro = f => f.pdv || f.meio || f.hi > 0 || f.hf < 23 || f.prod;
+function vdIntervalo(modo) {
+  const h = new Date(), hoje = vdIso(h), y = h.getFullYear(), m = h.getMonth();
+  if (modo === "7") return [vdMais(hoje, -6), hoje];
+  if (modo === "30") return [vdMais(hoje, -29), hoje];
+  if (modo === "mes") return [vdIso(new Date(y, m, 1)), hoje];
+  if (modo === "mesant") return [vdIso(new Date(y, m - 1, 1)), vdIso(new Date(y, m, 0))];
+  if (modo === "ano") return [vdIso(new Date(y, 0, 1)), hoje];
+  return null;
+}
+function vdModo() {
+  const modo = document.getElementById("vdModo").value;
+  document.getElementById("vdDiaBox").style.display = modo === "dia" ? "" : "none";
+  document.getElementById("vdPerBox").style.display = modo === "dia" ? "none" : "";
+  const iv = vdIntervalo(modo); if (iv) { document.getElementById("vdDe").value = iv[0]; document.getElementById("vdAte").value = iv[1]; }
+  if (modo === "pers" && !document.getElementById("vdDe").value) { const hj = vdIso(new Date()); document.getElementById("vdDe").value = vdMais(hj, -6); document.getElementById("vdAte").value = hj; }
+  vdCarregar();
+}
+const VD_SEM = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+const vdPct = (v, b) => b > 0 ? ` <span style="color:${v >= b ? "#1a7f37" : "#b3261e"};font-size:12px">${v >= b ? "+" : "−"}${br(Math.abs(v / b - 1) * 100, 0)}%</span>` : "";
+const vdBarra = (v, max, cor = "#0b57d0") => `<div style="height:10px;width:${Math.max(0.5, max > 0 ? v / max * 100 : 0)}%;background:${cor};border-radius:3px"></div>`;
+async function vdPeriodo() {
+  const el = document.getElementById("vdPer"), modo = document.getElementById("vdModo").value, f = vdFiltros();
+  let de, ate; if (modo === "dia") { de = ate = document.getElementById("vdDia").value || vdIso(new Date()); } else { de = document.getElementById("vdDe").value; ate = document.getElementById("vdAte").value; }
+  if (!de || !ate) { el.innerHTML = `<div class="painel orig">Escolha as datas.</div>`; return; }
+  if (ate < de) [de, ate] = [ate, de];
+  el.innerHTML = `<div class="painel orig">Somando as vendas de ${dataBr(de)}${de !== ate ? " a " + dataBr(ate) : ""}…</div>`;
+  const loja = Number(document.getElementById("vdLoja").value);
+  const { data: r, error } = await supa.rpc("vendas_periodo", { p_de: de, p_ate: ate, p_loja: loja, p_pdv: f.pdv, p_meio: f.meio, p_hini: f.hi, p_hfim: f.hf, p_prod: f.prod });
+  if (error || !r || r.erro) { el.innerHTML = `<div class="painel">Não consegui somar: ${escH((r && r.erro) || (error && error.message) || "sem resposta")}${error && /timeout|cancel/i.test(error.message) ? " — período grande demais com esses filtros; tente um período menor." : ""}</div>`; return; }
+  VD.per = r; vdDesenharPeriodo();
+}
+function vdDesenharPeriodo() {
+  const r = VD.per, el = document.getElementById("vdPer"), f = vdFiltros(), cup = r.fonte === "cupons";
+  const nDias = Math.round((new Date(r.ate + "T12:00:00") - new Date(r.de + "T12:00:00")) / 864e5) + 1, tot = Number(r.total || 0), n = r.n != null ? Number(r.n) : null;
+  const filtros = [f.pdv ? "caixa " + f.pdv : "", f.meio ? VD_MEIO_NOME[f.meio] : "", f.hi > 0 || f.hf < 23 ? `das ${f.hi}h às ${f.hf}h59` : "", f.prod ? `produto “${f.prod}”` : ""].filter(Boolean);
+  const ant = r.anterior || {}, tA = Number(ant.total || 0);
+  let h = `<div class="painel"><div class="orig" style="margin-bottom:6px">${dataBr(r.de)}${r.de !== r.ate ? " a " + dataBr(r.ate) + ` (${nDias} dias)` : " (" + vdSem(r.de) + ")"}${filtros.length ? " · " + escH(filtros.join(" · ")) : ""}${f.prod ? " · valor dos itens sem os descontos dados no total do cupom" : ""}</div><div class="resumo">` +
+    `<div><small>${f.prod ? "Vendido destes produtos" : f.meio ? "Recebido em " + VD_MEIO_NOME[f.meio] : "Vendas"}</small><b style="font-size:20px">R$ ${br(tot)}</b></div>` +
+    (n != null ? `<div><small>${f.prod ? "Cupons com o produto" : "Cupons"}</small><b>${br(n, 0)}</b></div><div><small>Ticket médio</small><b>R$ ${br(n ? tot / n : 0)}</b></div>` : "") +
+    (r.itens != null ? `<div><small>${f.prod ? "Unidades" : "Itens vendidos"}</small><b>${br(Number(r.itens), Number(r.itens) % 1 ? 3 : 0)}</b></div>` : "") +
+    (nDias > 1 ? `<div><small>Média por dia</small><b>R$ ${br(tot / nDias)}</b></div>` : "") +
+    `<div><small>Período anterior (${dataBr(ant.de)}${ant.de !== ant.ate ? " a " + dataBr(ant.ate) : ""})</small><b>R$ ${br(tA)}${vdPct(tot, tA)}</b></div></div>` +
+    ((r.avisos || []).length ? `<div class="aviso" style="margin-top:8px">${r.avisos.map(escH).join("<br>")}</div>` : "") +
+    (!cup ? `<div class="orig" style="margin-top:6px">Antes de ${dataBr(r.inicio_cupons)} só existem os totais por dia, por hora e por forma de pagamento (o histórico de cupons começa aí). Caixa, produtos e ticket médio aparecem para períodos a partir dessa data.</div>` : "") +
+    `<div style="margin-top:8px"><button class="sec" id="vdCsv">Baixar planilha (CSV)</button></div></div>`;
+  // por dia (ou por mês, se o período for longo)
+  const pd = r.por_dia || [], porMes = pd.length > 62, lin = [];
+  if (porMes) { const mm = new Map(); for (const x of pd) { const k = x.d.slice(0, 7), o = mm.get(k) || { d: k, l1: 0, l2: 0, t: 0, n: 0 }; o.l1 += +x.l1; o.l2 += +x.l2; o.t += +x.t; o.n += +(x.n || 0); mm.set(k, o); } lin.push(...mm.values()); } else lin.push(...pd.map(x => ({ d: x.d, l1: +x.l1, l2: +x.l2, t: +x.t, n: x.n })));
+  if (lin.length > 1) { const mx = Math.max(1, ...lin.map(x => x.t));
+    h += `<div class="painel" style="overflow:auto"><b>${porMes ? "Por mês" : "Por dia"}</b>${porMes ? "" : ' <span class="orig">— toque num dia para abrir o dia</span>'}<table style="margin-top:6px"><thead><tr><th>${porMes ? "Mês" : "Dia"}</th><th class="n">Loja 1</th><th class="n">Loja 2</th><th class="n">Total</th>${cup ? '<th class="n">Cupons</th>' : ""}<th style="width:35%"></th></tr></thead><tbody>` +
+      lin.slice().reverse().map(x => `<tr${porMes ? "" : ` data-vd="${x.d}" style="cursor:pointer"`}><td>${porMes ? x.d.split("-").reverse().join("/") : dataBr(x.d) + ' <span class="orig">' + vdSem(x.d) + "</span>"}</td><td class="n">${x.l1 ? br(x.l1) : "—"}</td><td class="n">${x.l2 ? br(x.l2) : "—"}</td><td class="n"><b>${x.t ? br(x.t) : "—"}</b></td>${cup ? `<td class="n">${x.n ? br(+x.n, 0) : ""}</td>` : ""}<td>${vdBarra(x.t, mx)}</td></tr>`).join("") + `</tbody></table></div>`; }
+  // dia da semana e hora
+  const ps = (r.por_semana || []).filter(x => x.dias > 0), ph = r.por_hora || [];
+  if (ps.length > 1 || ph.length) {
+    h += `<div class="painel" style="display:flex;gap:22px;flex-wrap:wrap">`;
+    if (ps.length > 1) { const med = ps.map(x => ({ ...x, m: x.t / x.dias })), mx = Math.max(1, ...med.map(x => x.m));
+      h += `<div style="flex:1;min-width:260px"><b>Por dia da semana</b> <span class="orig">— média por dia</span>` + [1, 2, 3, 4, 5, 6, 0].map(d => med.find(x => x.dow === d)).filter(Boolean).map(x => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:62px" class="orig">${VD_SEM[x.dow]}</span><div style="flex:1">${vdBarra(x.m, mx)}</div><span style="width:92px;text-align:right">R$ ${br(x.m)}</span></div>`).join("") + `</div>`; }
+    if (ph.length) { const mx = Math.max(1, ...ph.map(x => +x.t));
+      h += `<div style="flex:1;min-width:260px"><b>Por hora</b> <span class="orig">— soma do período</span>` + ph.map(x => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:34px;text-align:right" class="orig">${x.h}h</span><div style="flex:1">${vdBarra(+x.t, mx)}</div><span style="width:92px;text-align:right">R$ ${br(+x.t)}</span></div>`).join("") + `</div>`; }
+    h += `</div>`;
+  }
+  // formas de pagamento e caixas
+  const pm = r.por_meio || [], pc = r.por_caixa || [], tPm = pm.reduce((a, x) => a + Number(x.t), 0);
+  if (pm.length || pc.length) {
+    h += `<div class="painel" style="display:flex;gap:22px;flex-wrap:wrap">`;
+    if (pm.length) h += `<div style="flex:1;min-width:260px"><b>Formas de pagamento</b>${f.prod ? ' <span class="orig">— valor do produto dividido pelas formas de cada cupom</span>' : ""}<table style="margin-top:6px"><thead><tr><th>Forma</th><th class="n">${cup ? "Cupons" : "Pagamentos"}</th><th class="n">Valor</th><th class="n">%</th></tr></thead><tbody>` +
+      pm.map(x => `<tr${f.meio ? "" : ` data-meio="${escH(x.m)}" style="cursor:pointer" title="filtrar por esta forma"`}><td>${escH(VD_MEIO_NOME[x.m] || x.m)}</td><td class="n">${x.n != null ? br(+x.n, 0) : ""}</td><td class="n">R$ ${br(+x.t)}</td><td class="n">${tPm > 0 ? br(x.t / tPm * 100, 0) : 0}%</td></tr>`).join("") + `</tbody></table></div>`;
+    if (pc.length) h += `<div style="flex:1;min-width:220px"><b>Por caixa</b><table style="margin-top:6px"><thead><tr><th>Caixa</th><th class="n">Cupons</th><th class="n">Valor</th><th class="n">Ticket</th></tr></thead><tbody>` +
+      pc.map(x => `<tr><td>Loja ${x.loja_id} · caixa ${x.pdv ?? "?"}</td><td class="n">${br(+x.n, 0)}</td><td class="n">R$ ${br(+x.t)}</td><td class="n">R$ ${br(x.n ? x.t / x.n : 0)}</td></tr>`).join("") + `</tbody></table></div>`;
+    h += `</div>`;
+  }
+  // produtos
+  const pr = r.produtos || [];
+  if (pr.length) h += `<div class="painel" style="overflow:auto"><details${f.prod ? " open" : ""}><summary style="cursor:pointer"><b>${f.prod ? "Produtos encontrados" : "Produtos que mais venderam"}</b> <span class="orig">— por valor${pr.length >= 60 ? ", os 60 primeiros" : ""}</span></summary><table style="margin-top:6px"><thead><tr><th>Produto</th><th class="n">Qtd</th><th class="n">Valor</th><th class="n">Cupons</th></tr></thead><tbody>` +
+    pr.map(x => `<tr><td>${escH(x.descr || "")}<div class="orig mono" style="font-size:10px">${escH(x.ean || "")}</div></td><td class="n">${br(+x.q, +x.q % 1 ? 3 : 0)}</td><td class="n">R$ ${br(+x.t)}</td><td class="n">${br(+x.n, 0)}</td></tr>`).join("") + `</tbody></table></details></div>`;
+  // cupons
+  const ls = r.lista || [];
+  if (ls.length) h += `<div class="painel" style="overflow:auto"><details><summary style="cursor:pointer"><b>Cupons</b> <span class="orig">— ${ls.length >= 200 ? "os 200 mais recentes" : ls.length + " cupom(ns)"}; toque para ver os itens</span></summary><table style="margin-top:6px"><thead><tr><th>Dia</th><th>Hora</th><th>Loja · caixa</th><th class="n">Valor</th><th>Pagamento</th><th class="n">Itens</th></tr></thead><tbody>` +
+    ls.map((c, i) => `<tr data-ci="${i}" style="cursor:pointer"><td>${dataBr(c.data)}</td><td>${escH((c.hora || "").slice(0, 5))}</td><td>L${c.loja_id} · cx ${c.pdv ?? "?"}</td><td class="n"><b>R$ ${br(+c.total)}</b>${Math.abs(+c.val - +c.total) > 0.005 ? `<div class="orig" style="font-size:11px">filtro: R$ ${br(+c.val)}</div>` : ""}</td><td>${vdPgTexto(c) || "—"}</td><td class="n">${(c.itens || []).length}</td></tr>`).join("") + `</tbody></table></details></div>`;
+  el.innerHTML = h;
+  for (const tr of el.querySelectorAll("tr[data-vd]")) tr.onclick = () => { document.getElementById("vdModo").value = "dia"; document.getElementById("vdDia").value = tr.dataset.vd; vdModo(); window.scrollTo(0, 0); };
+  for (const tr of el.querySelectorAll("tr[data-meio]")) tr.onclick = () => { document.getElementById("vdFMeio").value = tr.dataset.meio; vdCarregar(); };
+  for (const tr of el.querySelectorAll("tr[data-ci]")) tr.onclick = () => {
+    const prox = tr.nextElementSibling; if (prox && prox.classList.contains("vd-its")) { prox.remove(); return; }
+    const c = ls[Number(tr.dataset.ci)], x = document.createElement("tr"); x.className = "vd-its";
+    x.innerHTML = `<td colspan="6" style="background:#f6f8fb"><table><thead><tr><th class="n">Qtd</th><th>Produto</th><th>Código</th><th class="n">Unit.</th><th class="n">Total</th></tr></thead><tbody>` + (c.itens || []).map(i => `<tr${i[8] === "S" ? ' style="text-decoration:line-through;color:#8a94a6" title="item cancelado"' : ""}><td class="n">${br(Number(i[3]), Number(i[3]) % 1 ? 3 : 0)}</td><td>${escH(i[2])}</td><td class="orig">${escH(i[1])}</td><td class="n">${br(Number(i[5]))}</td><td class="n">${br(Number(i[6]))}</td></tr>`).join("") + `</tbody></table><div class="orig" style="margin-top:4px">cupom ${escH(c.coo)}${c.nfce_num ? " · NFC-e nº " + escH(String(Number(c.nfce_num))) : ""}</div></td>`;
+    tr.after(x);
+  };
+  document.getElementById("vdCsv").onclick = vdCsv;
+}
+function vdCsv() {
+  const r = VD.per; if (!r) return;
+  const n = x => x == null ? "" : String(x).replace(".", ","), q = t => '"' + String(t ?? "").replace(/"/g, '""') + '"', f = vdFiltros();
+  const L = [`Vendas de ${dataBr(r.de)} a ${dataBr(r.ate)}`, "Filtros;" + q([document.getElementById("vdLoja").selectedOptions[0].text, f.pdv ? "caixa " + f.pdv : "", f.meio ? VD_MEIO_NOME[f.meio] : "", f.hi > 0 || f.hf < 23 ? `${f.hi}h a ${f.hf}h59` : "", f.prod].filter(Boolean).join(" / ")), "",
+    "Total;" + n(r.total), r.n != null ? "Cupons;" + n(r.n) : "", "", "Dia;Loja 1;Loja 2;Total;Cupons"];
+  for (const x of r.por_dia || []) L.push([x.d.split("-").reverse().join("/"), n(x.l1), n(x.l2), n(x.t), n(x.n)].join(";"));
+  L.push("", "Forma de pagamento;Quantidade;Valor"); for (const x of r.por_meio || []) L.push([VD_MEIO_NOME[x.m] || x.m, n(x.n), n(x.t)].join(";"));
+  if ((r.por_caixa || []).length) { L.push("", "Loja;Caixa;Cupons;Valor"); for (const x of r.por_caixa) L.push([x.loja_id, x.pdv, n(x.n), n(x.t)].join(";")); }
+  if ((r.produtos || []).length) { L.push("", "Código;Produto;Quantidade;Valor;Cupons"); for (const x of r.produtos) L.push([q(x.ean), q(x.descr), n(x.q), n(x.t), n(x.n)].join(";")); }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + L.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+  a.download = `vendas_${r.de}_a_${r.ate}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
 async function vdCarregar() {
   if (!supa) return;
+  const modoP = document.getElementById("vdModo").value !== "dia" || vdTemFiltro(vdFiltros());
+  document.querySelector("#vVendas .vd-dia").style.display = modoP ? "none" : "";
+  document.getElementById("vdPer").style.display = modoP ? "" : "none";
+  if (modoP) { clearTimeout(VD.t); document.getElementById("vdAtu").textContent = ""; return vdPeriodo(); }
   const e = document.getElementById("vdDia"); if (!e.value) e.value = vdIso(new Date());
   const dia = e.value, loja = Number(document.getElementById("vdLoja").value), de = vdMais(dia, -35);
   let q = supa.from("vendas_hora").select("loja_id, data, hora, pdv, qtd, valor, atualizado_em").eq("oper", "V").gte("data", de).lte("data", dia).order("data").limit(5000);
@@ -2236,10 +2361,10 @@ function vdDesenhar() {
   document.getElementById("vdHoras").innerHTML = horas.length ? horas.map(h => { const v = porH(a, h), w = porH(sem, h);
     return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:34px;text-align:right" class="orig">${h}h</span><div style="flex:1"><div style="height:13px;width:${Math.max(0.5, v / maxH * 100)}%;background:#0b57d0;border-radius:3px"></div><div style="height:5px;width:${Math.max(0.5, w / maxH * 100)}%;background:#c4c9d1;border-radius:3px;margin-top:1px"></div></div><span style="width:92px;text-align:right">R$ ${br(v)}</span></div>`; }).join("") : `<span class="orig">Sem vendas neste dia.</span>`;
   // formas de pagamento
-  const porMeio = new Map(); for (const x of VD.pg) { const m = porMeio.get(x.meio) || { q: 0, v: 0 }; m.q += Number(x.qtd || 0); m.v += Number(x.valor || 0); porMeio.set(x.meio, m); }
+  const porMeio = new Map(); for (const x of VD.pg) { const k = vdMeioCod(Number(x.loja_id), Number(x.meio)), m = porMeio.get(k) || { q: 0, v: 0 }; m.q += Number(x.qtd || 0); m.v += Number(x.valor || 0); porMeio.set(k, m); }
   const totPg = [...porMeio.values()].reduce((s, m) => s + m.v, 0);
   document.getElementById("vdPg").innerHTML = porMeio.size ? `<table><thead><tr><th>Forma</th><th class="n">Pagamentos</th><th class="n">Valor</th><th class="n">%</th></tr></thead><tbody>` +
-    [...porMeio].sort((x, y) => y[1].v - x[1].v).map(([m, o]) => `<tr><td>${escH(VD_MEIOS[m] || "Forma " + m)}</td><td class="n">${br(o.q, 0)}</td><td class="n">R$ ${br(o.v)}</td><td class="n">${totPg > 0 ? br(o.v / totPg * 100, 0) : 0}%</td></tr>`).join("") +
+    [...porMeio].sort((x, y) => y[1].v - x[1].v).map(([m, o]) => `<tr><td>${escH(VD_MEIO_NOME[m] || m)}</td><td class="n">${br(o.q, 0)}</td><td class="n">R$ ${br(o.v)}</td><td class="n">${totPg > 0 ? br(o.v / totPg * 100, 0) : 0}%</td></tr>`).join("") +
     `<tr><td><b>Total</b></td><td></td><td class="n"><b>R$ ${br(totPg)}</b></td><td></td></tr></tbody></table>` + (Math.abs(totPg - tot) > 0.05 ? `<div class="orig" style="margin-top:4px">O total dos pagamentos (R$ ${br(totPg)}) difere das vendas do dia (R$ ${br(tot)}): acontece quando o caixa não é fechado no mesmo dia.</div>` : "")
     : `<span class="orig">Ainda sem pagamentos deste dia (o caixa não foi fechado, ou não houve venda).</span>`;
   // últimos 30 dias
@@ -2284,7 +2409,7 @@ function vdDesenharCupons() {
   const chave = c => [c.loja_id, c.serie, c.coo, c.data].join("|");
   e.innerHTML = `<table><thead><tr>${VD.cpBusca ? "<th>Dia</th>" : ""}<th>Hora</th><th>Loja · caixa</th><th class="n">Valor</th><th>Pagamento</th><th class="n">Itens</th><th>NFC-e</th></tr></thead><tbody>` + lista.map(c => {
     const k = chave(c), ab = VD.abertos.has(k), its = c.itens || [], cols = VD.cpBusca ? 7 : 6;
-    const pg = (c.pgtos || []).map(p => escH(VD_MEIOS[p[0]] && p[0] !== 4 ? VD_MEIOS[p[0]] : String(p[1] || "").toLowerCase().replace(/^./, x => x.toUpperCase())) + ((c.pgtos || []).length > 1 ? " R$ " + br(Number(p[2])) : "")).join(" + ");
+    const pg = vdPgTexto(c);
     let h = `<tr data-k="${escH(k)}" style="cursor:pointer${c.cancelado ? ";color:#b3261e" : c.gemeo ? ";color:#6b7280" : ""}">${VD.cpBusca ? `<td>${dataBr(c.data)}</td>` : ""}<td>${escH((c.hora || "").slice(0, 5))}</td><td>L${c.loja_id} · cx ${c.pdv ?? "?"}</td><td class="n"><b>R$ ${br(Number(c.total))}</b></td><td>${c.cancelado ? "CANCELADO" : (pg || "—") + (c.gemeo ? ' <span class="orig">· cupom fiscal emitido depois para uma venda já registrada; não soma no dia</span>' : "")}</td><td class="n">${its.length}</td><td>${c.nfce_num ? "nº " + escH(String(Number(c.nfce_num))) : "—"}</td></tr>`;
     if (ab) h += `<tr><td colspan="${cols + 1}" style="background:#f6f8fb"><table><thead><tr><th class="n">Qtd</th><th>Produto</th><th>Código</th><th class="n">Unit.</th><th class="n">Total</th></tr></thead><tbody>` +
       its.map(i => `<tr${termo && !VD.cpBusca ? "" : ""}><td class="n">${br(Number(i[3]), Number(i[3]) % 1 ? 3 : 0)}</td><td>${escH(i[2])}</td><td class="orig">${escH(i[1])}</td><td class="n">${br(Number(i[5]))}</td><td class="n">${br(Number(i[6]))}</td></tr>`).join("") +
@@ -2300,6 +2425,14 @@ for (const id of ["fBolPer", "fBolDia", "fBolMes", "fBolDe", "fBolAte", "fBolFor
 for (const a of document.querySelectorAll(".bvista a")) a.addEventListener("click", () => { try { localStorage.setItem("entradaxml:bolVista", a.dataset.bv); } catch (e) {} desenharBoletos(); });
 document.getElementById("fBolLimpar").addEventListener("click", () => { document.getElementById("fBolPer").value = ""; document.getElementById("fBolForn").value = ""; document.getElementById("fBolLoja").value = ""; desenharBoletos(); });
 document.getElementById("vdDia").addEventListener("change", vdCarregar);
+{ const hi = document.getElementById("vdFHi"), hf = document.getElementById("vdFHf");
+  for (let i = 0; i < 24; i++) { hi.add(new Option(i + "h", i)); hf.add(new Option(i + "h59", i)); } hi.value = "0"; hf.value = "23"; }
+document.getElementById("vdModo").addEventListener("change", vdModo);
+for (const id of ["vdDe", "vdAte"]) document.getElementById(id).addEventListener("change", () => { document.getElementById("vdModo").value = "pers"; vdCarregar(); });
+for (const id of ["vdFCx", "vdFMeio", "vdFHi", "vdFHf"]) document.getElementById(id).addEventListener("change", vdCarregar);
+document.getElementById("vdFAplicar").addEventListener("click", vdCarregar);
+document.getElementById("vdFProd").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); vdCarregar(); } });
+document.getElementById("vdFLimpar").addEventListener("click", () => { document.getElementById("vdFCx").value = "0"; document.getElementById("vdFMeio").value = ""; document.getElementById("vdFHi").value = "0"; document.getElementById("vdFHf").value = "23"; document.getElementById("vdFProd").value = ""; vdCarregar(); });
 document.getElementById("vdLoja").addEventListener("change", vdCarregar);
 document.getElementById("vdHoje").addEventListener("click", () => { document.getElementById("vdDia").value = vdIso(new Date()); vdCarregar(); });
 document.getElementById("vdAnt").addEventListener("click", () => { const e = document.getElementById("vdDia"); e.value = vdMais(e.value || vdIso(new Date()), -1); vdCarregar(); });

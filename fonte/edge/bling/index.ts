@@ -14,6 +14,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 //     - venda da Loja 1 (cupons) de produto unificado → saída no Bling (cupom cancelado depois → volta como entrada);
 //     - mudança de saldo no Bling feita fora daqui (venda online, kit, ajuste) → soma/subtrai no Gestão da Loja 1 pela fila.
 //     Trava em bling_auth.sync_trava para o envio de nota e a sincronização não rodarem juntos (senão a entrada da nota viraria "venda online").
+// v5 (21/11/2026): entrada gravada no Gestão da Loja 1 (fila tipo 'entrada', aplicada) com produto já unificado entra sozinha no Bling
+//     (operação E, custo pelo fornecedor da nota); controle em estoque_unificado_nota (uma linha por pedido da fila; refaz só o que deu erro, até 5 vezes).
+//     acertar: quando Bling e Gestão ficam diferentes, o Aldo escolhe o lado certo; o outro passa a ter o mesmo saldo
+//     (para="bling": balanço no Bling com o saldo do Gestão; para="gestao": sincroniza antes e grava no Gestão o saldo do Bling).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -138,9 +142,60 @@ const destravar = () => rest("bling_auth?id=eq.1", { method: "PATCH", headers: {
 const gSql = (x: string) => "'" + String(x).replace(/'/g, "''") + "'";
 const nBr = (x: number) => String(Math.round(x * 1000) / 1000);
 
+const nEan = (x: string) => String(x || "").replace(/\D/g, "").replace(/^0+/, "");
+// entradas de nota já gravadas no Gestão da Loja 1 → entrada no Bling dos produtos unificados (antes de comparar os saldos)
+async function entradasDeNotas(por: string, rel: any) {
+  const a = await lerAuth(); if (!a.notas_desde) return;
+  const un: any[] = (await rest("estoque_unificado?select=ean,cod_gestao,bling_id,deposito_id,inicio_em,descricao&ativo=eq.true&loja_id=eq.1")) || [];
+  if (!un.length) return;
+  const porCod = new Map<string, any>(); for (const u of un) { porCod.set(nEan(u.ean), u); if (u.cod_gestao) porCod.set(nEan(u.cod_gestao), u); }
+  const filas: any[] = (await rest(`fila?select=id,titulo,conteudo,aplicado_em&loja_id=eq.1&tipo=eq.entrada&status=eq.aplicado&aplicado_em=gte.${encodeURIComponent(a.notas_desde)}&order=id.asc&limit=50`)) || [];
+  if (!filas.length) return;
+  const feitos: any[] = (await rest(`estoque_unificado_nota?select=fila_id,itens,tentativas,pendente&fila_id=in.(${filas.map(f => f.id).join(",")})`)) || [];
+  const mf = new Map<number, any>(feitos.map(f => [Number(f.fila_id), f]));
+  for (const f of filas) {
+    const ja = mf.get(Number(f.id)); if (ja && (!ja.pendente || ja.tentativas >= 5)) continue;
+    const qt = new Map<string, { u: any; q: number; v: number }>(), re = /ATUALIZAR_ESTOQUE \(1, 1, 1, '([^']+)', 'S', ([\d.]+), ([\d.]+),/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(f.conteudo || ""))) {
+      const u = porCod.get(nEan(m[1])); if (!u) continue;
+      if (u.inicio_em && new Date(f.aplicado_em) <= new Date(u.inicio_em)) continue; // a 1ª vez (balanço) já contou esta nota
+      const o = qt.get(u.ean) || { u, q: 0, v: 0 }; o.q += Number(m[2]); o.v += Number(m[3]); qt.set(u.ean, o);
+    }
+    const res: Record<string, string> = { ...((ja && ja.itens) || {}) };
+    if (qt.size) {
+      const tit = String(f.titulo || "entrada").slice(0, 120);
+      const cnpj = (/CNPJ (\d{14}|\d{11})/.exec(f.conteudo || "") || [])[1] || ((/CHAVE (\d{44})/.exec(f.conteudo || "") || [])[1] || "").slice(6, 20);
+      let forn: { id: number; criado: boolean } | null = null, fornErro = "";
+      if (cnpj) { try { forn = await fornecedorBling(cnpj); } catch (e) { fornErro = String((e as Error).message).slice(0, 120); } }
+      for (const [ean, o] of qt) {
+        if ((res[ean] || "").startsWith("ok")) continue;
+        try {
+          const custo = o.q > 0 ? Math.round(o.v / o.q * 10000) / 10000 : undefined;
+          await bling("/estoques", { method: "POST", body: JSON.stringify({ produto: { id: o.u.bling_id }, deposito: { id: o.u.deposito_id }, operacao: "E", quantidade: o.q, ...(custo ? { custo } : {}), observacoes: ("Entrada no Gestão da Loja 1: " + tit).slice(0, 200) }) });
+          await espera(340);
+          // a entrada não é "mudança feita no Bling": o saldo de referência sobe junto, senão a sincronização mandaria de volta ao Gestão
+          const at = ((await rest(`estoque_unificado?select=saldo_bling&ean=eq.${ean}`)) || [])[0];
+          if (at && at.saldo_bling !== null && at.saldo_bling !== undefined) await rest(`estoque_unificado?ean=eq.${ean}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ saldo_bling: Number(at.saldo_bling) + o.q, atualizado_em: new Date().toISOString() }) });
+          let cst = forn ? "" : (fornErro ? "sem custo: " + fornErro : "sem custo (nota sem fornecedor)");
+          if (forn && custo) { try { cst = await custoFornecedor(o.u.bling_id, forn.id, custo, undefined, "", String(o.u.descricao || "")); } catch (e) { cst = "custo não gravado: " + String((e as Error).message).slice(0, 100); } }
+          res[ean] = "ok " + nBr(o.q) + (cst ? " · " + cst : "");
+          await rest("estoque_unificado_mov", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ean, origem: "nota", lado: "bling", operacao: "E", quantidade: o.q, custo: custo ?? null, obs: tit + " (automático)", por }) });
+          rel.notas.push({ ean, nome: o.u.descricao, q: o.q, titulo: tit });
+        } catch (e) { res[ean] = "erro: " + String((e as Error).message).slice(0, 200); rel.erros.push(`${ean} (nota): ${res[ean]}`); }
+        await espera(340);
+      }
+    }
+    await rest("estoque_unificado_nota?on_conflict=fila_id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({
+      fila_id: f.id, titulo: f.titulo, itens: res, tentativas: ((ja && ja.tentativas) || 0) + 1, pendente: Object.values(res).some(x => x.startsWith("erro")), em: new Date().toISOString() }) });
+  }
+}
+
 async function sincronizar(por: string) {
+  const rel: any = { itens: 0, vendas_loja: [], online: [], notas: [], erros: [] as string[] };
+  await entradasDeNotas(por, rel);
   const itens: any[] = (await rest("estoque_unificado?select=*&ativo=eq.true&loja_id=eq.1")) || [];
-  const rel: any = { itens: itens.length, vendas_loja: [], online: [], erros: [] as string[] };
+  rel.itens = itens.length;
   if (!itens.length) return rel;
   // 1) saldos atuais no Bling (antes de lançar as vendas da loja)
   const saldo: Record<string, number> = {};
@@ -201,6 +256,7 @@ async function sincronizar(por: string) {
     const tit = "E-commerce: " + gestao.map(x => (x.q > 0 ? "+" : "") + nBr(x.q) + " " + (x.nome || x.ean).slice(0, 20)).join(", ");
     await rest("fila", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ loja_id: 1, tipo: "ecommerce", titulo: tit.slice(0, 110), conteudo: sql.join("\r\n") + "\r\nCOMMIT;\r\n", status: "pendente" }) });
   }
+  await rest("rpc/estu_marcar_diferencas", { method: "POST", body: "{}" }).catch(() => {}); // para o aviso "diferente há mais de 20 min" da tela Hoje
   return rel;
 }
 const origemBling = (o: any) => { const n = Number(o); return n === 1 ? 2 : n === 6 ? 7 : (Number.isFinite(n) ? n : 0); }; // compra no mercado interno: 1→2, 6→7
@@ -241,7 +297,7 @@ Deno.serve(async (req: Request) => {
     if (!(await travar())) return resp({ ok: true, pulou: "outra operação em andamento" });
     try {
       const rel = await sincronizar("automático");
-      const m = `${rel.vendas_loja.length} venda(s) da loja → Bling; ${rel.online.length} mudança(s) do Bling → Gestão` + (rel.erros.length ? `; ${rel.erros.length} erro(s)` : "");
+      const m = `${rel.vendas_loja.length} venda(s) da loja → Bling; ${rel.online.length} mudança(s) do Bling → Gestão` + (rel.notas.length ? `; ${rel.notas.length} entrada(s) de nota → Bling` : "") + (rel.erros.length ? `; ${rel.erros.length} erro(s)` : "");
       await gravarAuth({ sync_em: new Date().toISOString(), sync_msg: m });
       return resp({ ok: true, ...rel });
     } catch (e) { await gravarAuth({ sync_em: new Date().toISOString(), sync_msg: "falhou: " + String((e as Error).message).slice(0, 200) }); return resp({ ok: false, msg: String((e as Error).message) }); }
@@ -296,8 +352,35 @@ Deno.serve(async (req: Request) => {
       if (!(await esperarTrava(30))) return resp({ ok: false, msg: "Outra operação com o Bling está em andamento. Tente de novo em um minuto." });
       try {
         const rel = await sincronizar(email);
-        await gravarAuth({ sync_em: new Date().toISOString(), sync_msg: `${rel.vendas_loja.length} venda(s) da loja → Bling; ${rel.online.length} mudança(s) do Bling → Gestão` + (rel.erros.length ? `; ${rel.erros.length} erro(s)` : "") });
+        await gravarAuth({ sync_em: new Date().toISOString(), sync_msg: `${rel.vendas_loja.length} venda(s) da loja → Bling; ${rel.online.length} mudança(s) do Bling → Gestão` + (rel.notas.length ? `; ${rel.notas.length} entrada(s) de nota → Bling` : "") + (rel.erros.length ? `; ${rel.erros.length} erro(s)` : "") });
         return resp({ ok: true, ...rel });
+      } finally { await destravar(); }
+    }
+    if (acao === "acertar") {
+      const ean = String(corpo?.ean || "").trim(), para = corpo?.para === "gestao" ? "gestao" : "bling";
+      const it = ((await rest(`estoque_unificado?select=*&ean=eq.${encodeURIComponent(ean)}&ativo=eq.true`)) || [])[0];
+      if (!it) return resp({ ok: false, msg: "Produto não está no estoque unificado." });
+      if (!(await esperarTrava(30))) return resp({ ok: false, msg: "Outra operação com o Bling está em andamento. Tente de novo em um minuto." });
+      try {
+        if (para === "bling") {
+          const v = Number(corpo?.valor); if (!Number.isFinite(v) || v < 0) return resp({ ok: false, msg: "saldo do Gestão inválido" });
+          await bling("/estoques", { method: "POST", body: JSON.stringify({ produto: { id: it.bling_id }, deposito: { id: it.deposito_id }, operacao: "B", quantidade: v, observacoes: "Acerto pelo saldo do Gestão da Loja 1 (estoque unificado)" }) });
+          await rest(`estoque_unificado?ean=eq.${encodeURIComponent(ean)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ saldo_bling: v, ultimo_acerto: new Date().toISOString(), ultimo_erro: null, atualizado_em: new Date().toISOString() }) });
+          await rest("estoque_unificado_mov", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ean, origem: "acerto", lado: "bling", operacao: "B", quantidade: v, obs: `Bling acertado pelo Gestão (antes ${nBr(Number(it.saldo_bling ?? 0))})`, por: email }) });
+          return resp({ ok: true, para, saldo: v });
+        }
+        await sincronizar(email); // leva as vendas pendentes antes de copiar o saldo
+        const saldo = await saldoDeposito(it.bling_id, it.deposito_id);
+        if (saldo === null) return resp({ ok: false, msg: "O Bling não devolveu o saldo." });
+        await rest(`estoque_unificado?ean=eq.${encodeURIComponent(ean)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ saldo_bling: saldo, ultimo_acerto: new Date().toISOString(), atualizado_em: new Date().toISOString() }) });
+        const onde = "CODIGO_BARRAS = " + gSql(it.cod_gestao || it.ean), novo = nBr(saldo);
+        const sql = ["/* ESTOQUE UNIFICADO: acerto do Gestao pelo saldo do Bling */",
+          `INSERT INTO HIST_ALT_ESTOQUE_MANUAL (ID_PRODUTO, F_ESTOQUE_ANTERIOR, F_ESTOQUE_NOVO, DH_OPERACAO, ID_USUARIO, ID_SUPERVISOR, ID_LOJA, S_ESTACAO) SELECT ID, ESTOQUE_ATUAL, ${novo}, CURRENT_TIMESTAMP, 1, 0, 0, 'ECOMMERCE-BLING' FROM PRODUTOS WHERE ${onde} AND ESTOQUE_ATUAL <> ${novo};`,
+          `UPDATE PRODUTOS SET ESTOQUE_ATUAL = ${novo}, ULT_ALTERACAO = CURRENT_DATE, ALT_PDV = 1 WHERE ${onde};`, "COMMIT;",
+          `SELECT CODIGO_BARRAS, SUBSTRING(DESCRICAO FROM 1 FOR 40) AS DESCRICAO, ESTOQUE_ATUAL FROM PRODUTOS WHERE ${onde};`, ""];
+        const fl = await rest("fila", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ loja_id: 1, tipo: "ecommerce", titulo: ("E-commerce: acerto " + (it.descricao || ean) + " = " + novo).slice(0, 110), conteudo: sql.join("\r\n"), status: "pendente" }) });
+        await rest("estoque_unificado_mov", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ean, origem: "acerto", lado: "gestao", operacao: "B", quantidade: saldo, obs: "Gestão acertado pelo Bling", por: email }) });
+        return resp({ ok: true, para, saldo, fila: fl && fl[0] ? fl[0].id : null });
       } finally { await destravar(); }
     }
     if (acao === "unificar") {

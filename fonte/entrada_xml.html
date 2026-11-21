@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="82">
+<meta name="versao" content="84">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1404,7 +1404,7 @@ function sqlEntrada(loja) {
   for (const [ca, cp] of auxs) linhas.push(...sqlAuxiliar(ca, cp));
   const grupos = []; for (let i = 0; i < eans.length; i += 400) grupos.push("CODIGO_BARRAS IN (" + eans.slice(i, i + 400).map(aspas).join(",") + ")");
   const onde = grupos.join(" OR ");
-  return [`/* ENTRADA-XML-PRECOS ENTRADA COMPLETA LOJA ${loja} (produtos novos + estoque + precos) - ${cab.manual ? "sem nota" : "NF " + cab.nnf} - ${semAcento(cab.emit).replace(/[^\x20-\x7e]|\*\//g, " ")} - ${eans.length} produtos */`,
+  return [`/* ENTRADA-XML-PRECOS ENTRADA COMPLETA LOJA ${loja} (produtos novos + estoque + precos) - ${cab.manual ? "sem nota" : "NF " + cab.nnf} - ${semAcento(cab.emit).replace(/[^\x20-\x7e]|\*\//g, " ")} - ${eans.length} produtos${/^\d{11}$|^\d{14}$/.test(String(cab.cnpj || "").replace(/\D/g, "")) ? " - CNPJ " + String(cab.cnpj).replace(/\D/g, "") : ""} */`,
     ...linhas,
     "UPDATE DATAS SET T_ALT_PRODUTOS = CURRENT_TIMESTAMP;",
     "COMMIT;",
@@ -3556,9 +3556,47 @@ async function hjCarregar() {
     for (const l of [1, 2]) if (vivo[l] && vivo[l].t > (porDia[l + "|" + hojeIso] || 0)) porDia[l + "|" + hojeIso] = vivo[l].t;
     HJ.vendas = { porDia, ult, hojeIso, vivo };
     await lerAgente();
+    // saúde do sistema: pedidos ao Gestão recusados ou parados, e a ligação com o Bling
+    const de2 = new Date(Date.now() - 2 * 864e5).toISOString();
+    const [rf, rb] = await Promise.all([
+      supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em").in("status", ["erro", "pendente", "aplicando"]).gte("criado_em", de2).order("id", { ascending: false }).limit(60),
+      supa.rpc("bling_saude")]);
+    HJ.sis = { fila: rf.data || [], bling: rb.data || null };
   } catch (e) { console.warn("hoje", e); }
   HJ.carregando = false; hjDesenhar();
   clearTimeout(HJ.t); if (vista === "hoje") HJ.t = setTimeout(() => { if (vista === "hoje") hjCarregar(); }, 120000);
+}
+// card "Sistema": só o que está com problema (PC da loja sem contato, vendas sem chegar, pedido ao Gestão recusado ou parado, Bling)
+function hjSistema(tcard, row) {
+  const S = HJ.sis || {}, V = HJ.vendas, agora = Date.now(), hm = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const ico = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>`;
+  const alerta = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`;
+  const it = [];
+  for (const l of [1, 2]) { const a = agenteInfo && agenteInfo[l]; if (a && a.ouvinte_em && agora - new Date(a.ouvinte_em) > 15 * 60000) it.push(["erro", `PC da Loja ${l} sem contato desde ${hm(a.ouvinte_em)}`]); }
+  const hNow = new Date().getHours();
+  if (V && V.vivo && hNow >= 10 && hNow < 21) for (const l of [1, 2]) {
+    const a = agenteInfo && agenteInfo[l]; if (!a || !a.online) continue; const u = V.vivo[l];
+    if (!u) it.push(["av", `Nenhuma venda da Loja ${l} chegou hoje (se a loja está aberta, confira o caixa)`]);
+    else { const [hh, mm] = String(u.ult).split(":").map(Number), min = Math.round((agora - new Date().setHours(hh, mm, 0, 0)) / 60000); if (min > 60) it.push(["av", `Nenhuma venda da Loja ${l} chega há ${min >= 120 ? Math.floor(min / 60) + " h" : min + " min"} (última às ${String(u.ult).slice(0, 5)})`]); }
+  }
+  const F = S.fila || [], nota = t => t === "entrada" || t === "precos";
+  const rec = F.filter(f => f.status === "erro" && !nota(f.tipo)), par = F.filter(f => f.status !== "erro" && agora - new Date(f.criado_em) > 15 * 60000);
+  if (rec.length) it.push(["erro", `<span title="${escH(rec.slice(0, 6).map(f => "#" + f.id + " L" + f.loja_id + " " + (f.titulo || f.tipo)).join("\n"))}"><strong>${rec.length}</strong> pedido${rec.length > 1 ? "s" : ""} ao Gestão recusado${rec.length > 1 ? "s" : ""} nos últimos 2 dias (${escH([...new Set(rec.map(f => f.tipo))].join(", "))})</span>`]);
+  if (par.length) it.push(["av", `<strong>${par.length}</strong> pedido${par.length > 1 ? "s" : ""} esperando o PC da loja há mais de 15 min`]);
+  const B = S.bling;
+  if (B) {
+    if (!B.ligado) it.push(["av", "Bling desligado do sistema (aba Produtos → Ligar ao Bling)"]);
+    else if (B.ultimo_erro) it.push(["erro", "Bling: " + escH(String(B.ultimo_erro).slice(0, 120))]);
+    if (B.unificados > 0) {
+      if (!B.sync_em || agora - new Date(B.sync_em) > 20 * 60000) it.push(["erro", `Sincronização com o Bling parada${B.sync_em ? " desde " + hm(B.sync_em) : ""}`]);
+      else if (/^falhou/.test(B.sync_msg || "")) it.push(["erro", "Sincronização com o Bling: " + escH(B.sync_msg)]);
+      if (B.diferentes > 0) it.push(["av", `<a href="#" data-v="produtos" style="color:inherit"><strong>${B.diferentes}</strong> produto${B.diferentes > 1 ? "s" : ""} do e-commerce com Bling e Gestão diferentes há mais de 20 min</a>`]);
+      if (B.com_erro > 0) it.push(["erro", `<a href="#" data-v="produtos" style="color:inherit"><strong>${B.com_erro}</strong> produto${B.com_erro > 1 ? "s" : ""} do e-commerce com erro no acerto</a>`]);
+      if (B.notas_pendentes > 0) it.push(["av", `<strong>${B.notas_pendentes}</strong> entrada${B.notas_pendentes > 1 ? "s" : ""} de nota ainda sem ir ao Bling (tenta de novo sozinho)`]);
+    }
+  }
+  const corpo = it.length ? it.map(([c, t]) => row(c, t, alerta)).join("") : row("vazio", "Tudo funcionando: PCs online, vendas chegando" + (B && B.unificados > 0 ? ", Bling em dia" : ""), `<span class="badge ok">ok</span>`);
+  return tcard("Sistema", ico, it.length ? `${it.length} aviso${it.length > 1 ? "s" : ""}` : "tudo certo", "produtos", corpo);
 }
 function hjDesenhar() {
   const h_ = window.h || (t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]));
@@ -3601,6 +3639,7 @@ function hjDesenhar() {
     <div class="sales-grid">${cardVenda2(1)}${cardVenda2(2)}</div>
     <div class="sec-title"><h2>O que precisa de atenção</h2><span class="sec-linha"></span></div>
     <div class="tasks-grid">
+      ${hjSistema(tcard, row)}
       ${tcard("Boletos", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg>`, `${bol.length} em aberto`, "boletos",
         (bv.length ? row("erro", `<strong>${bv.length}</strong> vencido${bv.length > 1 ? "s" : ""}`, `<strong>${orBrl(soma(bv))}</strong>`) : "") +
         (bh.length ? row("av", `<strong>${bh.length}</strong> vence${bh.length > 1 ? "m" : ""} hoje`, `<strong>${orBrl(soma(bh))}</strong>`) : "") +
@@ -3623,7 +3662,7 @@ function hjDesenhar() {
         (ntsErro.length ? row("erro", `<strong>${ntsErro.length}</strong> com erro no envio`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`) : "") + `</div>` +
         (() => { const u = [...fonteNotas()].sort((x, y) => (y.criado || "").localeCompare(x.criado || ""))[0]; return u ? `<div style="padding-top:6px"><span class="eyebrow">Última nota lançada</span><div style="font-weight:800;color:var(--azul);margin-top:6px">${h_(u.emit || "")}</div><div class="task-nota" style="margin-top:3px">${h_(rotNota(u))}${u.itens ? " · " + u.itens + " itens" : ""}${u.vNF ? " · " + orBrl(u.vNF) : ""}</div></div>` : "<div></div>"; })() + `</div>`, true)}
     </div>
-    <div class="rodape-pg"><span>${V && V.ult ? "Vendas atualizadas às " + new Date(V.ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Vendas: carregando…"} · o painel se atualiza sozinho a cada 2 minutos</span><span>Valores do movimento de hoje</span></div>`;
+    <div class="rodape-pg"><span>${V && V.ult ? "Vendas atualizadas às " + new Date(V.ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Vendas: carregando…"} · o painel se atualiza sozinho a cada venda que chega</span><span>Valores do movimento de hoje</span></div>`;
   for (const a of el.querySelectorAll("a[data-v]")) a.addEventListener("click", ev => { ev.preventDefault(); mostrar(a.dataset.v); });
   el.querySelector("#hjAtu").addEventListener("click", () => { HJ.vendas = null; hjDesenhar(); hjCarregar(); });
   el.querySelector("#hjZap").addEventListener("click", () => {
@@ -4150,9 +4189,9 @@ async function estuAbrirNota() {
   const { data, error } = await supa.functions.invoke("bling", { body: { acao: "checar", eans: linhas.map(l => l.ean).filter(e => /^\d{8,14}$/.test(e)) } });
   if (error || !data || !data.ok) { b.innerHTML = `<b>Mandar ao e-commerce</b><div class="aviso" style="margin-top:6px">${escH((data && data.msg) || (error && error.message) || "O Bling não respondeu.")}</div><div style="margin-top:8px"><button class="sec" id="bx">Fechar</button></div>`; b.querySelector("#bx").onclick = () => b.style.display = "none"; return; }
   ESTU.checado = data.itens || {};
-  const motivo = l => !/^\d{8,14}$/.test(l.ean) ? "sem EAN" : !(l.q1 > 0) ? "nada para a Loja 1" : !l.it.e1 ? "envie ao Gestão primeiro" : l.it.bl ? "já mandado em " + dataBr(l.it.bl) : "";
+  const motivo = l => !/^\d{8,14}$/.test(l.ean) ? "sem EAN" : !(l.q1 > 0) ? "nada para a Loja 1" : (ESTU.checado[l.ean] || {}).unificado ? "já unificado: entra sozinho no Bling quando a entrada é gravada no Gestão da Loja 1" : !l.it.e1 ? "envie ao Gestão primeiro" : l.it.bl ? "já mandado em " + dataBr(l.it.bl) : "";
   b.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b>Mandar ao e-commerce (Bling)</b><a href="#" id="bx" style="color:var(--cinza)">fechar ✕</a></div>
-    <div class="orig" style="margin:4px 0 8px">Depósito: <b>${escH((data.deposito && data.deposito.nome) || "Geral")}</b>. Marque os itens que você vende online. <b>1ª vez</b> de um produto: o estoque no Bling <b>e</b> no Gestão da Loja 1 passa a ser só a quantidade desta nota. Já unificado: a nota soma no Bling (o Gestão já recebeu pelo envio normal). Produto que não existe no Bling ganha um cadastro básico.</div>
+    <div class="orig" style="margin:4px 0 8px">Depósito: <b>${escH((data.deposito && data.deposito.nome) || "Geral")}</b>. Marque os itens que você vende online. <b>1ª vez</b> de um produto: o estoque no Bling <b>e</b> no Gestão da Loja 1 passa a ser só a quantidade desta nota. Produto <b>já unificado</b> não precisa ser marcado: a entrada dele vai sozinha ao Bling quando a nota é gravada no Gestão da Loja 1. Produto que não existe no Bling ganha um cadastro básico.</div>
     <div style="max-height:52vh;overflow:auto;border:1px solid var(--borda);border-radius:6px"><table><thead><tr><th></th><th>Produto</th><th class="n">Loja 1 (un.)</th><th class="n">Custo un.</th><th>No Bling</th></tr></thead><tbody>
     ${linhas.map((l, i) => { const c = ESTU.checado[l.ean] || {}, mot = motivo(l), st = c.unificado ? `<span class="chip ok">unificado</span>` : c.bling ? `<span class="chip novo" title="${escH(c.bling.nome || "")}">existe · ${escH(c.bling.codigo || "")}</span>` : `<span class="chip av">será criado</span>`;
       return `<tr${mot ? ' style="opacity:.55"' : ""}><td><input type="checkbox" data-i="${i}" ${mot ? "disabled" : c.bling || c.unificado ? "checked" : ""}></td><td>${escH(l.it.desc || l.it.xprod || "")}<div class="orig mono" style="font-size:10px">${escH(l.ean || "")}${mot ? (l.ean ? " · " : "") + escH(mot) : ""}</div></td><td class="n">${br(l.q1, 0)}</td><td class="n">${br(l.k.custoUn, 2)}</td><td>${mot ? "" : st}</td></tr>`; }).join("")}
@@ -4226,9 +4265,29 @@ async function avListar() {
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px"><span id="estuSync" class="orig" style="margin:0">A sincronização roda sozinha a cada 5 minutos: venda da Loja 1 baixa no Bling; venda online (ou kit, ou ajuste no Bling) baixa no Gestão da Loja 1.</span><button class="sec" id="estuSyncBt" style="margin-left:auto">Sincronizar agora</button></div>
     <div style="overflow:auto;max-height:320px;margin-top:6px;border:1px solid var(--borda);border-radius:6px"><table><thead><tr><th>Produto</th><th class="n">Bling</th><th class="n">Gestão L1</th><th>Desde</th><th>Último acerto</th><th></th></tr></thead><tbody>` +
     l.map(x => { const g = gest[x.cod_gestao] || gest[x.ean], gb = g ? Number(g.estoque) : null, bb = x.saldo_bling != null ? Number(x.saldo_bling) : null, dif = gb != null && bb != null && Math.abs(gb - bb) > 0.0005;
-      return `<tr><td>${escH(x.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(x.ean)}</div></td><td class="n">${bb != null ? br(bb, bb % 1 ? 3 : 0) : "—"}</td><td class="n"${dif ? ' style="color:#b42318;font-weight:800"' : ""} title="${g ? "lido do Gestão em " + escH(new Date(g.atualizado_em).toLocaleString("pt-BR")) : ""}">${gb != null ? br(gb, gb % 1 ? 3 : 0) : "—"}</td><td>${dataBr(x.inicio_em)}</td><td>${x.ultimo_acerto ? escH(new Date(x.ultimo_acerto).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })) : "—"}</td><td>${x.criado_bling ? `<span class="chip av" title="cadastro básico criado pelo sistema">completar cadastro</span>` : ""}${dif ? `<span class="chip falta" title="Os saldos não batem. Pode ser só atraso (venda de agora ainda não lida, ou pedido do Gestão na fila). Se continuar diferente depois de 15 minutos, alguém mexeu no estoque do Gestão por fora (inventário, transferência, nota lançada direto no Gestão).">diferente</span>` : ""}${x.ultimo_erro ? `<span class="chip falta" title="${escH(x.ultimo_erro)}">erro no acerto</span>` : ""}</td></tr>`; }).join("") + `</tbody></table></div></details>`;
+      return `<tr><td>${escH(x.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(x.ean)}</div></td><td class="n">${bb != null ? br(bb, bb % 1 ? 3 : 0) : "—"}</td><td class="n"${dif ? ' style="color:#b42318;font-weight:800"' : ""} title="${g ? "lido do Gestão em " + escH(new Date(g.atualizado_em).toLocaleString("pt-BR")) : ""}">${gb != null ? br(gb, gb % 1 ? 3 : 0) : "—"}</td><td>${dataBr(x.inicio_em)}</td><td>${x.ultimo_acerto ? escH(new Date(x.ultimo_acerto).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })) : "—"}</td><td>${x.criado_bling ? `<span class="chip av" title="cadastro básico criado pelo sistema">completar cadastro</span>` : ""}${dif ? `<span class="chip falta" title="Os saldos não batem. Pode ser só atraso (venda de agora ainda não lida, ou pedido do Gestão na fila). Se continuar diferente depois de 15 minutos, alguém mexeu no estoque do Gestão por fora (inventário, transferência, nota lançada direto no Gestão).">diferente</span> <a href="#" data-acerto="${escH(x.ean)}" data-g="${gb}" data-b="${bb}" data-gq="${g ? escH(g.atualizado_em) : ""}" style="font-size:12px">acertar</a>` : ""}${x.ultimo_erro ? `<span class="chip falta" title="${escH(x.ultimo_erro)}">erro no acerto</span>` : ""}</td></tr>`; }).join("") + `</tbody></table></div></details>`;
   document.getElementById("estuSyncBt").onclick = estuSincronizar;
+  for (const a of el.querySelectorAll("[data-acerto]")) a.onclick = ev => { ev.preventDefault(); estuAcertar(a.dataset.acerto, Number(a.dataset.g), Number(a.dataset.b), a.dataset.gq, (l.find(x => x.ean === a.dataset.acerto) || {}).descricao || ""); };
   estuSyncInfo();
+}
+// Acerto quando Bling e Gestão ficam diferentes: o Aldo diz qual lado está certo (contou na prateleira, por exemplo)
+function estuAcertar(ean, g, b, gq, nome) {
+  const bx = document.getElementById("busca"); bx.style.display = "block"; bx.style.width = "min(560px, 96vw)";
+  const hora = gq ? new Date(gq).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "?";
+  bx.innerHTML = `<div class="linha" style="justify-content:space-between"><b>Acertar estoque — ${escH(nome)}</b><a href="#" id="acX" style="color:var(--cinza)">fechar ✕</a></div>
+    <div class="orig" style="margin:6px 0">${escH(ean)} · Bling: <b>${br(b, b % 1 ? 3 : 0)}</b> · Gestão da Loja 1: <b>${br(g, g % 1 ? 3 : 0)}</b> (lido às ${escH(hora)}). Na dúvida, conte na prateleira e escolha o lado que bate com a contagem. Venda feita nos últimos minutos pode ainda não ter chegado.</div>
+    <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button id="acG">O Gestão está certo (${br(g, g % 1 ? 3 : 0)}): corrigir o Bling</button><button id="acB" class="sec">O Bling está certo: corrigir o Gestão</button></div><div id="acSt" class="orig" style="margin-top:8px"></div>`;
+  bx.querySelector("#acX").onclick = ev => { ev.preventDefault(); bx.style.display = "none"; };
+  const vai = async (para) => {
+    if (!confirm(para === "bling" ? `O estoque no Bling passa a ser ${br(g, g % 1 ? 3 : 0)} (igual ao Gestão). Confirmar?` : "O sistema leva antes as vendas que faltam e depois grava no Gestão da Loja 1 o saldo atual do Bling (fica registrado como alteração manual de estoque). Confirmar?")) return;
+    const st = bx.querySelector("#acSt"); st.textContent = "acertando…"; for (const x of bx.querySelectorAll("button")) x.disabled = true;
+    const { data, error } = await supa.functions.invoke("bling", { body: { acao: "acertar", ean, para, valor: g } });
+    for (const x of bx.querySelectorAll("button")) x.disabled = false;
+    if (error || !data || !data.ok) { st.textContent = "Erro: " + ((data && data.msg) || (error && error.message) || "sem resposta"); return; }
+    st.innerHTML = para === "bling" ? `<b style="color:var(--ok)">Bling acertado: ${br(data.saldo, data.saldo % 1 ? 3 : 0)}</b>` : `<b style="color:var(--ok)">Pedido enviado ao Gestão da Loja 1: estoque = ${br(data.saldo, data.saldo % 1 ? 3 : 0)}</b> (grava em segundos, se o PC da loja estiver ligado).`;
+    setTimeout(avListar, para === "bling" ? 500 : 30000);
+  };
+  bx.querySelector("#acG").onclick = () => vai("bling"); bx.querySelector("#acB").onclick = () => vai("gestao");
 }
 async function estuSyncInfo() {
   const e = document.getElementById("estuSync"); if (!e) return;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="84">
+<meta name="versao" content="85">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -232,6 +232,7 @@
   .sales-num { color: var(--azul); font-size: 32px; font-weight: 800; line-height: 1.35; margin-top: 10px; font-variant-numeric: tabular-nums; }
   .sparkline { width: 120px; height: 40px; color: var(--loja1); flex-shrink: 0; } .l2 .sparkline { color: var(--loja2); }
   .sparkline path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .sparkline circle { fill: currentColor; }
+  .sparkline path.hoje { stroke-dasharray: 3 3; stroke: #e08a00; } .sparkline circle.hoje { fill: #fff; stroke: #e08a00; stroke-width: 2; }
   .sales-comp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--borda); padding-top: 12px; margin-top: 14px; }
   .sales-comp span { display: block; font-size: 10.5px; color: var(--cinza); margin-bottom: 3px; font-weight: 600; }
   .sales-comp strong { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -3621,9 +3622,12 @@ function hjDesenhar() {
   const lk = (txt, v) => `<a href="#" data-v="${v}" style="color:#0b57d0">${txt}</a>`;
   const SEM = ["Domingo passado", "Segunda passada", "Terça passada", "Quarta passada", "Quinta passada", "Sexta passada", "Sábado passado"];
   const dHoje = new Date(h + "T12:00:00"), dataLonga = dHoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const spark = l => { const vs = []; for (let i = 7; i >= 1; i--) vs.push(vd(l, vdMais(h, -i))); const mx = Math.max(...vs), mn = Math.min(...vs), W = 120, H = 40, p = 4;
-    if (!V || mx <= 0) return ""; const pts = vs.map((v, i) => [p + i * (W - 2 * p) / (vs.length - 1), H - p - (mx === mn ? .5 : (v - mn) / (mx - mn)) * (H - 2 * p)]);
-    const last = pts[pts.length - 1]; return `<svg class="sparkline" viewBox="0 0 ${W} ${H}" aria-label="vendas dos últimos 7 dias fechados"><title>vendas dos últimos 7 dias (até ontem)</title><path d="M${pts.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join(" L")}"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3"/></svg>`; };
+  // 7 dias fechados (linha cheia) + hoje em andamento (tracejado até o ponto vazado, que sobe a cada venda que chega)
+  const spark = l => { const vs = []; for (let i = 7; i >= 1; i--) vs.push(vd(l, vdMais(h, -i))); const hj = vd(l, h), todos = [...vs, hj];
+    const mx = Math.max(...todos), mn = Math.min(...todos), W = 120, H = 40, p = 4;
+    if (!V || mx <= 0) return ""; const pts = todos.map((v, i) => [p + i * (W - 2 * p) / (todos.length - 1), H - p - (mx === mn ? .5 : (v - mn) / (mx - mn)) * (H - 2 * p)]);
+    const f = q => q[0].toFixed(1) + " " + q[1].toFixed(1), ont = pts[pts.length - 2], hoje = pts[pts.length - 1];
+    return `<svg class="sparkline" viewBox="0 0 ${W} ${H}" aria-label="vendas dos últimos 7 dias e de hoje até agora"><title>últimos 7 dias (linha cheia) e hoje até agora (tracejado): ${orBrl(hj)}</title><path d="M${pts.slice(0, -1).map(f).join(" L")}"/><path class="hoje" d="M${f(ont)} L${f(hoje)}"/><circle cx="${ont[0].toFixed(1)}" cy="${ont[1].toFixed(1)}" r="2.2"/><circle class="hoje" cx="${hoje[0].toFixed(1)}" cy="${hoje[1].toFixed(1)}" r="3.2"/></svg>`; };
   const cardVenda2 = l => { const hj = vd(l, h), m = media7(l), sp = semana(l), ai = agenteInfo && agenteInfo[l], on = ai && ai.online, pc = m > 0 && hj > 0 ? (hj / m - 1) * 100 : null;
     return `<article class="sales-card${l === 2 ? " l2" : ""}"><div class="sales-top"><div><h3>Loja ${l} — vendas de hoje</h3><div class="loja-nome">${l === 1 ? "Jardim Soraia" : "Limoeiro"}</div></div>${ai ? `<span class="badge ${on ? "ok" : "av"}" title="PC da loja (agente)"><span class="dot"></span>${on ? "PC online" : "PC sem contato"}</span>` : ""}</div>
       <div class="sales-meio"><div><div class="sales-num">${V ? orBrl(hj) : "…"}</div>${pc != null ? `<span class="badge ${pc >= 0 ? "ok" : "av"}">${pc >= 0 ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>+` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>`}${br(pc, 0)}% vs média</span>` : `<span class="badge neutro">sem comparação ainda</span>`}</div>${spark(l)}</div>

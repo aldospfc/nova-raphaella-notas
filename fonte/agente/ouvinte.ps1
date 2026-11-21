@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.4"
+$Versao = "2.8.5"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -539,7 +539,30 @@ function Aplica($item) {
     if ($ln.StartsWith("--POSQ ")) { $posq += (@{ q = $ln.Substring(7).Trim() } | ConvertTo-Json -Compress) }
     elseif ($ln.StartsWith("--POS ")) { $pos += $ln.Substring(6).Trim() } else { [void]$sqlLinhas.Add($ln) }
   }
-  [IO.File]::WriteAllText($arq, ($sqlLinhas -join "`r`n"), $enc)
+  # 2.8.5: o isql nao e tudo-ou-nada (comando que falha e pulado e o resto e gravado no COMMIT). Por isso, todo pedido que grava
+  # (tem COMMIT) roda antes um ENSAIO: o mesmo script com ROLLBACK no lugar de COMMIT. Se o ensaio falhar, nada e gravado.
+  $temCommit = @($sqlLinhas | Where-Object { $_.Trim() -match "^(?i)COMMIT;$" }).Count -gt 0
+  if ($temCommit) {
+    $arqE = Join-Path $Pasta ("fila_" + $id + "_ensaio.sql"); $saidaE = Join-Path $Pasta ("fila_" + $id + "_ensaio_saida.txt"); $erroE = Join-Path $Pasta ("fila_" + $id + "_ensaio_erro.txt")
+    $linE = @($sqlLinhas | ForEach-Object { if ($_.Trim() -match "^(?i)COMMIT;$") { "ROLLBACK;" } else { $_ } }) + @("ROLLBACK;", "")
+    [IO.File]::WriteAllText($arqE, ($linE -join "`r`n"), $enc)
+    foreach ($f in @($saidaE, $erroE)) { if (Test-Path $f) { Remove-Item $f -Force } }
+    $pE = Start-Process -FilePath $cfg.isql -ArgumentList @("-u", $cfg.usuario, "-p", $cfg.senha, "-i", $arqE, "-o", $saidaE, $cfg.banco) -Wait -PassThru -NoNewWindow -RedirectStandardError $erroE
+    $eErro = ""; $eSaida = ""
+    if (Test-Path $erroE) { $eErro = [IO.File]::ReadAllText($erroE, $enc).Trim() }
+    if (Test-Path $saidaE) { $eSaida = [IO.File]::ReadAllText($saidaE, $enc).Trim() }
+    if (($eErro.Length -gt 0) -or ($eSaida -match "Statement failed") -or (-not (Test-Path $saidaE))) {
+      $res = "ENSAIO RECUSADO - NADA FOI GRAVADO NO GESTAO (o pedido inteiro foi desfeito; pode corrigir e reenviar).`r`n`r`n"
+      if ($eErro) { $res += "ERROS DO BANCO:`r`n" + $eErro + "`r`n`r`n" }
+      $res += $eSaida
+      if ($res.Length -gt 18000) { $res = $res.Substring(0, 18000) + "`r`n[...]" }
+      if ($pos.Count -gt 0) { $res += "`r`n`r`n=== POS ===`r`nPOS AVISO: nada foi enviado aos caixas porque o Gestao recusou o envio." }
+      $null = Funcao "fila_concluir" @{ id = $id; sucesso = $false; resultado = $res }
+      Escreve ("Pedido " + $id + " (" + $item.titulo + "): ensaio recusado, nada gravado. " + ($eErro -replace "\s+", " ").Substring(0, [Math]::Min(300, ($eErro -replace "\s+", " ").Length)))
+      return $false
+    }
+  }
+  [IO.File]::WriteAllText($arq, ($sqlLinhas -join "`r`n") + "`r`n", $enc)
   foreach ($f in @($saida, $erro)) { if (Test-Path $f) { Remove-Item $f -Force } }
   $argsIsql = @("-u", $cfg.usuario, "-p", $cfg.senha, "-i", $arq, "-o", $saida, $cfg.banco)
   $p = Start-Process -FilePath $cfg.isql -ArgumentList $argsIsql -Wait -PassThru -NoNewWindow -RedirectStandardError $erro

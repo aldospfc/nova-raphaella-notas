@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="81">
+<meta name="versao" content="82">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1887,7 +1887,7 @@ function chipEnvio(e, v, rot, loja, baixadoLocal) {
     e.textContent = rot + (v.status === "aplicando" ? "o PC da loja está gravando no Gestão…" : on ? "enviado — aguardando o PC da loja gravar (segundos)…" : "enviado — o PC da loja parece desligado; grava assim que ligar");
   } else if (v && v.status === "erro") {
     e.className = "chip falta"; e.style.display = ""; e.style.cursor = "pointer";
-    e.textContent = rot + "erro ao gravar no Gestão em " + quando(v.aplicado_em || v.em) + " — clique para ver"; e.onclick = () => mostrarResultadoEnvio(v);
+    e.textContent = rot + (v.nadaGravado ? "o Gestão recusou em " + quando(v.aplicado_em || v.em) + " — nada foi gravado; corrija e reenvie — clique para ver" : "erro ao gravar no Gestão em " + quando(v.aplicado_em || v.em) + " — clique para ver"); e.onclick = () => mostrarResultadoEnvio(v);
   } else if (v && v.status === "aplicado") {
     e.className = "chip ok"; e.style.display = ""; e.style.cursor = "pointer";
     e.textContent = rot + (v.tipo === "precos" ? "preços gravados" : "entrada gravada") + " no Gestão em " + quando(v.aplicado_em || v.em) + (v.resumo ? " — " + v.resumo : "") + (v.tipo === "precos" ? "" : " — não envie de novo"); e.onclick = () => mostrarResultadoEnvio(v);
@@ -1934,7 +1934,7 @@ async function enviarAoGestao(tipo, comPos) {
   if (comPos) { await lerAgente(); for (const [l, q] of [[1, q1], [2, q2]]) if (q && !posPronto(l)) return msg(semPos(l)); }
   const m = metaDe(cab.chave) || {};
   // envio anterior com erro: os comandos não são tudo-ou-nada, então parte (inclusive o estoque) pode ter sido gravada
-  if (tipo === "entrada" && [m.envio, m.envio2].some(e => e && e.status === "erro" && e.tipo === "entrada") &&
+  if (tipo === "entrada" && [m.envio, m.envio2].some(e => e && e.status === "erro" && e.tipo === "entrada" && !e.nadaGravado) &&
       !confirm("ATENÇÃO: o último envio desta nota terminou com ERRO, mas parte dele pode ter sido gravada no Gestão — inclusive o estoque.\n\nReenviar agora pode somar o estoque de novo.\n\nContinue só se você já conferiu no Gestão que o estoque desta nota NÃO entrou. Na dúvida, cancele e me avise.")) return;
   if (emCurso(m.envio) || emCurso(m.envio2)) return msg("Já tem um envio desta nota aguardando o PC da loja. Espere ele terminar.");
   const jaFoi = v => v && v.status === "aplicado" && v.tipo !== "precos";
@@ -1979,11 +1979,13 @@ function acompanharEnvio(id, chave, campo) {
     const rp = resumoPos(f.resultado); if (rp) resumo += (resumo ? " · " : "") + rp;
     const m = metaDe(chave), base = (m && m[campo] && m[campo].id === id) ? m[campo] : { id };
     const novo = { ...base, status: f.status, aplicado_em: f.aplicado_em || new Date().toISOString(), resumo };
+    if (f.status === "erro" && /ENSAIO RECUSADO/.test(f.resultado || "")) novo.nadaGravado = 1; // o PC da loja ensaiou antes e desfez tudo
     const patch = { [campo]: novo }; if ((campo === "envio" || !(m && m.envio)) && f.status === "aplicado" && novo.tipo !== "precos") patch.baixado = novo.aplicado_em;
     if (cab && cab.chave === chave) { if (campo === "envio2") envio2Atual = novo; else envioAtual = novo; if (patch.baixado) baixadoEm = patch.baixado; }
     await salvarMeta(chave, patch); avisoBaixa(); conciliarEnvios();
     const lj = campo === "envio2" ? "Loja 2" : "Loja 1";
     if (f.status === "aplicado") { msg(`Gravado no Gestão da ${lj}` + (resumo ? ": " + resumo : "") + ". O estoque na tela atualiza em instantes."); setTimeout(() => { cadastroDaNuvem(true); if (cad2Info) carregarLoja2(); }, 20000); setTimeout(() => { cadastroDaNuvem(true); if (cad2Info) carregarLoja2(); }, 75000); }
+    else if (novo.nadaGravado) msg(`O Gestão da ${lj} recusou o envio no ensaio e NADA foi gravado (nem estoque). Veja a mensagem do banco no aviso vermelho; depois de corrigir, pode reenviar sem risco de somar estoque.`);
     else msg(`O Gestão da ${lj} recusou parte do envio. Clique no aviso vermelho para ver a mensagem do banco.`);
   };
   const consulta = async () => { const r = await supa.from("fila").select("status, resultado, aplicado_em").eq("id", id).single(); if (!r.error) await trata(r.data); };

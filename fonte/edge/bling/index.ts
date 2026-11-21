@@ -5,7 +5,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // - Tokens ficam na tabela bling_auth (sem acesso pelo site); o acesso dura 6 h e é renovado sozinho com o refresh token.
 // - O Bling redireciona para esta mesma URL com ?code=...&state=... depois que o Aldo autoriza (link gerado pela ação "link").
 // - Ações do site (POST, usuário logado e permitido): link, status, depositos, produto (busca por EAN/SKU).
-// v1 (20/11/2026): conexão e consultas; criação de produto e movimentos de estoque vêm na próxima versão.
+// v1 (20/11/2026): conexão e consultas.
+// v2 (20/11/2026): checar (EANs no Bling + unificados) e unificar (cria cadastro básico se faltar, balanço na 1ª vez / entrada depois,
+//     no depósito Geral; grava estoque_unificado e o histórico estoque_unificado_mov). O lado do Gestão é mandado pelo site, pela fila.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -61,6 +63,33 @@ export async function bling(caminho: string, init: RequestInit = {}): Promise<an
   if (!r.ok) throw new Error(`Bling ${r.status}: ${JSON.stringify(j?.error || j).slice(0, 400)}`);
   return j;
 }
+
+// --- tabelas do estoque unificado (chave de serviço) ---
+async function rest(caminho: string, init: RequestInit = {}) {
+  const r = await fetch(URL_SB + "/rest/v1/" + caminho, { ...init, headers: { apikey: SERVICO, Authorization: "Bearer " + SERVICO, "Content-Type": "application/json", ...(init.headers || {}) } });
+  const t = await r.text(); if (!r.ok) throw new Error("banco: " + t.slice(0, 200)); return t ? JSON.parse(t) : null;
+}
+const espera = (ms: number) => new Promise(r => setTimeout(r, ms));
+let depCache: any = null;
+async function depositoGeral(): Promise<{ id: number; nome: string }> {
+  if (depCache) return depCache;
+  const d = ((await bling("/depositos?limite=100")).data || []).filter((x: any) => x.situacao !== 0);
+  const g = d.find((x: any) => /geral/i.test(x.descricao || "")) || d.find((x: any) => x.padrao) || d[0];
+  if (!g) throw new Error("nenhum depósito ativo no Bling");
+  depCache = { id: g.id, nome: g.descricao }; return depCache;
+}
+async function buscarProduto(ean: string, codigo: string): Promise<any> {
+  if (/^\d{8,14}$/.test(ean)) { const r = await bling(`/produtos?gtins[]=${encodeURIComponent(ean)}&criterio=2&limite=5`); const p = (r.data || []).find((x: any) => x.formato !== "E"); if (p) return p; await espera(340); }
+  if (codigo) { const r = await bling(`/produtos?codigos[]=${encodeURIComponent(codigo)}&criterio=2&limite=5`); const p = (r.data || []).find((x: any) => x.formato !== "E" && (!x.gtin || x.gtin === ean)); if (p) return p; }
+  return null;
+}
+async function saldoDeposito(idProduto: number, idDep: number): Promise<number | null> {
+  const r = await bling(`/estoques/saldos?idsProdutos[]=${idProduto}`);
+  const s = (r.data || [])[0]; if (!s) return null;
+  const d = (s.depositos || []).find((x: any) => x.id === idDep);
+  return d ? Number(d.saldoFisico) : Number(s.saldoFisicoTotal ?? 0);
+}
+const origemBling = (o: any) => { const n = Number(o); return n === 1 ? 2 : n === 6 ? 7 : (Number.isFinite(n) ? n : 0); }; // compra no mercado interno: 1→2, 6→7
 
 function pagina(titulo: string, texto: string, ok: boolean) {
   const cor = ok ? "#1b7248" : "#b42318";
@@ -118,6 +147,60 @@ Deno.serve(async (req: Request) => {
       const por = /^\d{8,14}$/.test(q) ? "gtins[]=" + encodeURIComponent(q) : "codigos[]=" + encodeURIComponent(q);
       const r = await bling(`/produtos?${por}&criterio=5&limite=20`);
       return resp({ ok: true, produtos: (r.data || []).map((x: any) => ({ id: x.id, codigo: x.codigo, nome: x.nome, preco: x.preco, precoCusto: x.precoCusto, gtin: x.gtin, formato: x.formato, situacao: x.situacao, estoque: x.estoque?.saldoVirtualTotal ?? null })) });
+    }
+    if (acao === "checar") {
+      // para cada EAN: existe no Bling? já é unificado?
+      const eans: string[] = [...new Set((corpo?.eans || []).map((e: any) => String(e || "").trim()).filter((e: string) => /^\d{8,14}$/.test(e)))].slice(0, 300) as string[];
+      const out: Record<string, any> = {};
+      for (let i = 0; i < eans.length; i += 50) {
+        const parte = eans.slice(i, i + 50);
+        const r = await bling(`/produtos?${parte.map(e => "gtins[]=" + e).join("&")}&criterio=2&limite=100`);
+        for (const x of (r.data || [])) if (x.gtin && x.formato !== "E" && !out[x.gtin]) out[x.gtin] = { id: x.id, codigo: x.codigo, nome: x.nome, saldo: x.estoque?.saldoVirtualTotal ?? null };
+        await espera(340);
+      }
+      const un = eans.length ? await rest(`estoque_unificado?select=ean,ativo,bling_id&ean=in.(${eans.join(",")})`) : [];
+      const uni: Record<string, boolean> = {}; for (const u of un || []) uni[u.ean] = !!u.ativo;
+      const dep = await depositoGeral().catch(() => null);
+      return resp({ ok: true, deposito: dep, itens: Object.fromEntries(eans.map(e => [e, { bling: out[e] || null, unificado: !!uni[e] }])) });
+    }
+    if (acao === "unificar") {
+      const itens = (corpo?.itens || []).slice(0, 80), origem = corpo?.origem === "avulso" ? "avulso" : "nota", obs = String(corpo?.obs || "").slice(0, 200);
+      const dep = await depositoGeral(); const res: any[] = [];
+      for (const it of itens) {
+        const ean = String(it.ean || "").trim(), qtd = Number(it.qtd);
+        try {
+          if (!/^\d{8,14}$/.test(ean)) throw new Error("sem EAN válido");
+          if (!(qtd > 0)) throw new Error("quantidade inválida");
+          const ja = ((await rest(`estoque_unificado?select=*&ean=eq.${ean}`)) || [])[0];
+          let prod: any = ja && ja.ativo ? { id: ja.bling_id, codigo: ja.bling_codigo } : await buscarProduto(ean, String(it.codigo || ""));
+          let criado = false; await espera(340);
+          if (!prod) {
+            const base: any = { nome: String(it.nome || "").slice(0, 120) || ean, tipo: "P", situacao: "A", formato: "S", unidade: "UN", condicao: "1", gtin: ean,
+              preco: Number(it.preco) > 0 ? Math.round(Number(it.preco) * 100) / 100 : 0,
+              tributacao: { origem: origemBling(it.origem), ...(it.ncm ? { ncm: String(it.ncm).replace(/\D/g, "") } : {}), ...(it.cest ? { cest: String(it.cest).replace(/\D/g, "") } : {}) },
+              observacoes: "Cadastro básico criado pelo sistema das lojas" + (obs ? " (" + obs + ")" : "") + " — completar pela skill (descrição, fotos, kits)." };
+            const cods = [String(it.codigo || "").trim(), ean].filter((c, i, a) => c && a.indexOf(c) === i);
+            let ult: any = null;
+            for (const cod of cods) { try { const c = await bling("/produtos", { method: "POST", body: JSON.stringify({ ...base, codigo: cod }) }); prod = { id: c.data?.id, codigo: cod }; break; } catch (e) { ult = e; await espera(340); } }
+            if (!prod || !prod.id) throw ult || new Error("Bling não criou o produto");
+            criado = true; await espera(340);
+          }
+          const primeira = !(ja && ja.ativo), op = primeira ? "B" : "E", custo = Number(it.custo) > 0 ? Math.round(Number(it.custo) * 10000) / 10000 : undefined;
+          await bling("/estoques", { method: "POST", body: JSON.stringify({ produto: { id: prod.id }, deposito: { id: dep.id }, operacao: op, quantidade: qtd, ...(custo ? { custo } : {}), observacoes: (primeira ? "Início do estoque unificado. " : "") + (obs || origem) }) });
+          await espera(340);
+          const saldo = await saldoDeposito(prod.id, dep.id).catch(() => null);
+          await rest("estoque_unificado?on_conflict=ean", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({
+            ean, loja_id: 1, id_gestao: it.id_gestao ?? ja?.id_gestao ?? null, descricao: it.nome || ja?.descricao || null, bling_id: prod.id, bling_codigo: prod.codigo || null, deposito_id: dep.id, ativo: true,
+            ...(primeira ? { inicio_em: new Date().toISOString(), criado_por: email, criado_bling: criado } : {}), saldo_bling: saldo, ultimo_erro: null, atualizado_em: new Date().toISOString() }) });
+          await rest("estoque_unificado_mov", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ean, origem, lado: "bling", operacao: op, quantidade: qtd, custo: custo ?? null, obs, por: email }) });
+          res.push({ ean, ok: true, primeira, criado, bling_id: prod.id, codigo: prod.codigo || null, saldo });
+        } catch (e) {
+          res.push({ ean, ok: false, msg: String((e as Error).message).slice(0, 300) });
+          await rest("estoque_unificado_mov", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ean: ean || "?", origem, lado: "bling", operacao: "?", quantidade: qtd || 0, obs, por: email, ok: false, erro: String((e as Error).message).slice(0, 300) }) }).catch(() => {});
+        }
+        await espera(340);
+      }
+      return resp({ ok: true, deposito: dep, itens: res });
     }
     return resp({ ok: false, erro: "acao", msg: "ação desconhecida: " + acao }, 400);
   } catch (e) {

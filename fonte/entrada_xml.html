@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="85">
+<meta name="versao" content="86">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -232,7 +232,8 @@
   .sales-num { color: var(--azul); font-size: 32px; font-weight: 800; line-height: 1.35; margin-top: 10px; font-variant-numeric: tabular-nums; }
   .sparkline { width: 120px; height: 40px; color: var(--loja1); flex-shrink: 0; } .l2 .sparkline { color: var(--loja2); }
   .sparkline path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .sparkline circle { fill: currentColor; }
-  .sparkline path.hoje { stroke-dasharray: 3 3; stroke: #e08a00; } .sparkline circle.hoje { fill: #fff; stroke: #e08a00; stroke-width: 2; }
+  .sparkline path.hoje { stroke-dasharray: 3 3; stroke: #e08a00; } .sparkline path.ref { stroke: #b8c0cc; stroke-width: 1.6; }
+  .mini-gs { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; } .mini-g { display: flex; flex-direction: column; align-items: flex-end; } .mini-g span { font-size: 10px; color: #8a94a6; line-height: 1.1; } .sparkline circle.hoje { fill: #fff; stroke: #e08a00; stroke-width: 2; }
   .sales-comp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--borda); padding-top: 12px; margin-top: 14px; }
   .sales-comp span { display: block; font-size: 10.5px; color: var(--cinza); margin-bottom: 3px; font-weight: 600; }
   .sales-comp strong { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -3547,15 +3548,15 @@ async function hjCarregar() {
   if (!supa || HJ.carregando) return; HJ.carregando = true;
   try {
     const hojeIso = vdIso(new Date()), de = vdMais(hojeIso, -8);
-    const r = await supa.from("vendas_hora").select("loja_id, data, valor, qtd, atualizado_em").eq("oper", "V").gte("data", de).lte("data", hojeIso).limit(5000);
-    const porDia = {}; let ult = null;
-    for (const v of r.data || []) { const k = v.loja_id + "|" + v.data; porDia[k] = (porDia[k] || 0) + (Number(v.valor) || 0); if (!ult || (v.atualizado_em || "") > ult) ult = v.atualizado_em; }
+    const r = await supa.from("vendas_hora").select("loja_id, data, hora, valor, qtd, atualizado_em").eq("oper", "V").gte("data", de).lte("data", hojeIso).limit(5000);
+    const porDia = {}, porHora = {}; let ult = null;
+    for (const v of r.data || []) { const k = v.loja_id + "|" + v.data; porDia[k] = (porDia[k] || 0) + (Number(v.valor) || 0); (porHora[k] || (porHora[k] = Array(24).fill(0)))[Number(v.hora) || 0] += Number(v.valor) || 0; if (!ult || (v.atualizado_em || "") > ult) ult = v.atualizado_em; }
     // hoje: os cupons chegam a cada 30 s (o total do Gestão, a cada 5 min); vale o que for maior
     const rc = await supa.from("cupons").select("loja_id, total, cancelado, gemeo, hora").eq("data", hojeIso).limit(3000);
     const vivo = {};
-    for (const c of rc.data || []) { if (c.cancelado || c.gemeo) continue; const o = vivo[c.loja_id] || (vivo[c.loja_id] = { t: 0, n: 0, ult: "" }); o.t += Number(c.total || 0); o.n++; if ((c.hora || "") > o.ult) o.ult = c.hora; }
-    for (const l of [1, 2]) if (vivo[l] && vivo[l].t > (porDia[l + "|" + hojeIso] || 0)) porDia[l + "|" + hojeIso] = vivo[l].t;
-    HJ.vendas = { porDia, ult, hojeIso, vivo };
+    for (const c of rc.data || []) { if (c.cancelado || c.gemeo) continue; const o = vivo[c.loja_id] || (vivo[c.loja_id] = { t: 0, n: 0, ult: "", h: Array(24).fill(0) }); o.t += Number(c.total || 0); o.n++; o.h[Number(String(c.hora || "0").slice(0, 2)) || 0] += Number(c.total || 0); if ((c.hora || "") > o.ult) o.ult = c.hora; }
+    for (const l of [1, 2]) if (vivo[l] && vivo[l].t > (porDia[l + "|" + hojeIso] || 0)) { porDia[l + "|" + hojeIso] = vivo[l].t; porHora[l + "|" + hojeIso] = vivo[l].h; }
+    HJ.vendas = { porDia, porHora, ult, hojeIso, vivo };
     await lerAgente();
     // saúde do sistema: pedidos ao Gestão recusados ou parados, e a ligação com o Bling
     const de2 = new Date(Date.now() - 2 * 864e5).toISOString();
@@ -3620,15 +3621,30 @@ function hjDesenhar() {
   const lk = (txt, v) => `<a href="#" data-v="${v}" style="color:#0b57d0">${txt}</a>`;
   const SEM = ["Domingo passado", "Segunda passada", "Terça passada", "Quarta passada", "Quinta passada", "Sexta passada", "Sábado passado"];
   const dHoje = new Date(h + "T12:00:00"), dataLonga = dHoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  // 7 dias fechados (linha cheia) + hoje em andamento (tracejado até o ponto vazado, que sobe a cada venda que chega)
-  const spark = l => { const vs = []; for (let i = 7; i >= 1; i--) vs.push(vd(l, vdMais(h, -i))); const hj = vd(l, h), todos = [...vs, hj];
-    const mx = Math.max(...todos), mn = Math.min(...todos), W = 120, H = 40, p = 4;
+  // Comparações justas durante o dia: cada dia anterior conta só até a mesma hora de agora (a hora em curso entra pela fração dos minutos)
+  const agoraH = new Date().getHours() + new Date().getMinutes() / 60;
+  const ateAgora = (l, d) => { if (d === h) return vd(l, h); const ph = V && V.porHora && V.porHora[l + "|" + d]; if (!ph) return vd(l, d); let t = 0; for (let x = 0; x < 24; x++) t += x + 1 <= agoraH ? ph[x] : x < agoraH ? ph[x] * (agoraH - x) : 0; return t; };
+  const hhmm = String(new Date().getHours()).padStart(2, "0") + ":" + String(new Date().getMinutes()).padStart(2, "0");
+  // gráfico 1: últimos 7 dias até esta hora (linha cheia) + hoje (tracejado até o ponto vazado)
+  const spark = l => { const vs = []; for (let i = 7; i >= 1; i--) vs.push(ateAgora(l, vdMais(h, -i))); const hj = vd(l, h), todos = [...vs, hj];
+    const mx = Math.max(...todos), mn = Math.min(...todos), W = 120, H = 34, p = 4;
     if (!V || mx <= 0) return ""; const pts = todos.map((v, i) => [p + i * (W - 2 * p) / (todos.length - 1), H - p - (mx === mn ? .5 : (v - mn) / (mx - mn)) * (H - 2 * p)]);
     const f = q => q[0].toFixed(1) + " " + q[1].toFixed(1), ont = pts[pts.length - 2], hoje = pts[pts.length - 1];
-    return `<svg class="sparkline" viewBox="0 0 ${W} ${H}" aria-label="vendas dos últimos 7 dias e de hoje até agora"><title>últimos 7 dias (linha cheia) e hoje até agora (tracejado): ${orBrl(hj)}</title><path d="M${pts.slice(0, -1).map(f).join(" L")}"/><path class="hoje" d="M${f(ont)} L${f(hoje)}"/><circle cx="${ont[0].toFixed(1)}" cy="${ont[1].toFixed(1)}" r="2.2"/><circle class="hoje" cx="${hoje[0].toFixed(1)}" cy="${hoje[1].toFixed(1)}" r="3.2"/></svg>`; };
-  const cardVenda2 = l => { const hj = vd(l, h), m = media7(l), sp = semana(l), ai = agenteInfo && agenteInfo[l], on = ai && ai.online, pc = m > 0 && hj > 0 ? (hj / m - 1) * 100 : null;
+    return `<div class="mini-g"><span>7 dias até ${hhmm}</span><svg class="sparkline" viewBox="0 0 ${W} ${H}" aria-label="vendas dos últimos 7 dias até esta hora e de hoje"><title>Últimos 7 dias, cada um somado até ${hhmm} (linha cheia), e hoje (tracejado): ${orBrl(hj)}</title><path d="M${pts.slice(0, -1).map(f).join(" L")}"/><path class="hoje" d="M${f(ont)} L${f(hoje)}"/><circle cx="${ont[0].toFixed(1)}" cy="${ont[1].toFixed(1)}" r="2.2"/><circle class="hoje" cx="${hoje[0].toFixed(1)}" cy="${hoje[1].toFixed(1)}" r="3.2"/></svg></div>`; };
+  // gráfico 2: ritmo do dia, venda acumulada hora a hora, hoje × mesmo dia da semana passada (cinza)
+  const ritmo = l => { const ph = V && V.porHora, hj = ph && ph[l + "|" + h], sp = ph && ph[l + "|" + vdMais(h, -7)]; if (!hj && !sp) return "";
+    const a = hj || Array(24).fill(0), b = sp || Array(24).fill(0), com = x => a[x] > 0 || b[x] > 0;
+    let ini = 24, fim = 0; for (let x = 0; x < 24; x++) if (com(x)) { ini = Math.min(ini, x); fim = Math.max(fim, x + 1); } if (ini >= fim) return "";
+    ini = Math.min(ini, Math.floor(agoraH)); fim = Math.max(fim, Math.min(24, Math.ceil(agoraH)));
+    const ac = arr => { const r = [0]; for (let x = ini; x < fim; x++) r.push(r[r.length - 1] + arr[x]); return r; }, A = ac(a), B = ac(b), mx = Math.max(1, A[A.length - 1], B[B.length - 1]), W = 120, H = 34, p = 4;
+    const X = hr => p + (hr - ini) / (fim - ini) * (W - 2 * p), Y = v => H - p - v / mx * (H - 2 * p);
+    const pb = B.map((v, i) => [X(ini + i), Y(v)]), lim = Math.min(agoraH, fim), pa = [];
+    for (let i = 0; ini + i <= lim; i++) pa.push([X(ini + i), Y(A[i])]); pa.push([X(lim), Y(vd(l, h))]);
+    const f = q => q[0].toFixed(1) + " " + q[1].toFixed(1), fimA = pa[pa.length - 1];
+    return `<div class="mini-g"><span>ritmo × ${["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(h + "T12:00:00").getDay()]} passado</span><svg class="sparkline" viewBox="0 0 ${W} ${H}" aria-label="venda acumulada de hoje e do mesmo dia da semana passada"><title>Venda acumulada hora a hora: hoje (cor) × mesmo dia da semana passada (cinza). Até ${hhmm}: hoje ${orBrl(vd(l, h))}, semana passada ${orBrl(ateAgora(l, vdMais(h, -7)))}</title><path class="ref" d="M${pb.map(f).join(" L")}"/><path d="M${pa.map(f).join(" L")}"/><circle cx="${fimA[0].toFixed(1)}" cy="${fimA[1].toFixed(1)}" r="2.6"/></svg></div>`; };
+  const cardVenda2 = l => { const hj = vd(l, h), m = media7(l), sp = semana(l), spAte = ateAgora(l, vdMais(h, -7)), ai = agenteInfo && agenteInfo[l], on = ai && ai.online, pc = spAte > 0 && hj > 0 ? (hj / spAte - 1) * 100 : null;
     return `<article class="sales-card${l === 2 ? " l2" : ""}"><div class="sales-top"><div><h3>Loja ${l} — vendas de hoje</h3><div class="loja-nome">${l === 1 ? "Jardim Soraia" : "Limoeiro"}</div></div>${ai ? `<span class="badge ${on ? "ok" : "av"}" title="PC da loja (agente)"><span class="dot"></span>${on ? "PC online" : "PC sem contato"}</span>` : ""}</div>
-      <div class="sales-meio"><div><div class="sales-num">${V ? orBrl(hj) : "…"}</div>${pc != null ? `<span class="badge ${pc >= 0 ? "ok" : "av"}">${pc >= 0 ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>+` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>`}${br(pc, 0)}% vs média</span>` : `<span class="badge neutro">sem comparação ainda</span>`}</div>${spark(l)}</div>
+      <div class="sales-meio"><div><div class="sales-num">${V ? orBrl(hj) : "…"}</div>${pc != null ? `<span class="badge ${pc >= 0 ? "ok" : "av"}">${pc >= 0 ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>+` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>`}${br(pc, 0)}% vs ${["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][dHoje.getDay()]} passado até agora</span>` : `<span class="badge neutro">sem comparação ainda</span>`}</div><div class="mini-gs">${spark(l)}${ritmo(l)}</div></div>
       ${V && V.vivo && V.vivo[l] ? `<div class="orig" style="margin:2px 0 6px">${br(V.vivo[l].n, 0)} cupons · última venda às ${h_(String(V.vivo[l].ult).slice(0, 5))}</div>` : ""}
       <div class="sales-comp"><div><span>Ontem</span><strong>${orBrl(vd(l, ontem))}</strong></div><div><span>${SEM[dHoje.getDay()]}</span><strong>${orBrl(sp)}</strong></div><div><span>Média 7 dias</span><strong>${orBrl(m)}</strong></div></div></article>`; };
   const tcard = (tit, ico, cont, v, corpo, wide) => `<article class="task-card${wide ? " wide" : ""}"><div class="task-head"><span class="task-icon">${ico}</span>${tit}<span class="task-count">${cont}</span></div><div class="task-body">${corpo}</div><a class="task-link" href="#" data-v="${v}">Ver ${tit.toLowerCase()}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></article>`;

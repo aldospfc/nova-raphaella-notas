@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="86">
+<meta name="versao" content="87">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3561,7 +3561,7 @@ async function hjCarregar() {
     // saúde do sistema: pedidos ao Gestão recusados ou parados, e a ligação com o Bling
     const de2 = new Date(Date.now() - 2 * 864e5).toISOString();
     const [rf, rb] = await Promise.all([
-      supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em").in("status", ["erro", "pendente", "aplicando"]).gte("criado_em", de2).order("id", { ascending: false }).limit(60),
+      supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em, resultado").in("status", ["erro", "pendente", "aplicando"]).is("dispensado_em", null).not("tipo", "in", "(teste,diagnostico)").gte("criado_em", de2).order("id", { ascending: false }).limit(60),
       supa.rpc("bling_saude")]);
     HJ.sis = { fila: rf.data || [], bling: rb.data || null };
   } catch (e) { console.warn("hoje", e); }
@@ -3583,7 +3583,7 @@ function hjSistema(tcard, row) {
   }
   const F = S.fila || [], nota = t => t === "entrada" || t === "precos";
   const rec = F.filter(f => f.status === "erro" && !nota(f.tipo)), par = F.filter(f => f.status !== "erro" && agora - new Date(f.criado_em) > 15 * 60000);
-  if (rec.length) it.push(["erro", `<span title="${escH(rec.slice(0, 6).map(f => "#" + f.id + " L" + f.loja_id + " " + (f.titulo || f.tipo)).join("\n"))}"><strong>${rec.length}</strong> pedido${rec.length > 1 ? "s" : ""} ao Gestão recusado${rec.length > 1 ? "s" : ""} nos últimos 2 dias (${escH([...new Set(rec.map(f => f.tipo))].join(", "))})</span>`]);
+  if (rec.length) { HJ.recusados = rec; it.push(["erro", `<a href="#" data-recusados="1" style="color:inherit"><strong>${rec.length}</strong> pedido${rec.length > 1 ? "s" : ""} ao Gestão recusado${rec.length > 1 ? "s" : ""} nos últimos 2 dias (${escH([...new Set(rec.map(f => f.tipo))].join(", "))}) — toque para ver ou dispensar</a>`]); }
   if (par.length) it.push(["av", `<strong>${par.length}</strong> pedido${par.length > 1 ? "s" : ""} esperando o PC da loja há mais de 15 min`]);
   const B = S.bling;
   if (B) {
@@ -3599,6 +3599,22 @@ function hjSistema(tcard, row) {
   }
   const corpo = it.length ? it.map(([c, t]) => row(c, t, alerta)).join("") : row("vazio", "Tudo funcionando: PCs online, vendas chegando" + (B && B.unificados > 0 ? ", Bling em dia" : ""), `<span class="badge ok">ok</span>`);
   return tcard("Sistema", ico, it.length ? `${it.length} aviso${it.length > 1 ? "s" : ""}` : "tudo certo", "produtos", corpo);
+}
+// lista dos pedidos recusados: ver a mensagem do banco e dispensar o aviso (o pedido continua no histórico)
+function hjRecusados() {
+  const rec = HJ.recusados || []; if (!rec.length) return;
+  let fundo = document.getElementById("modalG");
+  if (!fundo) { fundo = document.createElement("div"); fundo.id = "modalG"; fundo.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:6vh 8px;overflow:auto"; fundo.innerHTML = `<div class="painel" style="width:min(640px,96vw);margin:0;max-height:none"></div>`; document.body.appendChild(fundo); fundo.addEventListener("click", ev => { if (ev.target === fundo) fundo.style.display = "none"; }); }
+  fundo.style.display = "flex"; const bx = fundo.firstElementChild;
+  const linha1 = t => String(t || "").replace(/^ENSAIO RECUSADO[^\n]*\n+/, "").replace(/^ERROS DO BANCO:\s*/i, "").split(/\r?\n/).map(x => x.trim()).filter(Boolean).slice(0, 2).join(" · ");
+  bx.innerHTML = `<div class="linha" style="justify-content:space-between"><b>Pedidos ao Gestão recusados</b><a href="#" id="rcX" style="color:var(--cinza)">fechar ✕</a></div>
+    <div class="orig" style="margin:6px 0">Confira cada um. Se já resolveu (reenviou, corrigiu ou não precisa mais), dispense o aviso. O pedido continua no histórico.</div>` +
+    rec.map(f => `<div style="border-top:1px solid var(--borda);padding:8px 0"><div class="linha" style="justify-content:space-between;gap:8px"><div><b>#${f.id}</b> · Loja ${f.loja_id} · ${escH(f.titulo || f.tipo)}<div class="orig" style="font-size:12px">${escH(new Date(f.aplicado_em || f.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}${/ENSAIO RECUSADO/.test(f.resultado || "") ? " · nada foi gravado" : ""}</div></div><button class="sec" data-disp="${f.id}">dispensar</button></div><div class="mono" style="font-size:11px;color:#b42318;margin-top:4px;white-space:pre-wrap">${escH(linha1(f.resultado).slice(0, 300))}</div></div>`).join("") +
+    `<div style="margin-top:8px"><button id="rcTodos">Dispensar todos</button></div>`;
+  const disp = async ids => { const { error } = await supa.rpc("fila_dispensar", { p_ids: ids }); if (error) return msg("Não consegui dispensar: " + error.message); HJ.recusados = rec.filter(f => !ids.includes(f.id)); if (HJ.sis) HJ.sis.fila = HJ.sis.fila.filter(f => !ids.includes(f.id)); hjDesenhar(); if (HJ.recusados.length) hjRecusados(); else fundo.style.display = "none"; };
+  bx.querySelector("#rcX").onclick = ev => { ev.preventDefault(); fundo.style.display = "none"; };
+  for (const b of bx.querySelectorAll("[data-disp]")) b.onclick = () => disp([Number(b.dataset.disp)]);
+  bx.querySelector("#rcTodos").onclick = () => { if (confirm(`Dispensar os ${rec.length} avisos?`)) disp(rec.map(f => f.id)); };
 }
 function hjDesenhar() {
   const h_ = window.h || (t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]));
@@ -3685,6 +3701,7 @@ function hjDesenhar() {
     <div class="rodape-pg"><span>${V && V.ult ? "Vendas atualizadas às " + new Date(V.ult).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Vendas: carregando…"} · o painel se atualiza sozinho a cada venda que chega</span><span>Valores do movimento de hoje</span></div>`;
   for (const a of el.querySelectorAll("a[data-v]")) a.addEventListener("click", ev => { ev.preventDefault(); mostrar(a.dataset.v); });
   el.querySelector("#hjAtu").addEventListener("click", () => { HJ.vendas = null; hjDesenhar(); hjCarregar(); });
+  for (const x of el.querySelectorAll("[data-recusados]")) x.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); hjRecusados(); });
   el.querySelector("#hjZap").addEventListener("click", () => {
     const T = [`*Nova Raphaella — resumo de ${new Date(h + "T12:00:00").toLocaleDateString("pt-BR")}*`, ""];
     for (const l of [1, 2]) T.push(`Loja ${l}: vendas de hoje ${orBrl(vd(l, h))} (ontem ${orBrl(vd(l, ontem))}, média 7 dias ${orBrl(media7(l))})`);

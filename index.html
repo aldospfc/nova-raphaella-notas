@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="75">
+<meta name="versao" content="76">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -460,6 +460,7 @@
   <div class="rolagem" id="bolTabela"><table><thead><tr><th>Vencimento</th><th>Loja</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
  </div>
  <div id="vProdutos" style="display:none">
+  <div class="painel" id="blPainel" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>E-commerce (Bling)</b><span id="blSt" class="badge neutro">verificando…</span><span id="blInfo" class="orig" style="margin:0"></span><span style="margin-left:auto;display:flex;gap:8px"><button class="sec" id="blTestar">Testar</button><button id="blLigar">Ligar ao Bling</button></span></div>
   <div class="painel"><b>Ajustar produto no Gestão</b> <span class="orig">— sem nota: nome, custo, venda, estoque, categoria, NCM/CEST, códigos auxiliares, ativar ou inativar</span>
    <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="nome do produto ou código de barras" style="flex:1;min-width:200px;font-size:16px;padding:6px"><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button></div>
    <div id="prMsg" class="orig" style="margin-top:4px">Busca nas duas lojas. O cadastro mostrado aqui é a cópia da nuvem, atualizada a cada 5 minutos.</div></div>
@@ -1585,6 +1586,7 @@ function mostrar(v, semHist) {
   if (v === "promocoes") { pmDesenhar(); pmCarregar(); }
   if (v === "etiquetas") etDesenhar();
   if (v === "fornec") foCarregar(true);
+  if (v === "produtos") blStatus(false);
 }
 const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida), "ok"]
   : (emCurso(n.envio) || emCurso(n.envio2)) ? ["a", "Enviando ao Gestão…", "av"]
@@ -3906,6 +3908,25 @@ async function pmRodar(silencioso) {
   else if (data && (data.inicios || data.fins)) msg("Enviado ao Gestão e aos caixas; em até 1 minuto o preço muda (PC da loja ligado).");
 }
 function pmLigar() { if (!db) return; }
+// ===================== Ligação com o Bling (função de borda "bling") =====================
+// O site nunca vê os tokens: só pede status, o link de autorização e (depois) as consultas e lançamentos.
+async function blStatus(mostrarMsg) {
+  const st = document.getElementById("blSt"), inf = document.getElementById("blInfo"), bt = document.getElementById("blLigar"); if (!st || !supa) return;
+  st.className = "badge neutro"; st.textContent = "verificando…";
+  const { data, error } = await supa.functions.invoke("bling", { body: { acao: "status" } });
+  if (error || !data || !data.ok) { st.className = "badge falta"; st.textContent = "erro"; inf.textContent = (error && error.message) || (data && data.msg) || ""; return; }
+  if (!data.segredos) { st.className = "badge av"; st.textContent = "falta configurar"; inf.textContent = "cadastre os segredos BLING_CLIENT_ID e BLING_CLIENT_SECRET no Supabase"; bt.textContent = "Ligar ao Bling"; return; }
+  if (!data.ligado) { st.className = "badge av"; st.textContent = "não ligado"; inf.textContent = "clique em Ligar ao Bling e autorize no Bling"; bt.textContent = "Ligar ao Bling"; return; }
+  if (data.teste === "ok") { const dp = (data.depositos || []).filter(d => d.situacao !== 0).map(d => d.nome + (d.padrao ? " (padrão)" : "")).join(", ");
+    st.className = "badge ok"; st.textContent = "ligado"; inf.textContent = "desde " + dataBr(data.conectado_em) + (data.conectado_por ? " por " + data.conectado_por : "") + (dp ? " · depósitos: " + dp : ""); bt.textContent = "Religar"; if (mostrarMsg) msg("Bling respondeu: tudo certo."); }
+  else { st.className = "badge falta"; st.textContent = "sem resposta"; inf.textContent = data.msg || data.ultimo_erro || ""; bt.textContent = "Religar"; }
+}
+document.getElementById("blTestar").addEventListener("click", () => blStatus(true));
+document.getElementById("blLigar").addEventListener("click", async () => {
+  const { data, error } = await supa.functions.invoke("bling", { body: { acao: "link" } });
+  if (error || !data || !data.ok) return msg((data && data.msg) || (error && error.message) || "Não consegui gerar o link do Bling.");
+  window.open(data.url, "_blank"); msg("Autorize no Bling (aba nova). Depois volte aqui e clique em Testar.");
+});
 // ===================== Fornecedores =====================
 // Tabela fornecedores (Supabase), montada pela função fornecedores_atualizar() a partir dos XMLs guardados em docs (notas/<chave>/xml e xml2).
 // Dados do emitente = nota mais recente de cada CNPJ; email/contato/obs são preenchidos aqui e nunca sobrescritos.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="96">
+<meta name="versao" content="97">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -240,6 +240,22 @@
   .sep-links { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
   .sep-links a { color: var(--azul, #1b2d4b); white-space: nowrap; }
   .sep-gtit { margin: 14px 2px 6px; font-size: 15px; }
+  .sep-abas { display: inline-flex; gap: 4px; background: #eceef1; border-radius: 22px; padding: 4px; margin: 4px 0 12px; flex-wrap: wrap; }
+  .sep-aba { background: transparent; color: #4a5565; border: 0; border-radius: 18px; padding: 7px 14px; font-weight: 700; box-shadow: none; }
+  .sep-aba.on { background: #fff; color: #111; box-shadow: 0 1px 3px #0002; }
+  .sep-n { display: inline-block; min-width: 20px; padding: 1px 7px; border-radius: 10px; background: #dde1e6; color: #333; font-size: 12px; text-align: center; }
+  .sep-n.q { background: #2968c8; color: #fff; }
+  .sep-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .sep-card { background: #fff; border: 1px solid var(--borda); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
+  .sep-card.on { border-color: #2968c8; box-shadow: 0 0 0 2px #2968c833; }
+  .sep-card.cinza { background: #f2f3f5; cursor: default; }
+  .sep-ctop { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #e0592a; letter-spacing: .3px; }
+  .sep-card.cinza .sep-ctop { color: #4a5565; }
+  .sep-ctit { font-size: 18px; font-weight: 800; margin: 2px 0 8px; }
+  .sep-cl { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #4a5565; padding: 3px 0; }
+  .sep-cl b { min-width: 20px; text-align: center; border-radius: 10px; padding: 0 6px; }
+  .sep-cl b.r { background: #fde3e3; color: #b42318; }
+  .sep-lgchip { background: #eef3fb; color: #1b3d73; }
   .sep-grupo > summary { padding: 2px 0; }
   .sep-grupo[open] > summary { margin-bottom: 10px; }
   a.chip { text-decoration: none; cursor: pointer; }
@@ -503,6 +519,7 @@
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="volume">vol. <input type="range" id="sepVol" min="0" max="100" step="5" value="80" style="width:110px"></label>
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="toca de novo a cada minuto enquanto houver pedido para separar"><input type="checkbox" id="sepRep"> repetir até separar</label>
     <button class="sec" id="sepTeste">Testar som</button><button class="sec" id="sepAtu">Atualizar</button><input type="checkbox" id="sepSom" checked hidden></div></div></div>
+  <div id="sepMl" class="orig" style="margin:-4px 2px 8px"></div>
   <div id="sepLista"></div>
  </div>
  <div id="vVendas" style="display:none">
@@ -2943,10 +2960,26 @@ function sepIniciar() {
   }).subscribe();
   sepContar(); setInterval(sepContar, 120000);
   document.getElementById("sepAtu").onclick = () => sepCarregar();
-  sepSomIniciar();
+  sepSomIniciar(); sepMlStatus();
+}
+// ligação com o Mercado Livre (função "envios"): Flex/Agência/Coleta/Full e prazos
+async function sepMlStatus() {
+  const el = document.getElementById("sepMl"); if (!el || !supa) return;
+  const { data } = await supa.functions.invoke("envios", { body: { acao: "status" } }).catch(() => ({ data: null }));
+  if (!data || !data.ok) { el.innerHTML = ""; return; }
+  SEP.ml = !!data.ligado; const adm = !document.body.classList.contains("perfil-sep");
+  if (data.ligado) el.innerHTML = `Mercado Livre ligado${data.apelido ? " (" + escH(data.apelido) + ")" : ""} — formas de envio e prazos atualizados a cada 3 min${data.sync_em ? " · última vez " + escH(new Date(data.sync_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })) : ""}${data.ultimo_erro ? ` · <span style="color:#b42318">${escH(String(data.ultimo_erro).slice(0, 120))}</span>` : ""}${adm ? ' · <a href="#" id="sepMlSync">atualizar agora</a>' : ""}`;
+  else if (!adm) el.innerHTML = "";
+  else if (!data.segredos) el.innerHTML = `Mercado Livre ainda não ligado: falta cadastrar no Supabase os segredos <b>ML_CLIENT_ID</b> e <b>ML_CLIENT_SECRET</b> do aplicativo do ML.`;
+  else el.innerHTML = `<button id="sepMlLigar">Ligar ao Mercado Livre</button> <span>para ver Flex, Agência, Coleta, Full e os horários de envio</span>`;
+  const lg = document.getElementById("sepMlLigar");
+  if (lg) lg.onclick = async () => { const { data: d } = await supa.functions.invoke("envios", { body: { acao: "link" } }); if (d && d.url) window.open(d.url, "_blank"); else msg((d && d.msg) || "Não consegui gerar o link."); };
+  const sy = document.getElementById("sepMlSync");
+  if (sy) sy.onclick = async ev => { ev.preventDefault(); sy.textContent = "atualizando…"; const { data: d } = await supa.functions.invoke("envios", { body: { acao: "sync" } }); msg(d && d.ok ? `Atualizado: ${d.ml} do Mercado Livre, ${d.enviados} já enviado(s)` : "Não deu: " + ((d && d.msg) || "")); sepMlStatus(); sepCarregar(); };
 }
 // sons sintetizados (sem arquivo): tipo e volume escolhidos na tela, guardados neste aparelho
 let sepCtx = null;
+const ML_ST = { pending: "pendente", handling: "em preparação", ready_to_ship: "pronto para enviar", shipped: "a caminho", delivered: "entregue", not_delivered: "não entregue", cancelled: "cancelado" };
 function sepBip(forcar) {
   try {
     const tipo = document.getElementById("sepSomTipo").value; if (tipo === "nenhum") return;
@@ -2994,7 +3027,9 @@ async function sepCarregar() {
 function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
   // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
-  const envio = p => p.envio_em || p.data_prevista || null; // data em que o pacote precisa sair (à mão ou "data prevista" do Bling)
+  const diaSP = iso => new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(0, 10);
+  const horaSP = iso => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const envio = p => (p.envio_limite ? diaSP(p.envio_limite) : null) || p.envio_em || p.data_prevista || null; // dia em que o pacote precisa sair (prazo do ML, à mão ou data prevista do Bling)
   const prazo = p => envio(p) || "9999-" + (p.data || ""); // sem data vai para o fim
   const naTela = p => p.situacao_id !== 12 && !p.despachado_em; // "Atendido" no Bling (nota emitida) não quer dizer que o pacote saiu
   const pend = L.filter(p => !p.separado_em && !p.ignorado_em && naTela(p)).sort((a, b) => prazo(a).localeCompare(prazo(b)) || String(a.criado_em).localeCompare(String(b.criado_em))), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
@@ -3016,8 +3051,9 @@ function sepDesenhar() {
   // etiqueta com a data de envio (clicável para informar/trocar a data à mão)
   const atraso = p => { const e = envio(p);
     if (!e) return `<a href="#" class="chip" data-envio="${p.id}" title="o Bling não informa a data de envio deste pedido — veja no Mercado Livre/Shopee e informe aqui">sem data de envio — informar</a>`;
-    const n = dias(e, hojeSP), cls = e < hojeSP ? "chip falta" : e === hojeSP ? "chip falta" : "chip";
-    const txt = e < hojeSP ? `enviar era ${dm(e)} · atrasado ${n} dia${n > 1 ? "s" : ""}` : "enviar " + nomeDia(e);
+    const n = dias(e, hojeSP), cls = e < hojeSP ? "chip falta" : e === hojeSP ? "chip falta" : "chip", hr = p.envio_limite ? " " + horaSP(p.envio_limite) : "";
+    const txt = e < hojeSP ? `enviar era ${dm(e)} · atrasado ${n} dia${n > 1 ? "s" : ""}` : "enviar " + nomeDia(e) + (hr ? " até" + hr : "");
+    if (p.envio_limite) return `<span class="${cls}" title="prazo do Mercado Livre para o pacote sair">${txt}</span>`;
     return `<a href="#" class="${cls}" data-envio="${p.id}" data-envio-d="${e}" title="${p.envio_em ? "data informada à mão" : "data prevista no Bling"} — clique para trocar">${txt}</a>`; };
   // links: página do pedido no marketplace e no Bling (a Shopee não aceita link direto pelo número: abre "Meus pedidos" e copia o número)
   const links = p => { const nl = String(p.numero_loja || ""), ml = /mercado/i.test(p.canal || ""), sh = /shopee/i.test(p.canal || "");
@@ -3026,34 +3062,62 @@ function sepDesenhar() {
     return `<span class="sep-links">${mk}<a href="https://www.bling.com.br/vendas.php#edit/${p.id}" target="_blank" rel="noopener">abrir no Bling ↗</a></span>`; };
   const enviado = p => (p.nf_id > 0) || !!p.rastreio; // nota emitida ou rastreio no Bling: provavelmente já saiu
   const sinais = p => (p.nf_id > 0 ? `<span class="chip" title="o Bling tem nota fiscal emitida para este pedido">NF emitida</span>` : "") + (p.rastreio ? `<span class="chip" title="código de rastreio no Bling">rastreio ${escH(String(p.rastreio).slice(0, 26))}</span>` : "");
-  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : atraso(p)}${sinais(p)}${links(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
+  // ===== abas e cartões por forma de envio (como no painel do Mercado Livre) =====
+  const LG = { flex: "Flex", agencia: "Agência", coleta: "Coleta", full: "Full", shopee_direta: "Shopee · Entrega Direta", shopee_xpress: "Shopee Xpress", shopee_retirada: "Shopee · Retirada", outro: "Outros envios", ml: "Mercado Livre", shopee: "Shopee" };
+  const LGORD = ["flex", "agencia", "coleta", "shopee_direta", "shopee_xpress", "shopee_retirada", "ml", "shopee", "outro", "full"];
+  const lg = p => p.logistica || (/mercado/i.test(p.canal || "") ? "ml" : /shopee/i.test(p.canal || "") ? "shopee" : "outro");
+  const cancML = p => p.ml_status === "cancelled";
+  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span><span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span>${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}${sinais(p)}${links(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
   let h = "";
+  const pendT = pend.filter(p => lg(p) !== "full"); // Full sai do centro do ML: a loja não separa
+  const daAba = a => pendT.filter(p => { const e = envio(p); return a === "hoje" ? (cancML(p) || !e || e <= hojeSP) : (!cancML(p) && e && e > hojeSP); });
+  const abas = [["hoje", "Envios de hoje", daAba("hoje").length], ["prox", "Próximos dias", daAba("prox").length], ["sep", "Separados", aguard.length], ["desp", "Despachados", feitos.length]];
+  if (!SEP.aba) SEP.aba = "hoje";
+  h += `<div class="sep-abas">${abas.map(([k, t, n]) => `<button class="sep-aba${SEP.aba === k ? " on" : ""}" data-aba="${k}">${t} <span class="sep-n${k === "hoje" && n ? " q" : ""}">${n}</span></button>`).join("")}</div>`;
   if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
-  for (const id of [...SEP.sel]) if (!pend.some(p => p.id === id)) SEP.sel.delete(id);
-  const nEnv = pend.filter(enviado).length, nAntigos = pend.filter(p => p.data && p.data < hojeSP).length;
-  if (pend.length > 1) h += `<div class="painel sep-barra"><b>Conferir em lote</b> <span class="orig">— marque as caixinhas e escolha o que fazer</span>
-    <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px">
-      ${nEnv ? `<button class="sec" id="sepSelEnv" title="pedidos com nota fiscal emitida ou código de rastreio no Bling">Marcar os com NF ou rastreio (${nEnv})</button>` : ""}
-      ${nAntigos ? `<button class="sec" id="sepSelAnt">Marcar os de antes de hoje (${nAntigos})</button>` : ""}
-      <button class="sec" id="sepSelTodos">Marcar todos</button><button class="sec" id="sepSelLimpa">Desmarcar</button>
-      <span style="flex:1"></span>
-      <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
-      <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div></div>`;
-  const btSep = p => card(p, `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
-  const grupos = []; // atrasados, hoje, amanhã, depois (um grupo por dia), sem data
-  for (const p of pend) { const e = envio(p), k = !e ? "sem" : e < hojeSP ? "atras" : e; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, l: [] }); g.l.push(p); }
-  const ordem = g => g.k === "atras" ? "0" : g.k === "sem" ? "z" : "1" + g.k; grupos.sort((a, b) => ordem(a).localeCompare(ordem(b)));
-  const titG = g => g.k === "atras" ? `<b style="color:#b42318">Atrasados — já deviam ter saído (${g.l.length})</b>` : g.k === "sem" ? `<b>Sem data de envio no Bling (${g.l.length})</b> <span class="orig">— veja a data no Mercado Livre/Shopee e informe no pedido</span>` : `<b>Enviar ${nomeDia(g.k)}${g.k === hojeSP || g.k === amanha ? " (" + dsem(g.k) + " " + dm(g.k) + ")" : ""} — ${g.l.length}</b>`;
-  const longe = g => g.k !== "atras" && g.k !== "sem" && g.k > amanha; // mais de 1 dia à frente: não precisa separar ainda
-  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— por data de envio; os de daqui a 2 dias ou mais ficam fechados</span></div>` + grupos.map(g => longe(g)
-      ? `<details class="painel sep-grupo"><summary style="cursor:pointer">${titG(g)} <span class="orig">— ainda não precisa separar</span></summary>${g.l.map(btSep).join("")}</details>`
-      : `<div class="sep-gtit">${titG(g)}</div>` + g.l.map(btSep).join("")).join("")
-    : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   const dh = d => escH(new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
-  if (aguard.length) h += `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta ou postagem), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
-    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <b>${escH(p.cliente || "")}</b> ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><button data-desp="${p.id}">Despachei</button></div></div>`).join("");
-  if (feitos.length) h += `<div class="painel"><details><summary style="cursor:pointer"><b>Despachados nos últimos 7 dias (${feitos.length})</b></summary>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}</div></div>`).join("") + `</details></div>`;
+  if (SEP.aba === "hoje" || SEP.aba === "prox") {
+    const lista = daAba(SEP.aba), fulls = pend.filter(p => lg(p) === "full");
+    // cartões: uma forma de envio por cartão, com canceladas / atrasadas / para enviar e o horário limite
+    const cards = {}; for (const p of lista) (cards[lg(p)] = cards[lg(p)] || []).push(p);
+    if (SEP.aba === "hoje" && fulls.length) cards.full = fulls;
+    const ks = LGORD.filter(k => cards[k]);
+    if (SEP.lg && !cards[SEP.lg]) SEP.lg = null;
+    h += ks.length ? `<div class="sep-cards">${ks.map(k => { const l = cards[k];
+      if (k === "full") return `<div class="sep-card cinza"><div class="sep-ctop">EM ANDAMENTO <span class="sep-n">${l.length}</span></div><div class="sep-ctit">Full</div><div class="sep-cl"><span>No centro de distribuição — não separar</span><b>${l.length}</b></div></div>`;
+      const c = l.filter(cancML).length, at = l.filter(p => !cancML(p) && envio(p) && envio(p) < hojeSP).length, sd = l.filter(p => !cancML(p) && !envio(p)).length, ok = l.length - c - at - sd;
+      const lim = l.filter(p => !cancML(p) && p.envio_limite).map(p => p.envio_limite).sort()[0];
+      return `<div class="sep-card${SEP.lg === k ? " on" : ""}" data-lg="${k}" title="clique para ver só ${escH(LG[k])}"><div class="sep-ctop">${SEP.aba === "hoje" ? "PARA ENVIAR" : "PRÓXIMOS DIAS"} <span class="sep-n">${l.length}</span></div><div class="sep-ctit">${escH(LG[k])}</div>
+        ${c ? `<div class="sep-cl"><span>Canceladas. Não enviar</span><b class="r">${c}</b></div>` : ""}${at ? `<div class="sep-cl"><span>Atrasadas. Enviar</span><b class="r">${at}</b></div>` : ""}${sd ? `<div class="sep-cl"><span>Sem data de envio</span><b>${sd}</b></div>` : ""}${ok ? `<div class="sep-cl"><span>${SEP.aba === "hoje" ? "Enviar hoje" : "Enviar nos próximos dias"}</span><b>${ok}</b></div>` : ""}
+        ${lim ? `<div class="sep-cl"><span>Primeiro prazo</span><b>${escH(nomeDia(diaSP(lim)))} ${escH(horaSP(lim))}</b></div>` : ""}</div>`; }).join("")}</div>` : "";
+    const vis = lista.filter(p => !SEP.lg || lg(p) === SEP.lg);
+    for (const id of [...SEP.sel]) if (!vis.some(p => p.id === id)) SEP.sel.delete(id);
+    const nEnv = vis.filter(enviado).length;
+    if (vis.length > 1) h += `<div class="painel sep-barra"><b>Conferir em lote</b> <span class="orig">— marque as caixinhas e escolha o que fazer${SEP.lg ? " · mostrando só " + escH(LG[SEP.lg]) + ' (<a href="#" id="sepLgTodos">ver todos</a>)' : ""}</span>
+      <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+        ${nEnv ? `<button class="sec" id="sepSelEnv" title="pedidos com nota fiscal emitida ou código de rastreio no Bling">Marcar os com NF ou rastreio (${nEnv})</button>` : ""}
+        <button class="sec" id="sepSelTodos">Marcar todos</button><button class="sec" id="sepSelLimpa">Desmarcar</button>
+        <span style="flex:1"></span>
+        <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
+        <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div></div>`;
+    const btSep = p => card(p, cancML(p) ? `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt sec" data-canc="${p.id}">Cancelada no Mercado Livre — tirar da lista</button></div>`
+      : `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
+    const grupos = []; // canceladas, atrasados, hoje, cada dia seguinte, sem data
+    for (const p of vis) { const e = envio(p), k = cancML(p) ? "canc" : !e ? "sem" : e < hojeSP ? "atras" : e; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, l: [] }); g.l.push(p); }
+    const ordem = g => g.k === "canc" ? "0" : g.k === "atras" ? "1" : g.k === "sem" ? "z" : "2" + g.k; grupos.sort((a, b) => ordem(a).localeCompare(ordem(b)));
+    const titG = g => g.k === "canc" ? `<b style="color:#b42318">Canceladas no Mercado Livre — não enviar (${g.l.length})</b>` : g.k === "atras" ? `<b style="color:#b42318">Atrasados — já deviam ter saído (${g.l.length})</b>` : g.k === "sem" ? `<b>Sem data de envio (${g.l.length})</b> <span class="orig">— veja a data no Mercado Livre/Shopee e informe no pedido</span>` : `<b>Enviar ${nomeDia(g.k)}${g.k === hojeSP || g.k === amanha ? " (" + dsem(g.k) + " " + dm(g.k) + ")" : ""} — ${g.l.length}</b>`;
+    h += vis.length ? grupos.map(g => `<div class="sep-gtit">${titG(g)}</div>` + g.l.map(btSep).join("")).join("")
+      : `<div class="painel"><b style="color:var(--ok)">${SEP.aba === "hoje" ? "Nada para enviar hoje." : "Nada para os próximos dias."}</b> <span class="orig">Quando entrar um pedido, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
+  }
+  if (SEP.aba === "sep") h += aguard.length ? `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta, agência ou Flex), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem daqui sozinhos quando o ML registra o envio." : ""}</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
+    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> <b>${escH(p.cliente || "")}</b> ${atraso(p)} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><button data-desp="${p.id}">Despachei</button></div></div>`).join("")
+    : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
+  if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
+    : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;
   el.innerHTML = h;
+  for (const b of el.querySelectorAll("[data-aba]")) b.onclick = () => { SEP.aba = b.dataset.aba; SEP.lg = null; SEP.sel.clear(); sepDesenhar(); };
+  for (const b of el.querySelectorAll("[data-lg]")) b.onclick = () => { SEP.lg = SEP.lg === b.dataset.lg ? null : b.dataset.lg; SEP.sel.clear(); sepDesenhar(); };
+  if (document.getElementById("sepLgTodos")) document.getElementById("sepLgTodos").onclick = ev => { ev.preventDefault(); SEP.lg = null; sepDesenhar(); };
   for (const p of L) SEP.vistos.add(p.id); SEP.primeira = false;
   const acao = async (id, a) => { const { error } = await supa.rpc("pedido_separar", { p_id: Number(id), p_acao: a }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
   for (const b of el.querySelectorAll("[data-sep]")) b.onclick = () => { b.disabled = true; acao(b.dataset.sep, "separar"); };

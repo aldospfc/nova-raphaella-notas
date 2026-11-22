@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="121">
+<meta name="versao" content="122">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5187,7 +5187,7 @@ document.getElementById("foAtu").addEventListener("click", async () => { await f
 // O site monta o ZPL e manda pela fila (tipo "etiqueta"); o ouvinte da loja envia cru para a impressora do Windows (Loja 1: compartilhada do caixa 2; Loja 2: local).
 // Ajustes (nome da impressora por loja, deslocamento, escuro) ficam em config/etiquetas.
 const ET = { itens: [], loja: 1, cfg: null, busca: [], ultimoPedido: null, modelo: (() => { try { return localStorage.getItem("etModelo") || "gondola"; } catch (e) { return "gondola"; } })() };
-const ET_PADRAO = { impressora1: "", impressora2: "", dx: 0, dy: 0, adDx: 0, adDy: 0, escuro: 15, larg: 105, alt: 30 };
+const ET_PADRAO = { impressora1: "", impressora2: "", dx: 0, dy: 0, adDx: 0, adDy: 0, adBarra: "medio", escuro: 15, larg: 105, alt: 30 };
 const etCfg = () => ({ ...ET_PADRAO, ...(ET.cfg || {}) });
 const etAscii = s => semAcento(String(s || "")).replace(/[^\x20-\x7e]/g, " ").replace(/[\^~\\]/g, " ").replace(/\s+/g, " ").trim();
 const etPreco = v => (Number(v) || 0).toFixed(2).replace(".", ",");
@@ -5299,11 +5299,11 @@ function etZplModelo(it, c, modelo) {
 // Adesivo 40×25 mm em 2 colunas (bordas de 1 mm): cada linha do rolo leva 2 etiquetas, preenchidas em sequência
 // Adesivo 40×25 mm (320×200 pontos por etiqueta): nome em cima (até 2 linhas, letra que couber), preço grande, código de barras largo embaixo
 const AD_NOME = [34, 30, 27, 24, 22, 20];
-function etAdBarras(ean) {
+function etAdBarras(ean, largo) {
   // escolhe a barra mais larga que cabe na etiqueta (300 pontos úteis) e centraliza
   if (!ean) return null;
   const eanOk = ean.length === 13 && gtinValido(ean), mod = eanOk ? 95 + 9 : (/^\d+$/.test(ean) ? 11 * Math.ceil(ean.length / 2) + 35 : 11 * ean.length + 35);
-  const by = [3, 2, 1].find(b => mod * b <= 312) || 1;
+  const by = [3, 2, 1].find(b => mod * b <= (largo ? 312 : 230)) || 1;
   return { eanOk, by, larg: mod * by, x: Math.max(4, Math.round((320 - mod * by) / 2)) };
 }
 function etZplAdesivos(lista, c) {
@@ -5316,8 +5316,8 @@ function etZplAdesivos(lista, c) {
       const x = col[j], ean = String(it.ean || "").replace(/\D/g, "");
       z.push(etNomeZpl(it.desc, x + 8, 6, 304, 50, AD_NOME));
       z.push(`^FO${x + 8},78^A0N,26,22^FDR$^FS`, `^FO${x + 42},60^A0N,58,50^FD${etPreco(it.preco)}^FS`);
-      const b = etAdBarras(ean);
-      if (b) z.push(b.eanOk ? `^FO${x + b.x},122^BY${b.by},2.5,42^BEN,42,Y,N^FD${ean.slice(0, 12)}^FS` : `^FO${x + b.x},122^BY${b.by},2.5,42^BCN,42,Y,N,N^FD${ean}^FS`);
+      const b = etAdBarras(ean, c.adBarra === "largo"), hb = b && b.by >= 3 ? 42 : 50;
+      if (b) z.push(b.eanOk ? `^FO${x + b.x},122^BY${b.by},2.5,${hb}^BEN,${hb},Y,N^FD${ean.slice(0, 12)}^FS` : `^FO${x + b.x},122^BY${b.by},2.5,${hb}^BCN,${hb},Y,N,N^FD${ean}^FS`);
     });
     z.push("^XZ"); out.push(z.join("\n"));
   }
@@ -5326,11 +5326,11 @@ function etZplAdesivos(lista, c) {
 function etPreviewModelo(it, modelo) {
   if (modelo === "gondola" || !modelo) return etPreview(it);
   const nome = escH(etAscii(it.desc).toUpperCase());
-  if (modelo === "adesivo") { const ean = String(it.ean || "").replace(/\D/g, ""), b = etAdBarras(ean);
+  if (modelo === "adesivo") { const ean = String(it.ean || "").replace(/\D/g, ""), b = etAdBarras(ean, etCfg().adBarra === "largo");
     const um = `<div style="width:160px;height:100px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">
     ${etNomePrev(it.desc, 304, 50, 8, 6, 0.5, AD_NOME)}
     <div style="position:absolute;left:4px;top:30px;font-weight:bold;line-height:1;white-space:nowrap"><span style="font-size:13px">R$ </span><span style="font-size:29px">${etPreco(it.preco)}</span></div>
-    ${b ? etBarrasPrev(ean, b.x, 122, 42, b.by, 0.5) : ""}</div>`;
+    ${b ? etBarrasPrev(ean, b.x, 122, b.by >= 3 ? 42 : 50, b.by, 0.5) : ""}</div>`;
     return `<div style="display:flex;gap:4px;padding:3px;background:#e9e4d8;border-radius:5px;flex:none" title="rolo de 2 colunas: 2 adesivos = 1 linha cheia">${um}${Math.floor(it.qtd || 0) >= 2 ? um : `<div style="width:160px;height:100px;border:1px dashed #bbb;border-radius:4px;flex:none"></div>`}</div>`; }
   const caixa = inner => `<div style="width:315px;height:90px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">${inner}</div>`;
   if (modelo === "casa") return caixa(`${etNomePrev(it.desc, 808, 106 - 16)}${it.ean ? etBarrasPrev(String(it.ean).replace(/\D/g, ""), 40, 106, 86, 4) : ""}`);
@@ -5370,7 +5370,7 @@ function etDesenhar() {
         ${md === "combo" ? `<td class="n"><input type="number" data-k="cq" min="2" step="1" value="${i.cq || ""}" placeholder="ex.: 6" style="width:60px;text-align:right"></td><td class="n"><input type="text" inputmode="decimal" data-k="cp" value="${i.cp ? br(i.cp) : ""}" placeholder="ex.: 10,00" style="width:76px;text-align:right"></td>` : ""}
         ${md === "medida" ? `<td><select data-k="un">${ET_UNIDADES.map(u => `<option ${(i.un || "metro") === u ? "selected" : ""}>${u}</option>`).join("")}</select></td>` : ""}
         <td class="n"><input type="number" data-k="qtd" min="0" step="1" value="${i.qtd}" style="width:60px;text-align:right"></td><td>${etPreviewModelo(i, md)}</td><td><a href="#" data-rm style="color:#b42318">✕</a></td></tr>`).join("")}</tbody></table></div>
-      <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center"><button id="etImprimir">Imprimir ${tot} ${md === "adesivo" ? "adesivo" + (tot === 1 ? "" : "s") : "etiqueta" + (tot === 1 ? "" : "s")} na Loja ${ET.loja}</button><span class="orig">${ET.itens.length} produto(s)${md === "adesivo" ? " · rolo de 2 colunas 40×25: troque o rolo antes" : ""}</span></div>` : `<div class="orig" style="margin-top:8px">Nenhum produto na lista. Bipe, busque, ou puxe em lote de uma nota, dos preços alterados ou das promoções.</div>`}
+      <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center"><button class="sec" id="etA4" title="folha A4 colorida para a impressora comum (Epson/Canon), no visual do orçamento">Folha A4 colorida</button><button id="etImprimir">Imprimir ${tot} ${md === "adesivo" ? "adesivo" + (tot === 1 ? "" : "s") : "etiqueta" + (tot === 1 ? "" : "s")} na Loja ${ET.loja}</button><span class="orig">${ET.itens.length} produto(s)${md === "adesivo" ? " · rolo de 2 colunas 40×25: troque o rolo antes" : ""}</span></div>` : `<div class="orig" style="margin-top:8px">Nenhum produto na lista. Bipe, busque, ou puxe em lote de uma nota, dos preços alterados ou das promoções.</div>`}
     <div id="etStatus" class="orig" style="margin-top:6px"></div>
     <details style="margin-top:10px"><summary class="orig" style="cursor:pointer">configurar impressora e ajuste fino</summary><div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
       <label class="c">Impressora na Loja 1 (vazio = acha sozinho)<input type="text" data-c="impressora1" value="${orA(c.impressora1)}" style="width:220px"></label>
@@ -5379,6 +5379,7 @@ function etDesenhar() {
       <label class="c" title="mm; positivo vai para baixo">Mover ↓ (mm)<input type="number" step="0.5" data-c="dy" value="${c.dy}" style="width:70px"></label>
       <label class="c" title="mm; só para o adesivo 40×25">Adesivo → (mm)<input type="number" step="0.5" data-c="adDx" value="${c.adDx}" style="width:70px"></label>
       <label class="c" title="mm; só para o adesivo 40×25">Adesivo ↓ (mm)<input type="number" step="0.5" data-c="adDy" value="${c.adDy}" style="width:70px"></label>
+      <label class="c" title="largo: 39 mm, quase sem margem; médio: 26 mm, ~7 mm de folga de cada lado">Código do adesivo<select data-c="adBarra"><option value="medio" ${c.adBarra !== "largo" ? "selected" : ""}>médio (mais folga)</option><option value="largo" ${c.adBarra === "largo" ? "selected" : ""}>largo</option></select></label>
       <label class="c" title="0 a 30; padrão 15">Escuro<input type="number" step="1" min="0" max="30" data-c="escuro" value="${c.escuro}" style="width:60px"></label>
       <button class="sec" id="etListar">Ver impressoras do PC da Loja ${ET.loja}</button><button class="sec" id="etTeste">Imprimir 1 de teste</button></div></details>`;
   const g = id => el.querySelector("#" + id);
@@ -5395,8 +5396,9 @@ function etDesenhar() {
     for (const i of tr.querySelectorAll("[data-k]")) i.addEventListener("change", () => { const k = i.dataset.k; it[k] = k === "sob" ? (i.value || null) : k === "desc" ? (i.value.replace(/\s+/g, " ").trim() || it.descOrig || it[k]) : k === "un" ? i.value : (k === "qtd" || k === "cq") ? Math.max(0, parseInt(i.value, 10) || 0) : (pnum(i.value) > 0 ? r2(pnum(i.value)) : (k === "de" || k === "cp" ? null : it[k])); etDesenhar(); });
     const vo = tr.querySelector("[data-orig]"); if (vo) vo.addEventListener("click", ev => { ev.preventDefault(); it.desc = it.descOrig; etDesenhar(); });
     tr.querySelector("[data-rm]").addEventListener("click", ev => { ev.preventDefault(); ET.itens.splice(Number(tr.dataset.n), 1); etDesenhar(); }); }
+  if (g("etA4")) g("etA4").addEventListener("click", etImprimirA4);
   if (g("etImprimir")) g("etImprimir").addEventListener("click", () => etEnviar(ET.itens.filter(i => i.qtd > 0)));
-  for (const i of el.querySelectorAll("[data-c]")) i.addEventListener("change", () => { const k = i.dataset.c; ET.cfg = { ...etCfg(), [k]: i.type === "number" ? (parseFloat(i.value) || 0) : i.value.trim() }; db.doc("config/etiquetas").set(ET.cfg).catch(() => {}); });
+  for (const i of el.querySelectorAll("[data-c]")) i.addEventListener("change", () => { const k = i.dataset.c; ET.cfg = { ...etCfg(), [k]: i.type === "number" ? (parseFloat(i.value) || 0) : i.value.trim() }; db.doc("config/etiquetas").set(ET.cfg).catch(() => {}); if (k === "adBarra") etDesenhar(); });
   g("etListar").addEventListener("click", () => etFila("impressoras", "", "Listar impressoras"));
   g("etTeste").addEventListener("click", () => etEnviar([{ ean: "7891000315507", desc: md === "adesivo" ? "ADESIVO DE TESTE NOVA RAPHAELLA" : "ETIQUETA DE TESTE NOVA RAPHAELLA 105X30", preco: md === "combo" ? 1.99 : 12.34, de: md === "gondola" ? 15.9 : null, ate: md === "gondola" ? "31/12" : null, cq: 6, cp: 10, un: "metro", qtd: md === "adesivo" ? 2 : 1 }], true));
 }
@@ -5431,6 +5433,85 @@ function etEnviar(lista, teste) {
   if (md === "combo") { const ruim = lista.filter(i => !(Math.floor(i.cq || 0) >= 2 && Number(i.cp) > 0)); if (ruim.length) return msg(`Preencha "Leve" (2 ou mais) e "Por R$" em: ${ruim.map(i => i.desc).slice(0, 3).join("; ")}${ruim.length > 3 ? "…" : ""}`); }
   const zpl = md === "adesivo" ? etZplAdesivos(lista, c) : lista.map(i => etZplModelo(i, c, md)).join("\n");
   etFila("etiqueta", zpl, (teste ? "Teste - " : "") + `${nomeMd}: ${lista.length} produto(s), ${tot} etiqueta(s)`.slice(0, 100));
+}
+// ---------- Folha A4 de etiquetas (impressora comum), no visual do orçamento ----------
+const ET_EAN_L = ["0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011"];
+const ET_EAN_G = ["0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111"];
+const ET_EAN_R = ["1110010", "1100110", "1101100", "1000010", "1011100", "1001110", "1010000", "1000100", "1001000", "1110100"];
+const ET_EAN_PAR = ["LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG", "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL"];
+const ET_C128 = "212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112".split(" ");
+// devolve a sequência de módulos (1 = barra) do código: EAN-13 se for válido, senão Code 128
+function etModulos(cod) {
+  cod = String(cod || "").trim();
+  if (/^\d{13}$/.test(cod) && gtinValido(cod)) {
+    const d = cod.split("").map(Number), par = ET_EAN_PAR[d[0]];
+    let m = "101"; for (let i = 1; i <= 6; i++) m += (par[i - 1] === "L" ? ET_EAN_L : ET_EAN_G)[d[i]]; m += "01010";
+    for (let i = 7; i <= 12; i++) m += ET_EAN_R[d[i]]; return { m: m + "101", ean: true };
+  }
+  const v = []; let sym;
+  if (/^\d+$/.test(cod) && cod.length % 2 === 0) { sym = [105]; for (let i = 0; i < cod.length; i += 2) sym.push(Number(cod.substr(i, 2))); }
+  else { sym = [104]; for (const ch of cod) { const c = ch.charCodeAt(0); sym.push(c >= 32 && c < 128 ? c - 32 : 0); } }
+  let ck = sym[0]; for (let i = 1; i < sym.length; i++) ck += sym[i] * i; sym.push(ck % 103); sym.push(106);
+  let m = ""; for (const s of sym) { const w = ET_C128[s]; for (let i = 0; i < w.length; i++) m += (i % 2 ? "0" : "1").repeat(Number(w[i])); }
+  return { m, ean: false };
+}
+function etSvgBarras(cod, altura) {
+  const r = etModulos(cod); if (!r.m) return "";
+  const q = r.ean ? 11 : 10, W = r.m.length + q * 2, guardas = r.ean ? [0, 1, 2, 45, 46, 47, 48, 49, 92, 93, 94] : [];
+  let barras = ""; for (let i = 0; i < r.m.length; i++) if (r.m[i] === "1") { let j = i; while (r.m[j + 1] === "1") j++; barras += `<rect x="${i + q}" y="0" width="${j - i + 1}" height="${guardas.includes(i) ? altura + 5 : altura}"/>`; i = j; }
+  return `<svg class="bc" viewBox="0 0 ${W} ${altura + 14}" preserveAspectRatio="xMidYMid meet">${barras}<text x="${W / 2}" y="${altura + 13}" text-anchor="middle" font-size="9" letter-spacing="1.5" font-family="Arial">${escH(cod)}</text></svg>`;
+}
+function etCartaoA4(it, md) {
+  const nome = escH(it.desc || ""), cod = String(it.ean || "").replace(/\s/g, ""), [i, c] = etPreco(it.preco).split(",");
+  const preco = (inteiro, cent, cls) => `<div class="pr ${cls || ""}"><span class="rs">R$</span><span class="int">${inteiro}</span><span class="ct">,${cent}</span></div>`;
+  const marca = `<div class="mc"><span class="lg"><i style="background:#C35078"></i><i style="background:#B83D50"></i><i style="background:#7AAB30"></i><i style="background:#3A8DA6"></i></span>Nova Raphaella</div>`;
+  if (md === "casa") return `<div class="cart casa"><div class="nm">${nome}</div><div class="bcw">${etSvgBarras(cod, 46)}</div></div>`;
+  if (md === "adesivo") return `<div class="cart ades"><div class="nm">${nome}</div><div class="lin">${preco(i, c)}<div class="bcw">${etSvgBarras(cod, 30)}</div></div></div>`;
+  let dir;
+  if (md === "combo") { const n = Math.max(2, Math.floor(it.cq || 0)), t = Number(it.cp) || 0, [ti, tc] = etPreco(t).split(",");
+    dir = `<div class="tag">${n} UNID. POR</div>${preco(ti, tc, "rosa")}<div class="obsp">sai R$ ${etPreco(t / n)} cada${Number(it.preco) > 0 ? ` · avulso R$ ${etPreco(it.preco)}` : ""}</div>`; }
+  else if (md === "medida") dir = `${preco(i, c)}<div class="un">o ${escH(it.un || "metro")}</div>`;
+  else { const promo = it.de > 0 && it.de > it.preco;
+    dir = (promo ? `<div class="de">de R$ ${etPreco(it.de)}</div><div class="tag">POR</div>` : "") + preco(i, c, promo ? "rosa" : "") + (it.sob ? `<div class="un">${escH(it.sob)}</div>` : "") + (promo && it.ate ? `<div class="obsp">até ${escH(it.ate)}</div>` : ""); }
+  return `<div class="cart gond">${marca}<div class="esq"><div class="nm">${nome}</div><div class="bcw">${etSvgBarras(cod, 34)}</div></div><div class="dir">${dir}</div></div>`;
+}
+function etFolhaA4(lista) {
+  const md = ET.modelo || "gondola", peq = md === "adesivo" || md === "casa";
+  const cartoes = []; for (const it of lista) for (let k = 0; k < Math.floor(it.qtd || 0); k++) cartoes.push(etCartaoA4(it, md));
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas — Nova Raphaella</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+ @page { size: A4; margin: 8mm; }
+ * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+ body { font-family: Nunito, Arial, sans-serif; margin: 0; color: #1B2D4B; }
+ .grade { display: grid; grid-template-columns: repeat(${peq ? 3 : 2}, 1fr); gap: ${peq ? "2.5mm" : "3mm"}; }
+ .cart { position: relative; border: 0.4mm solid #1B2D4B; border-radius: 3mm; overflow: hidden; page-break-inside: avoid; break-inside: avoid; background: #fff; }
+ .cart::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1.6mm; background: linear-gradient(90deg, #C35078 0 25%, #B83D50 25% 50%, #7AAB30 50% 75%, #3A8DA6 75%); }
+ .mc { position: absolute; right: 2.2mm; bottom: 1.2mm; font-size: 6.5pt; font-weight: 900; color: #1B2D4B; opacity: .85; display: flex; align-items: center; gap: 1mm; }
+ .lg { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 0.3mm; width: 2.8mm; height: 2.8mm; } .lg i { display: block; border-radius: 22%; }
+ .nm { font-weight: 900; text-transform: uppercase; line-height: 1.08; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
+ .bc { display: block; width: 100%; height: 100%; } .bc rect { fill: #000; }
+ .pr { font-weight: 900; color: #1B2D4B; line-height: .9; white-space: nowrap; } .pr .rs { font-size: .32em; margin-right: .08em; vertical-align: .9em; } .pr .ct { font-size: .45em; vertical-align: .62em; }
+ .pr.rosa { color: #C35078; }
+ .de { font-size: 8pt; color: #666; text-decoration: line-through; font-weight: 700; } .tag { font-size: 8pt; font-weight: 900; color: #C35078; letter-spacing: .3px; }
+ .un { font-size: 10pt; font-weight: 900; text-transform: uppercase; margin-top: .6mm; } .obsp { font-size: 6.5pt; color: #444; margin-top: .6mm; font-weight: 700; }
+ .gond { height: 37mm; display: flex; padding: 3.2mm 2.6mm 2mm 3mm; gap: 2mm; }
+ .gond .esq { flex: 1.25; display: flex; flex-direction: column; min-width: 0; } .gond .nm { font-size: 11.5pt; -webkit-line-clamp: 3; }
+ .gond .bcw { margin-top: auto; height: 15mm; width: 48mm; margin-bottom: 2.4mm; } .nm { flex-shrink: 0; }
+ .gond .dir { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding-bottom: 3mm; } .gond .pr { font-size: 34pt; }
+ .ades { height: 28mm; padding: 2.8mm 2.2mm 1.8mm; display: flex; flex-direction: column; } .ades .nm { font-size: 8.5pt; -webkit-line-clamp: 2; }
+ .ades .lin { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5mm; } .ades .pr { font-size: 19pt; } .ades .bcw { height: 12mm; width: 31mm; flex: none; }
+ .casa { height: 28mm; padding: 2.8mm 2.2mm 1.8mm; display: flex; flex-direction: column; } .casa .nm { font-size: 9pt; -webkit-line-clamp: 2; } .casa .bcw { margin: auto auto 0; height: 14mm; width: 46mm; }
+ @media screen { body { background: #eee; } .grade { width: 194mm; margin: 10px auto; background: #fff; padding: 8mm; } }
+</style></head><body><div class="grade">${cartoes.join("")}</div>
+<script>window.addEventListener("load", () => { (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 300)); });<\/script>
+</body></html>`;
+}
+function etImprimirA4() {
+  const lista = ET.itens.filter(i => i.qtd > 0); if (!lista.length) return msg("Nenhuma etiqueta com quantidade.");
+  if ((ET.modelo || "gondola") === "combo") { const ruim = lista.filter(i => !(Math.floor(i.cq || 0) >= 2 && Number(i.cp) > 0)); if (ruim.length) return msg(`Preencha "Leve" (2 ou mais) e "Por R$" em: ${ruim.map(i => i.desc).slice(0, 3).join("; ")}`); }
+  const w = window.open("", "_blank"); if (!w) return msg("O navegador bloqueou a janela de impressão; permita pop-ups para este site.");
+  w.document.open(); w.document.write(etFolhaA4(lista)); w.document.close();
 }
 function etLigar() { if (!db) return; db.doc("config/etiquetas").onSnapshot(d => { ET.cfg = d.exists ? d.data() : null; }, () => {}); }
 function orLigar() {

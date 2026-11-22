@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="112">
+<meta name="versao" content="113">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -172,6 +172,87 @@
   #mfa input.cod { font-size: 22px; letter-spacing: 6px; text-align: center; width: 100%; }
   .trava-it { border: 1px solid var(--borda); border-radius: 6px; padding: 8px; margin-top: 8px; }
   .trava-it .mot { font-size: 12px; color: #b42318; margin: 4px 0; white-space: pre-wrap; }
+  /* seletor tabela/cartões e legenda de cores da entrada */
+  #vistaItens { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin: 4px 2px 10px; font-size: 12px; color: var(--cinza); }
+  .ivista { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; background: #fff; }
+  .ivista a { padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--cinza); text-decoration: none; } .ivista a.on { background: var(--azul); color: #fff; }
+  .legcor { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .legcor i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.12); border-left-width: 4px; display: inline-block; }
+  .legcor .lf { background: #fdeeee; border-left-color: #dc2626; } .legcor .lp { background: #eef5fd; border-left-color: #3b82f6; }
+  .legcor .lr { background: #cfe2f6; border-left-color: #1d4ed8; } .legcor .ld { background: #fff6e5; border-left-color: #f59e0b; }
+  .legcor .l2 { background: #faf8ff; border-left-color: #4b3fa3; }
+  body:not(.div2) .legcor.so-div2 { display: none; }
+  /* entrada de nota em cartões (várias linhas por item, estilo Gestão) — escolha em "Ver: Tabela / Cartões" */
+  body.modoCartao #rolItens { overflow: visible; max-height: none; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
+  body.modoCartao #tabItens, body.modoCartao #tabItens thead, body.modoCartao #tabItens tbody { display: block; background: transparent; }
+  body.modoCartao #tabItens thead tr { display: block; }
+  body.modoCartao #tabItens thead th { display: none; }
+  body.modoCartao #tabItens thead th.rv { display: block; position: static; font-size: 0; padding: 0 2px 10px; background: transparent; border: 0; text-align: left; }
+  body.modoCartao #tabItens thead th.rv label { font-size: 14px; font-weight: 700; color: var(--texto); display: inline-flex; align-items: center; gap: 8px; }
+  body.modoCartao #tabItens thead th.rv input { width: 20px !important; height: 20px !important; }
+  body.modoCartao #tb tr.it { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 6px; background: #fff; border: 1px solid var(--borda); border-left: 5px solid #94a3b8; border-radius: 10px; padding: 10px 12px 12px; margin: 0 0 12px; box-shadow: var(--sombra); }
+  body.modoCartao #tb tr.it.pok { background: #f3f8fe; border-left-color: #3b82f6; }
+  body.modoCartao #tb tr.it.falta { background: #fef5f5; border-left-color: #dc2626; }
+  body.modoCartao #tb tr.it.duvida { background: #fffaf0; border-left-color: #f59e0b; }
+  body.modoCartao #tb tr.it.rev { background: #e3eefb; border-left-color: #1d4ed8; }
+  body.modoCartao #tb tr.it.so2 { border-left-color: #4b3fa3; }
+  body.modoCartao.soPend #tb tr.it.rev { display: none; }
+  body.modoCartao #tb tr.it > td { display: block; border: 0; padding: 0; width: auto !important; min-width: 0; text-align: left; white-space: normal; }
+  body.modoCartao #tb tr.it > td:not(.c2) { background: transparent !important; box-shadow: none !important; }
+  body.modoCartao #tb tr.it > td[data-l]::before { content: attr(data-l); display: block; font-size: 10px; font-weight: 800; color: var(--cinza); text-transform: uppercase; letter-spacing: .02em; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.modoCartao #tb tr.it > td:nth-child(1) { grid-column: span 2; order: 1; align-self: center; }
+  body.modoCartao #tb tr.it > td:nth-child(1) input { width: 24px; height: 24px; }
+  body.modoCartao #tb tr.it > td:nth-child(2) { grid-column: span 4; order: 2; align-self: center; font-size: 16px; font-weight: 700; }
+  body.modoCartao #tb tr.it > td:nth-child(2) a::after { content: " detalhes"; font-size: 12px; font-weight: 600; }
+  body.modoCartao #tb tr.it > td:nth-child(3) { grid-column: span 6; order: 3; align-self: center; text-align: right; font-size: 13px; overflow-wrap: anywhere; }
+  body.modoCartao #tb tr.it > td:nth-child(4) { grid-column: 1 / -1; order: 4; }
+  body.modoCartao #tb tr.it > td:nth-child(5) { grid-column: span 3; order: 5; }
+  body.modoCartao #tb tr.it > td:nth-child(6) { grid-column: span 3; order: 6; }
+  body.modoCartao #tb tr.it > td:nth-child(7) { grid-column: span 3; order: 7; }
+  body.modoCartao #tb tr.it > td:nth-child(13) { grid-column: span 3; order: 8; }
+  body.modoCartao #tb tr.it > td:nth-child(8) { grid-column: span 3; order: 9; }
+  body.modoCartao #tb tr.it > td:nth-child(9) { grid-column: span 3; order: 10; }
+  body.modoCartao #tb tr.it > td:nth-child(11) { grid-column: span 3; order: 11; }
+  body.modoCartao #tb tr.it > td:nth-child(12) { grid-column: span 3; order: 12; }
+  body.modoCartao #tb tr.it > td:nth-child(10) { grid-column: 1 / -1; order: 13; }
+  body.modoCartao #tb tr.it > td:nth-child(14) { grid-column: span 4; order: 14; font-weight: 800; font-size: 15px; }
+  body.modoCartao #tb tr.it > td:nth-child(15) { grid-column: span 3; order: 15; }
+  body.modoCartao #tb tr.it > td:nth-child(16) { grid-column: span 5; order: 16; }
+  body.modoCartao #tb tr.it > td:nth-child(17) { grid-column: span 7; order: 17; }
+  body.modoCartao #tb tr.it > td:nth-child(18) { grid-column: span 5; order: 18; }
+  body.modoCartao #tb tr.it > td.c2 { display: none; border-radius: 8px; padding: 6px 8px; }
+  body.modoCartao.div2 #tb tr.it > td.c2 { display: block; }
+  body.modoCartao.semCod #tb tr.it > td.cc { display: none; }
+  body.modoCartao.semCod #tb tr.it > td:nth-child(2) { grid-column: span 10; }
+  body.modoCartao #tb tr.it td input.desc { min-width: 0; width: 100%; font-size: 16px; padding: 7px 9px; }
+  body.modoCartao #tb tr.it td input.p { width: 100% !important; padding: 6px 6px; }
+  body.modoCartao #tb tr.it > td:nth-child(16) input.p { font-size: 19px; font-weight: 800; padding: 8px 10px; }
+  body.modoCartao #tb tr.it > td:nth-child(17) input.p { width: 58px !important; }
+  body.modoCartao #tb tr.it td input.ean { width: calc(100% - 96px); padding: 6px 8px; }
+  body.modoCartao #tb tr.it td a.sug { display: inline-block; padding: 6px 4px; }
+  body.modoCartao #tb [data-o=mg], body.modoCartao #tb [data-o=mg2], body.modoCartao #tb [data-o=l2] { max-width: none; margin-left: 0; }
+  body.modoCartao #tb > tr[id^=d] { display: block; margin: -16px 0 12px; }
+  body.modoCartao #tb > tr[id^=d] > td { display: block; padding: 12px !important; border: 1px solid var(--borda); border-top: 1px dashed var(--borda); border-radius: 0 0 10px 10px; overflow-x: auto; }
+
+  /* cartões no computador: 3 linhas por item (identificação + descrição / números da nota + EAN / custo e venda) */
+  @media (min-width: 761px) {
+    body.modoCartao #tb tr.it { grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 8px 10px; padding: 10px 14px 12px; }
+    body.modoCartao #tb tr.it > td:nth-child(1) { grid-column: span 1; }
+    body.modoCartao #tb tr.it > td:nth-child(2) { grid-column: span 3; }
+    body.modoCartao #tb tr.it > td:nth-child(3) { grid-column: span 4; text-align: left; }
+    body.modoCartao #tb tr.it > td:nth-child(4) { grid-column: span 16; }
+    body.modoCartao.semCod #tb tr.it > td:nth-child(2) { grid-column: span 7; }
+    body.modoCartao #tb tr.it > td:nth-child(5), body.modoCartao #tb tr.it > td:nth-child(6), body.modoCartao #tb tr.it > td:nth-child(7), body.modoCartao #tb tr.it > td:nth-child(13),
+    body.modoCartao #tb tr.it > td:nth-child(8), body.modoCartao #tb tr.it > td:nth-child(9), body.modoCartao #tb tr.it > td:nth-child(11), body.modoCartao #tb tr.it > td:nth-child(12) { grid-column: span 2; }
+    body.modoCartao #tb tr.it > td:nth-child(10) { grid-column: span 8; }
+    body.modoCartao #tb tr.it > td:nth-child(14) { grid-column: span 3; }
+    body.modoCartao #tb tr.it > td:nth-child(15) { grid-column: span 3; }
+    body.modoCartao #tb tr.it > td:nth-child(16) { grid-column: span 4; }
+    body.modoCartao #tb tr.it > td:nth-child(17) { grid-column: span 8; }
+    body.modoCartao #tb tr.it > td:nth-child(18) { grid-column: span 4; }
+    body.modoCartao #tb tr.it td input.desc { font-size: 15px; }
+    body.modoCartao #tb tr.it td input.ean { width: 170px; }
+  }
   #barraMob, #veu { display: none; }
   @media (max-width: 760px) {
     /* menu vira gaveta (com os nomes) aberta pelo botão do topo ou pelo "Menu" da barra de baixo */
@@ -213,57 +294,6 @@
     .tab-dados .acoes-lin { margin-top: 6px; flex-wrap: wrap; } .tab-dados .acoes-lin a { padding: 5px 10px; font-size: 12px; }
     .fo-tab tr.det > td { padding: 10px 0 4px; }
     .rolagem { max-height: none; }
-    /* entrada de nota: cada item vira um cartão em várias linhas (estilo Gestão) */
-    #rolItens { overflow: visible; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
-    #tabItens, #tabItens thead, #tabItens tbody { display: block; background: transparent; }
-    #tabItens thead tr { display: block; }
-    #tabItens thead th { display: none; }
-    #tabItens thead th.rv { display: block; position: static; font-size: 0; padding: 0 2px 10px; background: transparent; border: 0; text-align: left; }
-    #tabItens thead th.rv label { font-size: 14px; font-weight: 700; color: var(--texto); display: inline-flex; align-items: center; gap: 8px; }
-    #tabItens thead th.rv input { width: 20px !important; height: 20px !important; }
-    #tb tr.it { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 6px; background: #fff; border: 1px solid var(--borda); border-left: 5px solid #94a3b8; border-radius: 10px; padding: 10px 12px 12px; margin: 0 0 12px; box-shadow: var(--sombra); }
-    #tb tr.it.pok { background: #f3f8fe; border-left-color: #3b82f6; }
-    #tb tr.it.falta { background: #fef5f5; border-left-color: #dc2626; }
-    #tb tr.it.duvida { background: #fffaf0; border-left-color: #f59e0b; }
-    #tb tr.it.rev { background: #e3eefb; border-left-color: #1d4ed8; }
-    #tb tr.it.so2 { border-left-color: #4b3fa3; }
-    body.soPend #tb tr.it.rev { display: none; }
-    #tb tr.it > td { display: block; border: 0; padding: 0; width: auto !important; min-width: 0; text-align: left; white-space: normal; }
-    #tb tr.it > td:not(.c2) { background: transparent !important; box-shadow: none !important; }
-    #tb tr.it > td[data-l]::before { content: attr(data-l); display: block; font-size: 10px; font-weight: 800; color: var(--cinza); text-transform: uppercase; letter-spacing: .02em; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    #tb tr.it > td:nth-child(1) { grid-column: span 2; order: 1; align-self: center; }
-    #tb tr.it > td:nth-child(1) input { width: 24px; height: 24px; }
-    #tb tr.it > td:nth-child(2) { grid-column: span 4; order: 2; align-self: center; font-size: 16px; font-weight: 700; }
-    #tb tr.it > td:nth-child(2) a::after { content: " detalhes"; font-size: 12px; font-weight: 600; }
-    #tb tr.it > td:nth-child(3) { grid-column: span 6; order: 3; align-self: center; text-align: right; font-size: 13px; overflow-wrap: anywhere; }
-    #tb tr.it > td:nth-child(4) { grid-column: 1 / -1; order: 4; }
-    #tb tr.it > td:nth-child(5) { grid-column: span 3; order: 5; }
-    #tb tr.it > td:nth-child(6) { grid-column: span 3; order: 6; }
-    #tb tr.it > td:nth-child(7) { grid-column: span 3; order: 7; }
-    #tb tr.it > td:nth-child(13) { grid-column: span 3; order: 8; }
-    #tb tr.it > td:nth-child(8) { grid-column: span 3; order: 9; }
-    #tb tr.it > td:nth-child(9) { grid-column: span 3; order: 10; }
-    #tb tr.it > td:nth-child(11) { grid-column: span 3; order: 11; }
-    #tb tr.it > td:nth-child(12) { grid-column: span 3; order: 12; }
-    #tb tr.it > td:nth-child(10) { grid-column: 1 / -1; order: 13; }
-    #tb tr.it > td:nth-child(14) { grid-column: span 4; order: 14; font-weight: 800; font-size: 15px; }
-    #tb tr.it > td:nth-child(15) { grid-column: span 3; order: 15; }
-    #tb tr.it > td:nth-child(16) { grid-column: span 5; order: 16; }
-    #tb tr.it > td:nth-child(17) { grid-column: span 7; order: 17; }
-    #tb tr.it > td:nth-child(18) { grid-column: span 5; order: 18; }
-    #tb tr.it > td.c2 { display: none; border-radius: 8px; padding: 6px 8px; }
-    body.div2 #tb tr.it > td.c2 { display: block; }
-    body.semCod #tb tr.it > td.cc { display: none; }
-    body.semCod #tb tr.it > td:nth-child(2) { grid-column: span 10; }
-    #tb tr.it td input.desc { min-width: 0; width: 100%; font-size: 16px; padding: 7px 9px; }
-    #tb tr.it td input.p { width: 100% !important; padding: 6px 6px; }
-    #tb tr.it > td:nth-child(16) input.p { font-size: 19px; font-weight: 800; padding: 8px 10px; }
-    #tb tr.it > td:nth-child(17) input.p { width: 58px !important; }
-    #tb tr.it td input.ean { width: calc(100% - 96px); padding: 6px 8px; }
-    #tb tr.it td a.sug { display: inline-block; padding: 6px 4px; }
-    #tb [data-o=mg], #tb [data-o=mg2], #tb [data-o=l2] { max-width: none; margin-left: 0; }
-    #tb > tr[id^=d] { display: block; margin: -16px 0 12px; }
-    #tb > tr[id^=d] > td { display: block; padding: 12px !important; border: 1px solid var(--borda); border-top: 1px dashed var(--borda); border-radius: 0 0 10px 10px; overflow-x: auto; }
     .kpis { margin-left: 0; width: 100%; } .kpi { flex: 1; min-width: 0; padding: 6px 10px; } .kpi b { font-size: 16px; }
     #toast { left: 12px; right: 12px; bottom: 80px; max-width: none; }
   }
@@ -539,6 +569,14 @@
       <label class="c" style="position:relative">ou busque pelo nome no cadastro do Gestão<input type="text" id="addNome" placeholder="ex.: marca texto amarelo" style="width:280px" autocomplete="off"><div id="addLista" class="r" style="display:none;position:absolute;top:100%;left:0;z-index:5;background:#fff;border:1px solid #c9d3e0;border-radius:6px;min-width:420px;max-height:260px;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div></label>
       <button id="bAddSem" class="sec">Produto novo (sem código)</button>
       <span class="orig">Produto que já existe no Gestão vem com descrição, custo, venda e estoque atuais. Produto novo: digite a descrição e o NCM no detalhe.</span>
+    </div>
+    <div id="vistaItens">
+      <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="tabela">Tabela</a><a data-iv="cartao">Cartões</a></span>
+      <span class="legcor"><i class="lf"></i>falta algo para ir ao Gestão</span>
+      <span class="legcor"><i class="lp"></i>preço definido</span>
+      <span class="legcor"><i class="lr"></i>revisado (OK marcado)</span>
+      <span class="legcor"><i class="ld"></i>conferir o divisor</span>
+      <span class="legcor so-div2"><i class="l2"></i>só para a Loja 2</span>
     </div>
     <div class="rolagem" id="rolItens">
       <table id="tabItens">
@@ -5458,6 +5496,15 @@ document.getElementById("gDest").addEventListener("change", async ev => {
 (() => { const e = document.getElementById("gCod"); let v = "1"; try { v = localStorage.getItem("entradaxml:mostrarCod") ?? "1"; } catch (x) {}
   e.checked = v !== "0"; document.body.classList.toggle("semCod", !e.checked);
   e.addEventListener("change", () => { document.body.classList.toggle("semCod", !e.checked); try { localStorage.setItem("entradaxml:mostrarCod", e.checked ? "1" : "0"); } catch (x) {} }); })();
+// modo de ver os itens da entrada: tabela ou cartões (padrão: cartões no celular, tabela no computador; a escolha fica guardada no aparelho)
+function vistaItens(v) {
+  if (!v) { try { v = localStorage.getItem("entradaxml:itVista"); } catch (e) {} }
+  if (v !== "tabela" && v !== "cartao") v = matchMedia("(max-width: 760px)").matches ? "cartao" : "tabela";
+  document.body.classList.toggle("modoCartao", v === "cartao");
+  for (const a of document.querySelectorAll(".ivista a")) a.classList.toggle("on", a.dataset.iv === v);
+}
+for (const a of document.querySelectorAll(".ivista a")) a.addEventListener("click", () => { try { localStorage.setItem("entradaxml:itVista", a.dataset.iv); } catch (e) {} vistaItens(a.dataset.iv); });
+vistaItens();
 document.getElementById("soPend").addEventListener("change", ev => document.body.classList.toggle("soPend", ev.target.checked));
 // busca por nome na entrada sem nota: lista do cadastro conforme digita; clicou, vira item com EAN, descrição, custo e venda
 (() => {

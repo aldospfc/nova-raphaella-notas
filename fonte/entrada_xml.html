@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Sistema das Lojas — Nova Raphaella</title>
-<meta name="versao" content="105">
+<meta name="versao" content="106">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -4068,7 +4068,11 @@ function hjDesenhar() {
 // Registro em docs "transf/<id>": {num, origem, destino, por, criado, status (rascunho|enviada|conferida|divergente), itens:[{ean, desc, qtd, custo, idO, idD, manual, qtdRec}], obs, envioO, envioD, conferido:{em,por,obs}, acertoPago}
 // Ao confirmar, baixa o estoque no Gestão da origem e soma no da destino (produtos com cadastro nas duas); itens manuais (sem cadastro) só entram no acerto.
 // Acerto entre lojas: a destino deve à origem o total a preço de custo.
-const TF = { docs: new Map(), atual: null, salvarT: null, busca: [] };
+const TF = { docs: new Map(), atual: null, salvarT: null, busca: [], ed: null };
+// modo edição de transferência já enviada: TF.ed = {id, itens: cópia com _q0/_c0 (qtd/custo antes)}
+const tfEmEd = t => !!(t && TF.ed && TF.ed.id === t.id);
+const tfIts = () => tfEmEd(TF.atual) ? TF.ed.itens : TF.atual.itens;
+function tfMudou() { if (!tfEmEd(TF.atual)) tfSalvar(); tfDesenharEd(); }
 const TF_ST = { rascunho: ["Rascunho", "av"], enviada: ["Enviada — aguardando conferência", "novo"], conferida: ["Conferida", "ok"], divergente: ["Com divergência", "falta"] };
 const tfTotal = t => (t.itens || []).reduce((a, i) => a + (Number(i.qtd) || 0) * (Number(i.custo) || 0), 0);
 function tfNova() {
@@ -4083,7 +4087,7 @@ function tfSalvar(agora) {
   const f = () => { t.alterado = new Date().toISOString(); const { id, ...resto } = t, dados = JSON.parse(JSON.stringify(resto, (k, v) => k === "_timer" ? undefined : v)); db.doc("transf/" + id).set(dados).catch(e => msg("Não consegui salvar a transferência (" + (e.code || e.message) + ").")); };
   if (agora) f(); else TF.salvarT = setTimeout(f, 700);
 }
-function tfAbrir(id) { const t = TF.docs.get(id); if (!t) return; TF.atual = t; tfDesenharEd(); const e = document.getElementById("tfEd"); if (e.scrollIntoView) e.scrollIntoView({ behavior: "smooth", block: "start" }); }
+function tfAbrir(id) { const t = TF.docs.get(id); if (!t) return; if (TF.ed && TF.ed.id !== id) TF.ed = null; TF.atual = t; tfDesenharEd(); const e = document.getElementById("tfEd"); if (e.scrollIntoView) e.scrollIntoView({ behavior: "smooth", block: "start" }); }
 // saldo do acerto: quanto a Loja 2 deve à Loja 1 (negativo = Loja 1 deve à Loja 2), só de transferências enviadas/conferidas e não acertadas
 function tfSaldo() {
   let s = 0; const lista = [...TF.docs.values()].filter(t => t.status !== "rascunho" && !t.acertoPago);
@@ -4108,10 +4112,10 @@ function tfDesenharLista() {
 }
 function tfDesenharEd() {
   const t = TF.atual, ed = document.getElementById("tfEd"); if (!t) { ed.style.display = "none"; return; }
-  ed.style.display = ""; const [st, cls] = TF_ST[t.status] || TF_ST.rascunho, rasc = t.status === "rascunho", tot = tfTotal(t);
+  ed.style.display = ""; const [st, cls] = TF_ST[t.status] || TF_ST.rascunho, rasc = t.status === "rascunho", emEd = tfEmEd(t), edt = rasc || emEd, tot = tfTotal({ itens: emEd ? TF.ed.itens : t.itens }), tot0 = tfTotal(t);
   ed.innerHTML = `
     <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div><b style="font-size:16px">Transferência nº ${t.num}</b> <span class="chip ${cls}">${st}</span>${t.acertoPago ? ` <span class="chip ok">acerto registrado em ${new Date(t.acertoPago).toLocaleDateString("pt-BR")}</span>` : ""}</div>
+      <div><b style="font-size:16px">Transferência nº ${t.num}</b> <span class="chip ${cls}">${st}</span>${emEd ? ` <span class="chip av">editando</span>` : ""}${t.acertoPago ? ` <span class="chip ok">acerto registrado em ${new Date(t.acertoPago).toLocaleDateString("pt-BR")}</span> <a href="#" id="tfDesPago" style="font-size:11px" title="volta esta transferência para o saldo em aberto">desfazer acerto</a>` : ""}</div>
       <div class="linha" style="gap:6px;flex-wrap:wrap"><button class="sec" id="tfZap" title="manda a relação para o grupo da loja">Texto p/ WhatsApp</button><button class="sec" id="tfFecharB">Fechar</button></div></div>
     <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:8px;align-items:flex-end">
       <label class="c">De<select data-k="origem" ${rasc ? "" : "disabled"}><option value="1" ${t.origem == 1 ? "selected" : ""}>Loja 1</option><option value="2" ${t.origem == 2 ? "selected" : ""}>Loja 2</option></select></label>
@@ -4119,49 +4123,57 @@ function tfDesenharEd() {
       <label class="c">Quem está mandando<input type="text" data-k="por" value="${orA(t.por || "")}" style="width:140px" ${rasc ? "" : "disabled"}></label>
       <label class="c" style="flex:1;min-width:200px">Observação<input type="text" data-k="obs" value="${orA(t.obs || "")}"></label>
     </div>
-    ${rasc ? `<div class="linha" style="gap:8px;margin-top:10px;align-items:flex-end;flex-wrap:wrap">
+    ${emEd ? `<div class="orig" style="margin-top:8px;background:#fff7e6;border:1px solid #f3d19c;border-radius:6px;padding:6px 10px">Editando uma transferência já enviada: mude quantidades, custos, tire ou inclua itens. Ao salvar, o sistema manda ao Gestão só a <b>diferença</b> (ex.: de 10 para 8 → devolve 2 ao estoque da Loja ${t.origem} e tira 2 da Loja ${t.destino}) e recalcula o acerto.</div>` : ""}
+    ${edt ? `<div class="linha" style="gap:8px;margin-top:10px;align-items:flex-end;flex-wrap:wrap">
       <label class="c" style="flex:1;min-width:240px">Produto (nome ou código de barras — bipar funciona)<input type="text" id="tfQ" placeholder="busca no cadastro da Loja ${t.origem}" autocomplete="off"></label>
       <button class="sec" id="tfBuscarB">Buscar</button><button class="sec" id="tfCam" title="bipar com a câmera">📷</button>
       <button class="sec" id="tfManual" title="item sem cadastro (sacola, papel de presente…): só entra no acerto, não mexe no Gestão">+ item sem cadastro</button></div>
     <div id="tfRes" style="margin-top:4px"></div>` : ""}
     <div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th><th class="n">Qtd</th><th class="n">Custo un.</th><th class="n">Total</th>${rasc ? "" : `<th class="n">Recebido</th>`}<th></th></tr></thead><tbody id="tfItens"></tbody></table></div>
-    <div class="linha" style="justify-content:flex-end;gap:16px;margin-top:8px;align-items:baseline"><span style="font-size:18px;font-weight:bold;color:#1B2D4B">Total a custo ${orBrl(tot)}</span> <span class="orig">(Loja ${t.destino} deve à Loja ${t.origem})</span></div>
+    <div class="linha" style="justify-content:flex-end;gap:16px;margin-top:8px;align-items:baseline">${emEd && r2(tot) !== r2(tot0) ? `<span class="orig">antes ${orBrl(tot0)}</span>` : ""}<span style="font-size:18px;font-weight:bold;color:#1B2D4B">Total a custo ${orBrl(tot)}</span> <span class="orig">(Loja ${t.destino} deve à Loja ${t.origem})</span></div>
     <div id="tfEnvio" class="orig" style="margin-top:6px"></div>
     <div class="linha" style="gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
       ${rasc ? `<button id="tfConfirmar" title="baixa o estoque na origem, soma no destino e deixa a transferência aguardando conferência">Confirmar e enviar ao Gestão</button>` : ""}
-      ${t.status === "enviada" || t.status === "divergente" ? `<button id="tfConferir">Conferir recebimento</button>` : ""}
-      ${!rasc && !t.acertoPago ? `<button class="sec" id="tfPago" title="marca só esta transferência como acertada entre as lojas">Marcar acerto desta</button>` : ""}
+      ${emEd ? `<button id="tfSalvarEd" title="grava as alterações e manda a diferença de estoque ao Gestão das duas lojas">Salvar alterações</button><button class="sec" id="tfCancelarEd">Cancelar edição</button>` : ""}
+      ${!emEd && (t.status === "enviada" || t.status === "divergente") ? `<button id="tfConferir">Conferir recebimento</button>` : ""}
+      ${!rasc && !emEd ? `<button class="sec" id="tfEditar" title="corrigir quantidades, custos ou itens desta transferência">Editar itens, quantidades e valores</button>` : ""}
+      ${!rasc && !emEd && !t.acertoPago ? `<button class="sec" id="tfPago" title="marca só esta transferência como acertada entre as lojas">Marcar acerto desta</button>` : ""}
       <a href="#" id="tfExcluir" style="margin-left:auto;color:#b42318;font-size:12px">${rasc ? "excluir rascunho" : "excluir registro"}</a></div>
     ${t.conferido ? `<div class="orig" style="margin-top:6px">Conferida em ${new Date(t.conferido.em).toLocaleString("pt-BR")}${t.conferido.por ? " por " + escH(t.conferido.por) : ""}${t.conferido.obs ? " — " + escH(t.conferido.obs) : ""}</div>` : ""}`;
   tfDesenharItens(); tfDesenharEnvio();
   for (const i of ed.querySelectorAll("[data-k]")) i.addEventListener(i.tagName === "SELECT" ? "change" : "input", () => { const k = i.dataset.k; t[k] = k === "origem" || k === "destino" ? Number(i.value) : i.value; if (k === "origem" && t.destino === t.origem) { t.destino = t.origem === 1 ? 2 : 1; ed.querySelector("[data-k=destino]").value = String(t.destino); } if (k === "destino" && t.destino === t.origem) { t.origem = t.destino === 1 ? 2 : 1; ed.querySelector("[data-k=origem]").value = String(t.origem); } tfSalvar(); if (k === "origem" || k === "destino") tfReler(); });
   const g = id => ed.querySelector("#" + id);
-  if (rasc) {
+  if (edt) {
     g("tfBuscarB").addEventListener("click", () => tfBuscar()); g("tfQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); tfBuscar(true); } });
     g("tfCam").addEventListener("click", () => lerCamera(c => { g("tfQ").value = c; tfBuscar(true); }));
-    g("tfManual").addEventListener("click", () => { const d = prompt("Descrição do item (sem cadastro)"); if (!d) return; const q = parseFloat(String(prompt("Quantidade", "1") || "1").replace(",", ".")) || 1; const c = pnum(prompt("Custo unitário (R$)", "0") || "0"); t.itens.push({ ean: "", desc: d.trim(), qtd: q, custo: c, manual: true }); tfSalvar(); tfDesenharEd(); });
-    g("tfConfirmar").addEventListener("click", tfConfirmar);
+    g("tfManual").addEventListener("click", () => { const d = prompt("Descrição do item (sem cadastro)"); if (!d) return; const q = parseFloat(String(prompt("Quantidade", "1") || "1").replace(",", ".")) || 1; const c = pnum(prompt("Custo unitário (R$)", "0") || "0"); tfIts().push({ ean: "", desc: d.trim(), qtd: q, custo: c, manual: true }); tfMudou(); });
+    if (rasc) g("tfConfirmar").addEventListener("click", tfConfirmar);
   }
+  if (g("tfEditar")) g("tfEditar").addEventListener("click", () => { TF.ed = { id: t.id, itens: (t.itens || []).map((i, n) => ({ ...JSON.parse(JSON.stringify(i)), _n: n, _q0: Number(i.qtd) || 0, _c0: Number(i.custo) || 0 })) }; tfDesenharEd(); });
+  if (g("tfCancelarEd")) g("tfCancelarEd").addEventListener("click", () => { TF.ed = null; tfDesenharEd(); });
+  if (g("tfSalvarEd")) g("tfSalvarEd").addEventListener("click", tfSalvarEdicao);
   if (g("tfConferir")) g("tfConferir").addEventListener("click", tfConferir);
+  if (g("tfDesPago")) g("tfDesPago").addEventListener("click", ev => { ev.preventDefault(); if (!confirm("Voltar esta transferência para o saldo em aberto do acerto?")) return; delete t.acertoPago; tfSalvar(true); tfDesenharEd(); tfDesenharLista(); });
   if (g("tfPago")) g("tfPago").addEventListener("click", () => { t.acertoPago = new Date().toISOString(); tfSalvar(true); tfDesenharEd(); tfDesenharLista(); });
   g("tfZap").addEventListener("click", () => { const T = [`*Transferência nº ${t.num} — Loja ${t.origem} → Loja ${t.destino}*`, new Date(t.criado).toLocaleString("pt-BR") + (t.por ? " · " + t.por : ""), ""]; for (const i of t.itens) T.push(`• ${br(i.qtd, 0)}× ${i.desc}${i.manual ? " (sem cadastro)" : ""}`); T.push("", `Total a custo: ${orBrl(tot)}`); if (t.obs) T.push(t.obs); window.open("https://wa.me/?text=" + encodeURIComponent(T.join("\n")), "_blank"); });
-  g("tfFecharB").addEventListener("click", () => { tfSalvar(true); TF.atual = null; ed.style.display = "none"; tfDesenharLista(); });
+  g("tfFecharB").addEventListener("click", () => { if (emEd) { if (!confirm("Descartar as alterações que ainda não foram salvas?")) return; TF.ed = null; } tfSalvar(true); TF.atual = null; ed.style.display = "none"; tfDesenharLista(); });
   g("tfExcluir").addEventListener("click", ev => { ev.preventDefault(); if (!confirm(rasc ? "Excluir este rascunho?" : "Excluir o REGISTRO desta transferência? O estoque já movimentado no Gestão NÃO volta.")) return; db.doc("transf/" + t.id).delete().catch(() => {}); TF.docs.delete(t.id); TF.atual = null; ed.style.display = "none"; tfDesenharLista(); });
 }
 function tfDesenharItens() {
-  const t = TF.atual, tb = document.getElementById("tfItens"); if (!t || !tb) return; const rasc = t.status === "rascunho";
-  if (!t.itens.length) { tb.innerHTML = `<tr><td colspan="6" class="orig">Nenhum item. Bipe ou busque o produto acima.</td></tr>`; return; }
-  tb.innerHTML = t.itens.map((i, n) => `<tr data-n="${n}" class="${!i.manual && (!i.idO || !i.idD) ? "falta" : ""}">
-    <td>${rasc && i.manual ? `<input type="text" data-k="desc" value="${orA(i.desc)}" style="width:100%;min-width:180px">` : escH(i.desc)}<div class="orig mono" style="font-size:10px">${i.manual ? "sem cadastro — só no acerto" : escH(i.ean || "")}${!i.manual && i.estO != null ? ` · estoque L${t.origem}: ${br(i.estO, 0)}` : ""}${!i.manual && !i.idD ? ` · <span style="color:#b42318">não cadastrado na Loja ${t.destino}</span>` : ""}${!i.manual && !i.idO ? ` · <span style="color:#b42318">não cadastrado na Loja ${t.origem}</span>` : ""}</div></td>
-    <td class="n">${rasc ? `<input type="number" data-k="qtd" min="0" step="1" value="${i.qtd}" style="width:64px;text-align:right">` : br(i.qtd, 0)}</td>
-    <td class="n">${rasc ? `<input type="text" inputmode="decimal" data-k="custo" value="${br(i.custo || 0, 3)}" style="width:84px;text-align:right">` : br(i.custo || 0, 3)}</td>
+  const t = TF.atual, tb = document.getElementById("tfItens"); if (!t || !tb) return; const rasc = t.status === "rascunho", emEd = tfEmEd(t), edt = rasc || emEd, its = tfIts();
+  if (!its.length) { tb.innerHTML = `<tr><td colspan="6" class="orig">Nenhum item. Bipe ou busque o produto acima.</td></tr>`; return; }
+  const antes = (i, k) => { if (!emEd) return ""; if (i._q0 == null) return `<div class="orig" style="font-size:10px;color:#1a7f37">novo</div>`; const v0 = k === "qtd" ? i._q0 : i._c0, v = Number(i[k]) || 0; return r2(v0) !== r2(v) ? `<div class="orig" style="font-size:10px;color:#b25e00">antes ${br(v0, k === "qtd" ? 0 : 3)}</div>` : ""; };
+  tb.innerHTML = its.map((i, n) => `<tr data-n="${n}" class="${!i.manual && (!i.idO || !i.idD) ? "falta" : ""}">
+    <td>${edt && i.manual ? `<input type="text" data-k="desc" value="${orA(i.desc)}" style="width:100%;min-width:180px">` : escH(i.desc)}<div class="orig mono" style="font-size:10px">${i.manual ? "sem cadastro — só no acerto" : escH(i.ean || "")}${!i.manual && i.estO != null ? ` · estoque L${t.origem}: ${br(i.estO, 0)}` : ""}${!i.manual && !i.idD ? ` · <span style="color:#b42318">não cadastrado na Loja ${t.destino}</span>` : ""}${!i.manual && !i.idO ? ` · <span style="color:#b42318">não cadastrado na Loja ${t.origem}</span>` : ""}</div></td>
+    <td class="n">${edt ? `<input type="number" data-k="qtd" min="0" step="1" value="${i.qtd}" style="width:64px;text-align:right">` + antes(i, "qtd") : br(i.qtd, 0)}</td>
+    <td class="n">${edt ? `<input type="text" inputmode="decimal" data-k="custo" value="${br(i.custo || 0, 3)}" style="width:84px;text-align:right">` + antes(i, "custo") : br(i.custo || 0, 3)}</td>
     <td class="n"><b>${orBrl((Number(i.qtd) || 0) * (Number(i.custo) || 0))}</b></td>
     ${rasc ? "" : `<td class="n">${i.qtdRec != null ? (Number(i.qtdRec) === Number(i.qtd) ? `<span class="chip ok">${br(i.qtdRec, 0)}</span>` : `<span class="chip falta">${br(i.qtdRec, 0)} (faltou ${br(i.qtd - i.qtdRec, 0)})</span>`) : "—"}</td>`}
-    <td>${rasc ? `<a href="#" data-rm style="color:#b42318">✕</a>` : ""}</td></tr>`).join("");
+    <td>${edt ? `<a href="#" data-rm style="color:#b42318" title="tirar o item${emEd ? " (o estoque volta para a origem ao salvar)" : ""}">✕</a>` : ""}</td></tr>`).join("");
   for (const tr of tb.querySelectorAll("tr[data-n]")) {
-    const it = t.itens[Number(tr.dataset.n)];
-    for (const inp of tr.querySelectorAll("input[data-k]")) inp.addEventListener("change", () => { const k = inp.dataset.k; it[k] = k === "desc" ? inp.value : k === "qtd" ? Math.max(0, parseFloat(inp.value) || 0) : Math.max(0, pnum(inp.value) || 0); tfSalvar(); tfDesenharEd(); });
-    const rm = tr.querySelector("[data-rm]"); if (rm) rm.addEventListener("click", ev => { ev.preventDefault(); t.itens.splice(Number(tr.dataset.n), 1); tfSalvar(); tfDesenharEd(); });
+    const it = its[Number(tr.dataset.n)];
+    for (const inp of tr.querySelectorAll("input[data-k]")) inp.addEventListener("change", () => { const k = inp.dataset.k; it[k] = k === "desc" ? inp.value : k === "qtd" ? Math.max(0, parseFloat(inp.value) || 0) : Math.max(0, pnum(inp.value) || 0); tfMudou(); });
+    const rm = tr.querySelector("[data-rm]"); if (rm) rm.addEventListener("click", ev => { ev.preventDefault(); its.splice(Number(tr.dataset.n), 1); tfMudou(); });
   }
 }
 async function tfBuscar(enter) {
@@ -4188,14 +4200,14 @@ async function tfBuscar(enter) {
 }
 async function tfAdd(p) {
   const t = TF.atual; if (!t) return;
-  const ja = t.itens.find(i => i.ean && i.ean === p.ean && !i.manual);
+  const its = tfIts(), ja = its.find(i => i.ean && i.ean === p.ean && !i.manual);
   if (ja) { ja.qtd = (Number(ja.qtd) || 0) + 1; }
   else {
     const it = { ean: p.ean || "", desc: p.descricao || "", qtd: 1, custo: r2(Number(p.preco_compra) || Number(p.custo_medio) || 0), idO: p.id_gestao, estO: p.estoque != null ? Number(p.estoque) : null, idD: null, manual: false };
     const d = await supa.from("produtos").select("id_gestao,estoque").eq("loja_id", t.destino).eq("ean", p.ean).maybeSingle(); if (d.data) it.idD = d.data.id_gestao;
-    t.itens.push(it);
+    its.push(it);
   }
-  tfSalvar(); tfDesenharEd(); setTimeout(() => { const q = document.getElementById("tfQ"); if (q) q.focus(); }, 0);
+  tfMudou(); setTimeout(() => { const q = document.getElementById("tfQ"); if (q) q.focus(); }, 0);
 }
 // trocou origem/destino: refaz os ids e custos pelo cadastro das lojas novas
 async function tfReler() {
@@ -4237,16 +4249,68 @@ async function tfConfirmar() {
 function tfDesenharEnvio() {
   const t = TF.atual, el = document.getElementById("tfEnvio"); if (!t || !el) return;
   const parte = (lado, rot) => { const e = t["envio" + lado]; if (!e) return ""; return `<span data-ev="${lado}" class="chip ${e.status === "aplicado" ? "ok" : e.status === "erro" ? "falta" : "av"}">${rot}: ${e.status === "aplicado" ? "gravado no Gestão" : e.status === "erro" ? "o Gestão recusou" + (e.msg ? " (" + escH(e.msg) + ")" : "") : "aguardando o PC da loja…"}</span> `; };
-  el.innerHTML = parte("O", `Saída na Loja ${t.origem}`) + parte("D", `Entrada na Loja ${t.destino}`);
+  const chipE = (e, rot) => !e ? "" : `<span class="chip ${e.status === "aplicado" ? "ok" : e.status === "erro" ? "falta" : "av"}">${rot}: ${e.status === "aplicado" ? "gravado" : e.status === "erro" ? "recusado" + (e.msg ? " (" + escH(e.msg) + ")" : "") : "aguardando o PC…"}</span> `;
+  const aj = (t.ajustes || []).map((a, k) => `<div style="margin-top:4px">Edição ${k + 1} — ${new Date(a.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}${a.por ? " · " + escH(String(a.por).split("@")[0]) : ""}: ${escH((a.resumo || []).join("; "))} ${chipE(a.O, `estoque Loja ${t.origem}`)}${chipE(a.D, `estoque Loja ${t.destino}`)}</div>`).join("");
+  el.innerHTML = parte("O", `Saída na Loja ${t.origem}`) + parte("D", `Entrada na Loja ${t.destino}`) + aj;
   for (const lado of ["O", "D"]) { const e = t["envio" + lado]; if (e && e.id && e.status === "pendente") tfAcompanhar(t, lado); }
+  for (const a of t.ajustes || []) for (const lado of ["O", "D"]) if (a[lado] && a[lado].id && a[lado].status === "pendente") tfAcomp(t, a[lado]);
 }
-function tfAcompanhar(t, lado) {
-  const e = t["envio" + lado]; if (!e || !e.id || e._timer) return;
+function tfAcompanhar(t, lado) { tfAcomp(t, t["envio" + lado]); }
+function tfAcomp(t, e) {
+  if (!e || !e.id || e._timer) return;
   e._timer = setInterval(async () => {
     const r = await supa.from("fila").select("status, resultado").eq("id", e.id).single(); const f = r.data; if (!f) return;
     if (f.status === "aplicado" || f.status === "erro") { clearInterval(e._timer); delete e._timer; e.status = f.status; if (f.status === "erro") e.msg = (f.resultado || "").split("\n").find(l => /error|ERRO|Statement failed/i.test(l)) || ""; tfSalvar(true); if (TF.atual === t) tfDesenharEnvio(); }
   }, 4000);
   setTimeout(() => { if (e._timer) { clearInterval(e._timer); delete e._timer; } }, 30 * 60000);
+}
+// SQL do ajuste de uma transferência já enviada: mov = Map(id_gestao -> {d: diferença de quantidade enviada (+ mandou mais, - mandou menos)})
+function tfSqlAjuste(t, lado, mov) {
+  const ids = [], linhas = [];
+  for (const [id, m] of mov) {
+    const x = lado === "O" ? -m.d : m.d; if (!x) continue; ids.push(id); const s = x > 0 ? `+ ${x}` : `- ${-x}`;
+    linhas.push(`INSERT INTO HIST_ALT_ESTOQUE_MANUAL (ID_PRODUTO, F_ESTOQUE_ANTERIOR, F_ESTOQUE_NOVO, DH_OPERACAO, ID_USUARIO, ID_SUPERVISOR, ID_LOJA, S_ESTACAO) SELECT ID, ESTOQUE_ATUAL, ESTOQUE_ATUAL ${s}, CURRENT_TIMESTAMP, 1, 0, 0, 'TRANSF-AJUSTE' FROM PRODUTOS WHERE ID = ${id};`,
+      `UPDATE PRODUTOS SET ESTOQUE_ATUAL = ESTOQUE_ATUAL ${s}, ULT_ALTERACAO = CURRENT_DATE, ALT_PDV = 1 WHERE ID = ${id};`);
+  }
+  if (!linhas.length) return null;
+  linhas.push("UPDATE DATAS SET T_ALT_PRODUTOS = CURRENT_TIMESTAMP;", `SELECT CODIGO_BARRAS, SUBSTRING(DESCRICAO FROM 1 FOR 40) AS DESCRICAO, ESTOQUE_ATUAL FROM PRODUTOS WHERE ID IN (${ids.join(",")});`);
+  return `/* AJUSTE DA TRANSFERENCIA ${t.num} LOJA ${t.origem} -> LOJA ${t.destino} - ${lado === "O" ? "origem" : "destino"} - ${ids.length} produto(s) */\r\n` + linhas.join("\r\n") + "\r\n";
+}
+async function tfSalvarEdicao() {
+  const t = TF.atual; if (!tfEmEd(t) || !supa) return;
+  const novos = TF.ed.itens.filter(i => (Number(i.qtd) || 0) > 0), velhos = t.itens || [];
+  if (!novos.length) return msg("Deixe pelo menos um item. Se a transferência não aconteceu, devolva as quantidades e depois use \"excluir registro\".");
+  // lado do Gestão que já recusou algum envio desta transferência: não dá para calcular a diferença com segurança
+  const recusou = lado => (t["envio" + lado] && t["envio" + lado].status === "erro") || (t.ajustes || []).some(a => a[lado] && a[lado].status === "erro");
+  const resumo = [], mov = { O: new Map(), D: new Map() };
+  for (const lado of ["O", "D"]) {
+    const k = lado === "O" ? "idO" : "idD", m = mov[lado];
+    for (const i of velhos) if (!i.manual && i[k]) { const x = m.get(i[k]) || { d: 0 }; x.d -= Number(i.qtd) || 0; m.set(i[k], x); }
+    for (const i of novos) if (!i.manual && i[k]) { const x = m.get(i[k]) || { d: 0 }; x.d += Number(i.qtd) || 0; m.set(i[k], x); }
+    for (const [id, x] of m) if (!x.d) m.delete(id);
+  }
+  for (const i of novos) { if (i._q0 == null) resumo.push(`+ ${br(i.qtd, 0)}× ${i.desc}`); else { if (r2(i._q0) !== r2(Number(i.qtd))) resumo.push(`${i.desc}: ${br(i._q0, 0)} → ${br(i.qtd, 0)}`); if (r2(i._c0) !== r2(Number(i.custo) || 0)) resumo.push(`${i.desc}: custo ${br(i._c0, 3)} → ${br(i.custo, 3)}`); } }
+  const fica = new Set(novos.filter(i => i._n != null).map(i => i._n)); velhos.forEach((i, n) => { if (!fica.has(n)) resumo.push(`tirado: ${br(i.qtd, 0)}× ${i.desc}`); });
+  if (!resumo.length) { TF.ed = null; tfDesenharEd(); return msg("Nada mudou."); }
+  const tot0 = tfTotal(t), tot1 = tfTotal({ itens: novos });
+  let aviso = `Salvar as alterações da transferência nº ${t.num}?\n\n${resumo.slice(0, 12).join("\n")}${resumo.length > 12 ? "\n…" : ""}\n\nTotal a custo: ${orBrl(tot0)} → ${orBrl(tot1)}`;
+  const nO = mov.O.size, nD = mov.D.size;
+  if (nO || nD) aviso += `\n\nNo Gestão: acerta a diferença de estoque de ${nO} produto(s) na Loja ${t.origem} e ${nD} na Loja ${t.destino}.`;
+  else aviso += `\n\nO estoque no Gestão não muda (só valores/itens sem cadastro).`;
+  for (const lado of ["O", "D"]) if (mov[lado].size && recusou(lado)) aviso += `\n\nATENÇÃO: o Gestão da Loja ${lado === "O" ? t.origem : t.destino} recusou um envio anterior desta transferência — lá o estoque NÃO será mexido agora; confira na aba Produtos.`;
+  if (t.acertoPago && r2(tot0) !== r2(tot1)) aviso += `\n\nEsta transferência já está marcada como acertada: a diferença de ${orBrl(Math.abs(tot1 - tot0))} não entra no saldo em aberto (desmarque o acerto se precisar).`;
+  if (!confirm(aviso)) return;
+  const a = { em: new Date().toISOString(), por: window.__email || "", resumo: resumo.slice(0, 30), O: null, D: null };
+  for (const lado of ["O", "D"]) {
+    if (!mov[lado].size || recusou(lado)) continue; const sql = tfSqlAjuste(t, lado, mov[lado]); if (!sql) continue; const loja = lado === "O" ? t.origem : t.destino;
+    const { data, error } = await supa.from("fila").insert({ loja_id: loja, tipo: "transf", titulo: `Ajuste transferencia ${t.num} L${t.origem}->L${t.destino} (Loja ${loja})`, conteudo: sql, status: "pendente" }).select("id").single();
+    a[lado] = error ? { status: "erro", msg: error.message } : { id: data.id, status: "pendente", loja };
+  }
+  t.itens = novos.map(({ _n, _q0, _c0, ...i }) => i);
+  t.ajustes = [...(t.ajustes || []), a];
+  if (t.conferido) t.status = t.itens.some(i => i.qtdRec != null && Number(i.qtdRec) !== Number(i.qtd)) ? "divergente" : "conferida";
+  TF.ed = null; tfSalvar(true); tfDesenharEd(); tfDesenharLista();
+  msg(nO || nD ? "Alterações salvas. A diferença de estoque entra no Gestão das lojas em até 1 minuto (o PC precisa estar ligado)." : "Alterações salvas.");
 }
 async function tfConferir() {
   const t = TF.atual; if (!t) return;
@@ -4259,7 +4323,7 @@ async function tfConferir() {
 }
 function tfLigar() {
   if (!db) return;
-  db.collection("transf").onSnapshot(s => { const id = TF.atual && TF.atual.id; TF.docs = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (id && TF.docs.has(id)) { if (!TF.salvarT) { const novo = TF.docs.get(id); for (const lado of ["O", "D"]) if (TF.atual["envio" + lado] && TF.atual["envio" + lado]._timer && novo["envio" + lado]) novo["envio" + lado]._timer = TF.atual["envio" + lado]._timer; TF.atual = novo; tfDesenharEd(); } else TF.docs.set(id, TF.atual); } tfDesenharLista(); }, () => {});
+  db.collection("transf").onSnapshot(s => { const id = TF.atual && TF.atual.id; TF.docs = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (id && TF.docs.has(id)) { if (!TF.salvarT) { const novo = TF.docs.get(id); for (const lado of ["O", "D"]) { if (TF.atual["envio" + lado] && TF.atual["envio" + lado]._timer && novo["envio" + lado]) novo["envio" + lado]._timer = TF.atual["envio" + lado]._timer; (TF.atual.ajustes || []).forEach((a, k) => { const na = (novo.ajustes || [])[k]; if (a[lado] && a[lado]._timer && na && na[lado]) na[lado]._timer = a[lado]._timer; }); } TF.atual = novo; tfDesenharEd(); } else TF.docs.set(id, TF.atual); } tfDesenharLista(); }, () => {});
   document.getElementById("tfNova").addEventListener("click", tfNova);
   document.getElementById("tfFiltro").addEventListener("change", tfDesenharLista);
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="97">
+<meta name="versao" content="98">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2981,6 +2981,7 @@ async function sepMlStatus() {
 }
 // sons sintetizados (sem arquivo): tipo e volume escolhidos na tela, guardados neste aparelho
 let sepCtx = null;
+const ML_SUB = { buffered: "etiqueta liberada no dia do envio", invoice_pending: "falta emitir a NF", ready_to_print: "etiqueta pronta para imprimir", printed: "etiqueta impressa", ready_for_pickup: "pronto para coleta", ready_for_dropoff: "levar à agência", in_hub: "no centro do ML", picked_up: "coletado" };
 const ML_ST = { pending: "pendente", handling: "em preparação", ready_to_ship: "pronto para enviar", shipped: "a caminho", delivered: "entregue", not_delivered: "não entregue", cancelled: "cancelado" };
 function sepBip(forcar) {
   try {
@@ -3030,7 +3031,7 @@ function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
   // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
   const diaSP = iso => new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(0, 10);
-  const horaSP = iso => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  const horaSP = iso => { const h = new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }); return h === "23:59" ? "" : h; };
   const envio = p => (p.envio_limite ? diaSP(p.envio_limite) : null) || p.envio_em || p.data_prevista || null; // dia em que o pacote precisa sair (prazo do ML, à mão ou data prevista do Bling)
   const prazo = p => envio(p) || "9999-" + (p.data || ""); // sem data vai para o fim
   const naTela = p => p.situacao_id !== 12 && !p.despachado_em; // "Atendido" no Bling (nota emitida) não quer dizer que o pacote saiu
@@ -3053,7 +3054,7 @@ function sepDesenhar() {
   // etiqueta com a data de envio (clicável para informar/trocar a data à mão)
   const atraso = p => { const e = envio(p);
     if (!e) return `<a href="#" class="chip" data-envio="${p.id}" title="o Bling não informa a data de envio deste pedido — veja no Mercado Livre/Shopee e informe aqui">sem data de envio — informar</a>`;
-    const n = dias(e, hojeSP), cls = e < hojeSP ? "chip falta" : e === hojeSP ? "chip falta" : "chip", hr = p.envio_limite ? " " + horaSP(p.envio_limite) : "";
+    const n = dias(e, hojeSP), cls = e < hojeSP ? "chip falta" : e === hojeSP ? "chip falta" : "chip", hr = p.envio_limite && horaSP(p.envio_limite) ? " " + horaSP(p.envio_limite) : "";
     const txt = e < hojeSP ? `enviar era ${dm(e)} · atrasado ${n} dia${n > 1 ? "s" : ""}` : "enviar " + nomeDia(e) + (hr ? " até" + hr : "");
     if (p.envio_limite) return `<span class="${cls}" title="prazo do Mercado Livre para o pacote sair">${txt}</span>`;
     return `<a href="#" class="${cls}" data-envio="${p.id}" data-envio-d="${e}" title="${p.envio_em ? "data informada à mão" : "data prevista no Bling"} — clique para trocar">${txt}</a>`; };
@@ -3069,7 +3070,7 @@ function sepDesenhar() {
   const LGORD = ["flex", "agencia", "coleta", "shopee_direta", "shopee_xpress", "shopee_retirada", "ml", "shopee", "outro", "full"];
   const lg = p => p.logistica || (/mercado/i.test(p.canal || "") ? "ml" : /shopee/i.test(p.canal || "") ? "shopee" : "outro");
   const cancML = p => p.ml_status === "cancelled";
-  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span><span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span>${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}${sinais(p)}${links(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
+  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span><span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span>${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}${p.ml_substatus && ML_SUB[p.ml_substatus] ? `<span class="chip${p.ml_substatus === "invoice_pending" ? " falta" : ""}">${escH(ML_SUB[p.ml_substatus])}</span>` : ""}${sinais(p)}${links(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
   let h = "";
   const pendT = pend.filter(p => lg(p) !== "full"); // Full sai do centro do ML: a loja não separa
   const daAba = a => pendT.filter(p => { const e = envio(p); return a === "hoje" ? (cancML(p) || !e || e <= hojeSP) : (!cancML(p) && e && e > hojeSP); });
@@ -3091,7 +3092,7 @@ function sepDesenhar() {
       const lim = l.filter(p => !cancML(p) && p.envio_limite).map(p => p.envio_limite).sort()[0];
       return `<div class="sep-card${SEP.lg === k ? " on" : ""}" data-lg="${k}" title="clique para ver só ${escH(LG[k])}"><div class="sep-ctop">${SEP.aba === "hoje" ? "PARA ENVIAR" : "PRÓXIMOS DIAS"} <span class="sep-n">${l.length}</span></div><div class="sep-ctit">${escH(LG[k])}</div>
         ${c ? `<div class="sep-cl"><span>Canceladas. Não enviar</span><b class="r">${c}</b></div>` : ""}${at ? `<div class="sep-cl"><span>Atrasadas. Enviar</span><b class="r">${at}</b></div>` : ""}${sd ? `<div class="sep-cl"><span>Sem data de envio</span><b>${sd}</b></div>` : ""}${ok ? `<div class="sep-cl"><span>${SEP.aba === "hoje" ? "Enviar hoje" : "Enviar nos próximos dias"}</span><b>${ok}</b></div>` : ""}
-        ${lim ? `<div class="sep-cl"><span>Primeiro prazo</span><b>${escH(nomeDia(diaSP(lim)))} ${escH(horaSP(lim))}</b></div>` : ""}</div>`; }).join("")}</div>` : "";
+        ${lim ? `<div class="sep-cl"><span>Primeiro prazo</span><b>${escH(nomeDia(diaSP(lim)))}${horaSP(lim) ? " " + escH(horaSP(lim)) : ""}</b></div>` : ""}</div>`; }).join("")}</div>` : "";
     const vis = lista.filter(p => !SEP.lg || lg(p) === SEP.lg);
     for (const id of [...SEP.sel]) if (!vis.some(p => p.id === id)) SEP.sel.delete(id);
     const nEnv = vis.filter(enviado).length;

@@ -1,2 +1,3 @@
 -- 22/11/2026: histórico de notificações no sino do site (avisos_historico, avisos_ler, tabela avisos_lidos).
 -- Aplicado no Supabase como migração "avisos_historico".
+-- 22/11/2026 (migração avisos_link_pedido): venda aponta para /#separacao/<id do pedido>; histórico devolve a tag; eventos antigos corrigidos.

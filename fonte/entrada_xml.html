@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="125">
+<meta name="versao" content="126">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -411,6 +411,8 @@
   .sep-chipc { flex: none; background: #fff; color: #1b2d4b; border: 1px solid var(--borda); border-radius: 18px; padding: 7px 12px; font-weight: 700; font-size: 13px; box-shadow: none; }
   .sep-chipc b { background: #eef1f4; border-radius: 10px; padding: 0 7px; margin-left: 4px; } .sep-chipc.on { border-color: #2968c8; background: #eef3fb; }
   .sep-lotemin { padding: 8px 12px; } .sep-lotemin > summary { cursor: pointer; font-size: 14px; } .sep-lotemin[open] > summary { margin-bottom: 4px; }
+  .sep-foco { animation: sepFoco 1.2s ease-in-out 3; box-shadow: 0 0 0 3px #2968c8 !important; }
+  @keyframes sepFoco { 50% { box-shadow: 0 0 0 7px #2968c855; } }
   .sep-recolhe { margin-left: auto; font-size: 12px; color: #5b6576; align-self: center; }
   .sep-dica > div > b:first-child { color: #1b7248; font-size: 15px; display: block; } .sep-dica span { font-size: 12.5px; color: #3d5546; display: block; }
   .sparkline path.hoje { stroke-dasharray: 3 3; stroke: #e08a00; } .sparkline path.ref { stroke: #b8c0cc; stroke-width: 1.6; }
@@ -1791,6 +1793,13 @@ function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGere
 // cada aba vira uma entrada no histórico do navegador (#hoje, #notas…): o botão Voltar volta para a aba anterior em vez de sair do site
 const ABAS_V = ["hoje", "separacao", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
 window.addEventListener("popstate", e => { const v = (e.state && e.state.v) || location.hash.slice(1) || "entrada"; if (ABAS_V.includes(v) && v !== vista) mostrar(v, true); });
+// abre um destino vindo de notificação: "separacao/<id do pedido>", "boletos"…
+function irDestino(h) {
+  const [v, arg] = String(h || "").replace(/^[#/]+/, "").split("/");
+  if (!v || !document.querySelector(`.aba[data-v="${v}"]`)) return false;
+  if (v === "separacao" && arg) SEP.foco = Number(arg) || null;
+  mostrar(v); return true;
+}
 function mostrar(v, semHist) {
   if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
   if (document.body.classList.contains("perfil-sep")) v = "separacao"; // funcionário da separação só vê esta tela
@@ -2263,7 +2272,8 @@ function avQuando(d) {
   return t.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + hm;
 }
 function avBadge() { const a = document.getElementById("avSino"); if (!a) return; a.textContent = "🔔 avisos" + (AVH.n ? ` (${AVH.n})` : ""); a.style.fontWeight = AVH.n ? "800" : ""; a.style.color = AVH.n ? "#C35078" : ""; }
-const avAba = it => { const v = String(it.url || "").split("#")[1]; return v && document.querySelector(`.aba[data-v="${v}"]`) ? v : null; };
+const avAba = it => { let h = String(it.url || "").split("#")[1] || ""; const [v] = h.split("/"); if (!v || !document.querySelector(`.aba[data-v="${v}"]`)) return null;
+  const pv = /^venda-(\d+)$/.exec(it.tag || ""); if (v === "separacao" && !h.includes("/") && pv) h += "/" + pv[1]; return h; };
 function avItemHtml(it) {
   return `<div data-avi="${it.id}" style="display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid #eee;${avAba(it) ? "cursor:pointer;" : ""}${it.lido ? "" : "background:#FBF4F7;border-radius:6px"}">
     <span style="font-size:20px;line-height:1.2">${AV_ICO[it.tipo] || "🔔"}</span>
@@ -2305,7 +2315,7 @@ function avNomeAparelho() {
 async function avisosIniciar() {
   window.addEventListener("beforeinstallprompt", ev => { ev.preventDefault(); NTF.instalar = ev; });
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.addEventListener("message", ev => { const v = ev.data && ev.data.abrir; if (v && document.querySelector(`.aba[data-v="${v}"]`)) mostrar(v); });
+  navigator.serviceWorker.addEventListener("message", ev => { const v = ev.data && ev.data.abrir; if (v) irDestino(v); });
   try { NTF.reg = await navigator.serviceWorker.register("/sw.js"); }
   catch (e) { NTF.erroSw = String(e && e.message || e); return; }
   // aparelho já inscrito: confirma o vínculo com quem está logado (troca de usuário, chave renovada…)
@@ -2359,7 +2369,7 @@ async function avisosAbrir() {
     <div style="margin-top:12px;font-weight:700">Aparelhos que recebem</div>
     ${(M.aparelhos || []).length ? M.aparelhos.map(x => `<div style="font-size:12px;margin-top:4px">${escH(x.nome || "aparelho")}${sub && x.endpoint === sub.endpoint ? " <b>(este)</b>" : ""} · último aviso: ${hm(x.ultimo_ok)} · <a href="#" data-avr="${x.id}">remover</a></div>`).join("") : `<div class="orig">nenhum ainda</div>`}
     </details>`;
-  for (const el of b.querySelectorAll("[data-avi]")) { const it = H.find(x => x.id === Number(el.dataset.avi)), v = it && avAba(it); if (v) el.onclick = () => { b.style.display = "none"; mostrar(v); }; }
+  for (const el of b.querySelectorAll("[data-avi]")) { const it = H.find(x => x.id === Number(el.dataset.avi)), v = it && avAba(it); if (v) el.onclick = () => { b.style.display = "none"; irDestino(v); }; }
   if (H.some(x => !x.lido)) supa.rpc("avisos_ler").then(() => { AVH.n = 0; avBadge(); if (H[0]) AVH.ultimoId = Math.max(AVH.ultimoId, H[0].id); });
   b.querySelector("#bx").onclick = () => b.style.display = "none";
   const m = b.querySelector("#avMsg");
@@ -3329,7 +3339,7 @@ async function entrarNoSistema(sessao) {
   { const av = document.createElement("a"); av.id = "avSino"; av.textContent = "🔔 avisos"; av.title = "notificações recebidas e configuração dos avisos"; av.onclick = avisosAbrir; u.insertBefore(av, a); }
   avisosIniciar(); avHistoricoIniciar();
   if (r.data.perfil === "separacao") { // funcionário: só a tela de separação, sem cadastro, vendas, notas…
-    document.body.classList.add("perfil-sep"); sepIniciar(); mostrar("separacao", true);
+    document.body.classList.add("perfil-sep"); { const [hv, harg] = location.hash.slice(1).split("/"); if (hv === "separacao" && harg) SEP.foco = Number(harg) || null; } sepIniciar(); mostrar("separacao", true);
     try { history.replaceState({ v: "separacao" }, "", "#separacao"); } catch (e) {} return;
   }
   sepIniciar();
@@ -3343,7 +3353,8 @@ async function entrarNoSistema(sessao) {
   ligarOuvintes();
   lerAgente(); setInterval(lerAgente, 60000);
   vivoIniciar();
-  { const hv = location.hash.slice(1); // abre na aba do endereço (#notas…); no celular, sem aba no endereço, abre no painel do dia
+  { const [hv, harg] = location.hash.slice(1).split("/"); // abre na aba do endereço (#notas…, #separacao/<pedido>); no celular, sem aba no endereço, abre no painel do dia
+    if (hv === "separacao" && harg) SEP.foco = Number(harg) || null;
     if (ABAS_V.includes(hv)) { if (hv !== vista) mostrar(hv, true); } else if (window.innerWidth < 800) mostrar("hoje", true);
     try { history.replaceState({ v: vista }, "", "#" + vista); } catch (e) {} }
 }
@@ -3573,12 +3584,12 @@ function sepDesenhar() {
   const lg = p => p.logistica || (/mercado/i.test(p.canal || "") ? "ml" : /shopee/i.test(p.canal || "") ? "shopee" : "outro");
   const cancML = p => p.ml_status === "cancelled";
   const cardMin = (p, bt, sel) => { const its = p.itens || [], i0 = its[0] || {}, bp = (String(bt).match(/<button class="sep-bt[^"]*" data-(?:sep|desp|dev)="\d+">[^<]*<\/button>/) || [""])[0];
-    return `<div class="sep-ped sep-min ${/mercado/i.test(p.canal || "") ? "c-ml" : /shopee/i.test(p.canal || "") ? "c-sh" : ""}${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}" data-abre="${p.id}" title="toque para ver os detalhes">
+    return `<div data-pid="${p.id}" class="sep-ped sep-min ${/mercado/i.test(p.canal || "") ? "c-ml" : /shopee/i.test(p.canal || "") ? "c-sh" : ""}${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}" data-abre="${p.id}" title="toque para ver os detalhes">
       ${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${foto(i0.imagem)}
       <div class="sep-min-t"><div class="sep-min-1"><b>${br(i0.quantidade || 1, (i0.quantidade || 1) % 1 ? 2 : 0)}×</b> ${escH(i0.descricao || "")}${its.length > 1 ? ` <span class="sep-n">+${its.length - 1}</span>` : ""}</div>
       <div class="sep-min-2">${canal(p)}${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}</div><div class="sep-min-3">${escH(p.cliente || "")} · ${escH(LG[lg(p)] || "")}</div></div>${bp.replace('class="sep-bt', 'class="sep-bt sep-min-bt')}</div>`; };
   const card = (p, bt, sel) => { if (SEP.compacto && !SEP.abertos.has(p.id)) return cardMin(p, bt, sel); const tags = (p.ml_substatus && ML_SUB[p.ml_substatus] ? `<span class="chip${p.ml_substatus === "invoice_pending" ? " falta" : ""}">${escH(ML_SUB[p.ml_substatus])}</span>` : "") + sinais(p);
-    return `<div class="sep-ped ${/mercado/i.test(p.canal || "") ? "c-ml" : /shopee/i.test(p.canal || "") ? "c-sh" : ""}${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}">
+    return `<div data-pid="${p.id}" class="sep-ped ${/mercado/i.test(p.canal || "") ? "c-ml" : /shopee/i.test(p.canal || "") ? "c-sh" : ""}${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}">
     <div class="sep-cab2"><div class="sep-cab-l">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span></div>
       <div class="sep-cab-r">${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}</div></div>
     <div class="sep-cli"><b>${escH(p.cliente || "")}</b><span class="orig">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span></div>
@@ -3591,6 +3602,9 @@ function sepDesenhar() {
     ["aguarda", "Etiqueta ainda não liberada", ""], ["semdata", "Sem data de envio", ""], ["outros", SEP.aba === "hoje" ? "Enviar hoje" : "Para enviar", ""]]; // Full sai do centro do ML: a loja não separa
   const daAba = a => pendT.filter(p => { const e = envio(p); return a === "hoje" ? (cancML(p) || !e || e <= hojeSP) : (!cancML(p) && e && e > hojeSP); });
   const abas = [["hoje", "Envios de hoje", daAba("hoje").length], ["prox", "Próximos dias", daAba("prox").length], ["sep", "Separados", aguard.length], ["desp", "Despachados", feitos.length]];
+  if (SEP.foco && L.length) { const f = SEP.foco, p = L.find(x => x.id === f); SEP.foco = null;
+    if (!p) setTimeout(() => msg("Esse pedido não está mais na lista da separação (despachado há mais de 7 dias, cancelado ou ainda não chegou do Bling)."), 50);
+    else { SEP.aba = devolver.includes(p) ? SEP.aba : feitos.includes(p) ? "desp" : aguard.includes(p) ? "sep" : daAba("prox").includes(p) ? "prox" : "hoje"; SEP.lg = null; SEP.sub = null; SEP.abertos.add(f); SEP.focoAgora = f; } }
   if (!SEP.aba) SEP.aba = "hoje";
   h += `<div class="sep-abas">${abas.map(([k, t, n]) => `<button class="sep-aba${SEP.aba === k ? " on" : ""}" data-aba="${k}">${t} <span class="sep-n${k === "hoje" && n ? " q" : ""}">${n}</span></button>`).join("")}</div>`;
   if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
@@ -3634,9 +3648,11 @@ function sepDesenhar() {
   if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
     aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
     : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
-  if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
+  if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div data-pid="${p.id}" style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
     : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;
   el.innerHTML = h;
+  if (SEP.focoAgora) { const alvo = el.querySelector(`[data-pid="${SEP.focoAgora}"]`); SEP.focoAgora = null;
+    if (alvo) { alvo.classList.add("sep-foco"); setTimeout(() => alvo.scrollIntoView({ block: "center", behavior: "smooth" }), 60); setTimeout(() => alvo.classList.remove("sep-foco"), 4000); } }
   for (const im of el.querySelectorAll(".sep-it img")) im.onclick = () => { const z = document.getElementById("sepZoom"); z.querySelector("img").src = im.src;
     z.querySelector(".sep-zt").textContent = (im.closest(".sep-it")?.querySelector("b")?.textContent || ""); z.classList.add("on"); };
   document.getElementById("sepZoom").onclick = () => document.getElementById("sepZoom").classList.remove("on");

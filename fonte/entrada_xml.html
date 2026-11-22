@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="94">
+<meta name="versao" content="95">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2976,7 +2976,7 @@ function sepAviso(p) {
     else msg(`${l.length} pedidos novos para separar`); }, 2500);
 }
 async function sepContar() {
-  if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).is("ignorado_em", null).neq("situacao_id", 12).or("situacao_id.neq.9,atendido_bling_em.not.is.null");
+  if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).is("ignorado_em", null).is("despachado_em", null).neq("situacao_id", 12);
   const b = document.getElementById("sepBadge"); if (b) { b.textContent = count || ""; b.style.display = count ? "" : "none"; } SEP.pend = count || 0;
 }
 async function sepCarregar() {
@@ -2991,7 +2991,7 @@ function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
   // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
   const prazo = p => p.data_prevista || p.data || String(p.criado_em || "").slice(0, 10);
-  const naTela = p => p.situacao_id !== 12 && (p.situacao_id !== 9 || (!!p.atendido_bling_em && !p.despachado_em));
+  const naTela = p => p.situacao_id !== 12 && !p.despachado_em; // "Atendido" no Bling (nota emitida) não quer dizer que o pacote saiu
   const pend = L.filter(p => !p.separado_em && !p.ignorado_em && naTela(p)).sort((a, b) => prazo(a).localeCompare(prazo(b)) || String(a.criado_em).localeCompare(String(b.criado_em))), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
     aguard = L.filter(p => p.separado_em && !p.despachado_em && !p.ignorado_em && p.situacao_id !== 12), feitos = L.filter(p => p.despachado_em || (p.separado_em && p.situacao_id === 12 && p.devolvido_em)).reverse();
   const ha = d => { const m = Math.round((agora - new Date(d)) / 60000); return m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60) + " min" : ""}` : `há ${Math.floor(m / 1440)} dia(s)`; };
@@ -3729,7 +3729,7 @@ async function hjCarregar() {
       supa.rpc("bling_saude")]);
     HJ.sis = { fila: rf.data || [], bling: rb.data || null };
     { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, despachado_em, situacao_id, devolvido_em, ignorado_em, atendido_bling_em").or(`despachado_em.is.null,criado_em.gte.${new Date(Date.now() - 7 * 864e5).toISOString()}`).limit(600);
-      const L = (rp.data || []).filter(p => !p.ignorado_em); HJ.ped = { pend: L.filter(p => !p.separado_em && p.situacao_id !== 12 && (p.situacao_id !== 9 || (p.atendido_bling_em && !p.despachado_em))), dev: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em), desp: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12) }; }
+      const L = (rp.data || []).filter(p => !p.ignorado_em); HJ.ped = { pend: L.filter(p => !p.separado_em && !p.despachado_em && p.situacao_id !== 12), dev: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em), desp: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12) }; }
   } catch (e) { console.warn("hoje", e); }
   HJ.carregando = false; hjDesenhar();
   clearTimeout(HJ.t); if (vista === "hoje") HJ.t = setTimeout(() => { if (vista === "hoje") hjCarregar(); }, 120000);

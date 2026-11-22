@@ -28,6 +28,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 //     em lotes de 20 por chamada; guarda data_prevista (prazo de envio) para a tela marcar "atrasado". A busca de 2 em 2 min passa a
 //     conferir também os pedidos antigos ainda na tela: se saíram de "Em aberto" no Bling (cancelado, atendido), a situação é atualizada.
 // v9 (22/11/2026): guarda nf_id e rastreio do pedido (nota emitida + rastreio = pacote já saiu); completar_nf preenche os já importados.
+// v10 (22/11/2026): pedido novo que já chega "Atendido" (nota emitida no Bling) também entra para separar; só cancelado fica de fora.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -393,7 +394,7 @@ async function buscarNovos() {
       if (mj.get(Number(o.id)) !== sid) { await rest(`pedidos_online?id=eq.${o.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ situacao_id: sid, situacao: SITU[sid] || String(sid), atualizado_em: new Date().toISOString() }) }); atualizados++; }
       continue;
     }
-    if (sid === 12 || sid === 9 || String(o.data || "") < desdeDia) continue; // cancelado/atendido antes de chegar aqui, ou anterior ao início
+    if (sid === 12 || String(o.data || "") < desdeDia) continue; // cancelado antes de chegar aqui, ou anterior ao início ("Atendido" entra: nota emitida não quer dizer que saiu)
     await inserirPedido(o, sid);
     novos++;
   }

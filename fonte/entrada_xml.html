@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="102">
+<meta name="versao" content="103">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3012,7 +3012,8 @@ async function sepEmitirNf(ids) {
   const ok = d.itens.filter(x => x.ok).length, ruins = d.itens.filter(x => !x.ok);
   msg(`${ok} nota(s) emitida(s)` + (ruins.length ? ` · ${ruins.length} com problema: ` + ruins.map(x => x.msg).join(" · ").slice(0, 300) : ""));
   // o ML leva alguns segundos para receber a nota do Bling e liberar a etiqueta
-  setTimeout(() => supa.functions.invoke("envios", { body: { acao: "sync" } }).then(sepCarregar), 20000);
+  // confere de novo em 20 s, 1 min e 2 min (o ML às vezes demora para receber a nota)
+  for (const t of [20000, 60000, 120000]) setTimeout(() => supa.functions.invoke("envios", { body: { acao: "sync" } }).then(sepCarregar), t);
 }
 // ligação com o Mercado Livre (função "envios"): Flex/Agência/Coleta/Full e prazos
 async function sepMlStatus() {

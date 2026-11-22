@@ -1,0 +1,2 @@
+-- 22/11/2026: histórico de notificações no sino do site (avisos_historico, avisos_ler, tabela avisos_lidos).
+-- Aplicado no Supabase como migração "avisos_historico".

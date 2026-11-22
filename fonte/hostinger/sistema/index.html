@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sistema das Lojas — Nova Raphaella</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;color:#1b2430;margin:0}#c{max-width:420px;margin:80px auto;background:#fff;border:1px solid #c9d3e0;border-radius:8px;padding:18px 20px}h1{font-size:17px;color:#1F3864;margin:0 0 8px}p{margin:6px 0}</style>
+</head>
+<body>
+<div id="c"><h1>Sistema das Lojas — Nova Raphaella</h1><p id="m">Carregando o sistema…</p></div>
+<script>
+(function () {
+  var origem = "https://nzecxuuzszkrzukkbaqx.supabase.co/functions/v1/site/index.html";
+  fetch(origem + "?t=" + Date.now(), { cache: "no-store" })
+    .then(function (r) { if (!r.ok) throw new Error("resposta " + r.status); return r.text(); })
+    .then(function (html) { document.open(); document.write(html); document.close(); })
+    .catch(function (e) { document.getElementById("m").textContent = "Não consegui carregar o sistema (" + e.message + "). Confira a internet e recarregue a página."; });
+})();
+</script>
+</body>
+</html>

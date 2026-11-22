@@ -3,7 +3,14 @@
 <head>
 <meta charset="utf-8">
 <title>Sistema das Lojas — Nova Raphaella</title>
-<meta name="versao" content="109">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1b2d4b">
+<link rel="icon" href="/icone-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nova Raphaella">
+<meta name="versao" content="110">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -159,6 +166,7 @@
   @media (max-width: 900px) { #alertas { display: none; } }
   #travaChip .chip { cursor: pointer; margin: 0 6px 0 0; font-size: 11px; padding: 3px 9px; white-space: nowrap; }
   @media (max-width: 900px) { #travaChip { margin-left: auto; } }
+  .av-tipo { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; font-size: 13px; } .av-tipo input { margin-top: 2px; } .av-tipo small { display: block; color: var(--cinza); }
   #mfa { max-width: 380px; margin: 60px auto; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 18px 20px; }
   #mfa img { display: block; width: 200px; height: 200px; margin: 10px auto; }
   #mfa input.cod { font-size: 22px; letter-spacing: 6px; text-align: center; width: 100%; }
@@ -2105,6 +2113,93 @@ async function travaAbrir() {
   const pl = b.querySelector("[data-pl]"); if (pl) pl.onclick = async () => { if (!confirm(`Liberar ${P.length} promoção(ões)? Elas entram no horário agendado.`)) return; feito(await supa.rpc("promo_liberar", { p_ids: P.map(p => p.id) }), "Promoções liberadas."); };
   const pc = b.querySelector("[data-pc]"); if (pc) pc.onclick = async () => feito(await supa.from("promocoes").update({ status: "cancelada", encerrada_em: new Date().toISOString() }).in("id", P.map(p => p.id)), "Promoções canceladas.");
 }
+// ===================== Avisos no celular (notificações) =====================
+// O app instalável e o "carteiro" (sw.js) ficam na Hostinger; quem dispara os avisos é o banco (avisos_eventos → função avisos).
+const AV_CHAVE = "BKqNL4-RrAz9Wb1c21NGmWPuWyDO9n6j0xKnvQKHZkcqOPJya0Njpor3RRscV0WHpWaYHwiHqeVSYq8dg8aD1Mg"; // chave pública (pode ficar no site)
+const AV_TIPOS = {
+  venda_mkt: ["Vendas nos marketplaces", "cada venda nova no Mercado Livre, Shopee e demais canais, com o valor"],
+  carga: ["Envios ao Gestão e aos caixas", "quando uma nota, preço ou ajuste for gravado no Gestão e nos caixas — ou der erro"],
+  trava: ["Trava de segurança", "quando um envio ou promoção ficar segurado esperando a sua liberação"],
+  boletos: ["Boletos", "às 8h e às 17h30: os que vencem hoje ou já venceram e ainda não estão marcados como pagos"],
+  resumo: ["Resumo das vendas do dia", "às 21h: Loja 1, Loja 2 e online, comparando com a mesma data da semana passada"]
+};
+const NTF = { reg: null, erroSw: "", instalar: null };
+const avSuporta = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const avIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const avInstalado = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+function avB64(s) { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+function avNomeAparelho() {
+  const ua = navigator.userAgent;
+  const so = /Android/i.test(ua) ? "Android" : /iPhone|iPad/i.test(ua) ? "iPhone" : /Windows/i.test(ua) ? "Windows" : /Mac/i.test(ua) ? "Mac" : "aparelho";
+  const nav = /Edg\//.test(ua) ? "Edge" : /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "navegador";
+  return so + " · " + nav + (avInstalado() ? " (app)" : "");
+}
+async function avisosIniciar() {
+  window.addEventListener("beforeinstallprompt", ev => { ev.preventDefault(); NTF.instalar = ev; });
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.addEventListener("message", ev => { const v = ev.data && ev.data.abrir; if (v && document.querySelector(`.aba[data-v="${v}"]`)) mostrar(v); });
+  try { NTF.reg = await navigator.serviceWorker.register("/sw.js"); }
+  catch (e) { NTF.erroSw = String(e && e.message || e); return; }
+  // aparelho já inscrito: confirma o vínculo com quem está logado (troca de usuário, chave renovada…)
+  try {
+    if (Notification.permission === "granted" && NTF.reg.pushManager) {
+      const sub = await NTF.reg.pushManager.getSubscription();
+      if (sub) { const j = sub.toJSON(); await supa.rpc("avisos_inscrever", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_nome: avNomeAparelho() }); }
+    }
+  } catch (e) {}
+}
+async function avAtivar() {
+  if (!NTF.reg) throw new Error(NTF.erroSw ? "faltam os arquivos do app no servidor (sw.js)" : "o navegador ainda está preparando, tente de novo em instantes");
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") throw new Error(perm === "denied" ? "as notificações estão bloqueadas para este site — libere no cadeado ao lado do endereço (Permissões → Notificações)" : "permissão não concedida");
+  let sub = await NTF.reg.pushManager.getSubscription();
+  if (!sub) sub = await NTF.reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: avB64(AV_CHAVE) });
+  const j = sub.toJSON();
+  const r = await supa.rpc("avisos_inscrever", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_nome: avNomeAparelho() });
+  if (r.error) throw new Error(r.error.message);
+}
+async function avDesativar(lista) {
+  const sub = NTF.reg && await NTF.reg.pushManager.getSubscription();
+  if (!sub) return;
+  const meu = (lista || []).find(x => x.endpoint === sub.endpoint);
+  if (meu) await supa.rpc("avisos_remover", { p_id: meu.id });
+  await sub.unsubscribe().catch(() => {});
+}
+async function avisosAbrir() {
+  const b = document.getElementById("busca"); b.style.display = "block";
+  b.innerHTML = `<b>🔔 Avisos no celular</b><div class="orig">carregando…</div>`;
+  const r = await supa.rpc("avisos_minhas"); const M = r.data || { permitidos: [], tipos: [], aparelhos: [] };
+  const sub = NTF.reg && NTF.reg.pushManager ? await NTF.reg.pushManager.getSubscription().catch(() => null) : null;
+  const ativoAqui = !!(sub && Notification.permission === "granted" && (M.aparelhos || []).some(x => x.endpoint === sub.endpoint));
+  const hm = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "ainda nenhum";
+  let estado;
+  if (!avSuporta()) estado = avIOS() && !avInstalado()
+    ? `No iPhone, primeiro instale o app: toque em <b>Compartilhar</b> (quadrado com seta) → <b>Adicionar à Tela de Início</b>, abra o sistema pelo ícone novo e volte aqui.`
+    : `Este navegador não recebe notificações. Use o Chrome (Android/computador) ou o app instalado.`;
+  else if (NTF.erroSw) estado = `<span style="color:#b42318">Faltam os arquivos do app no servidor (sw.js e manifest.json na Hostinger).</span>`;
+  else if (ativoAqui) estado = `<span class="chip ok">ativas neste aparelho</span> <a href="#" id="avDes">desativar aqui</a>`;
+  else estado = `<button id="avAtv">Ativar notificações neste aparelho</button>`;
+  b.innerHTML = `<b>🔔 Avisos no celular</b>
+    <div style="margin-top:8px">${estado}</div>
+    ${NTF.instalar && !avInstalado() ? `<div style="margin-top:8px"><button class="sec" id="avInst">Instalar o app neste aparelho</button> <span class="orig">ícone na tela inicial, abre em tela cheia</span></div>` : ""}
+    <div style="margin-top:12px;font-weight:700">O que avisar</div>
+    ${(M.permitidos || []).map(t => `<label class="av-tipo"><input type="checkbox" data-avt="${t}" ${(M.tipos || []).includes(t) ? "checked" : ""}><span>${escH((AV_TIPOS[t] || [t])[0])}<small>${escH((AV_TIPOS[t] || ["", ""])[1])}</small></span></label>`).join("")}
+    <div class="linha" style="gap:8px;margin-top:10px"><button class="sec" id="avTeste" ${ativoAqui ? "" : "disabled"}>Enviar um teste</button><span id="avMsg" class="orig" style="align-self:center"></span></div>
+    <div style="margin-top:12px;font-weight:700">Aparelhos que recebem</div>
+    ${(M.aparelhos || []).length ? M.aparelhos.map(x => `<div style="font-size:12px;margin-top:4px">${escH(x.nome || "aparelho")}${sub && x.endpoint === sub.endpoint ? " <b>(este)</b>" : ""} · último aviso: ${hm(x.ultimo_ok)} · <a href="#" data-avr="${x.id}">remover</a></div>`).join("") : `<div class="orig">nenhum ainda</div>`}
+    <a style="cursor:pointer;color:#0b57d0;display:inline-block;margin-top:10px" id="bx">fechar</a>`;
+  b.querySelector("#bx").onclick = () => b.style.display = "none";
+  const m = b.querySelector("#avMsg");
+  const atv = b.querySelector("#avAtv"); if (atv) atv.onclick = async () => { atv.disabled = true; atv.textContent = "ativando…"; try { await avAtivar(); avisosAbrir(); } catch (e) { atv.disabled = false; atv.textContent = "Ativar notificações neste aparelho"; m.textContent = ""; atv.insertAdjacentHTML("afterend", `<div class="aviso" style="margin-top:6px">${escH(e.message || e)}</div>`); } };
+  const des = b.querySelector("#avDes"); if (des) des.onclick = async ev => { ev.preventDefault(); await avDesativar(M.aparelhos); avisosAbrir(); };
+  const ins = b.querySelector("#avInst"); if (ins) ins.onclick = async () => { const p = NTF.instalar; NTF.instalar = null; p.prompt(); await p.userChoice.catch(() => {}); avisosAbrir(); };
+  for (const c of b.querySelectorAll("[data-avt]")) c.onchange = async () => {
+    const tipos = [...b.querySelectorAll("[data-avt]")].filter(x => x.checked).map(x => x.dataset.avt);
+    const s = await supa.rpc("avisos_salvar", { p_tipos: tipos }); m.textContent = s.error ? "Erro: " + s.error.message : "salvo";
+  };
+  b.querySelector("#avTeste").onclick = async () => { const s = await supa.rpc("avisos_teste"); m.textContent = s.error ? "Erro: " + s.error.message : "enviado — chega em até 1 minuto"; };
+  for (const x of b.querySelectorAll("[data-avr]")) x.onclick = async ev => { ev.preventDefault(); await supa.rpc("avisos_remover", { p_id: Number(x.dataset.avr) }); if (sub && M.aparelhos.some(a => a.id === Number(x.dataset.avr) && a.endpoint === sub.endpoint)) await sub.unsubscribe().catch(() => {}); avisosAbrir(); };
+}
 // ---------- enviar ao Gestão pela fila (o ouvinte do PC de cada loja aplica) ----------
 const acompanhando = new Map();
 // o envio direto aos caixas só existe no PC da loja a partir do ouvinte 2.3 (ele se atualiza sozinho minutos depois de ligar)
@@ -3058,6 +3153,8 @@ async function entrarNoSistema(sessao) {
   mostrarLogin(false);
   window.__email = sessao.user.email; window.__admin = !!r.data.admin;
   const u = document.getElementById("usuario"); u.innerHTML = ""; u.append(sessao.user.email); const a = document.createElement("a"); a.textContent = "sair"; a.onclick = async () => { await supa.auth.signOut(); location.reload(); }; u.appendChild(a);
+  { const av = document.createElement("a"); av.textContent = "🔔 avisos"; av.title = "notificações no celular e no computador"; av.onclick = avisosAbrir; u.insertBefore(av, a); }
+  avisosIniciar();
   if (r.data.perfil === "separacao") { // funcionário: só a tela de separação, sem cadastro, vendas, notas…
     document.body.classList.add("perfil-sep"); sepIniciar(); mostrar("separacao", true);
     try { history.replaceState({ v: "separacao" }, "", "#separacao"); } catch (e) {} return;

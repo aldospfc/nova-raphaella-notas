@@ -24,6 +24,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 //     bling(): uma nova tentativa quando o Bling responde 429 (limite de 3 chamadas por segundo).
 // v7 (22/11/2026): despacho — pedido marcado "Despachei" na tela Separação vira "Atendido" no Bling (o Bling lança o estoque nessa troca;
 //     a sincronização leva a baixa ao Gestão). bling(): se o Bling disser que o token não vale (401), renova uma vez e tenta de novo.
+// v8 (22/11/2026): importar_abertos (pedido do Aldo) — traz os pedidos "Em aberto" do Mercado Livre e da Shopee, inclusive atrasados,
+//     em lotes de 20 por chamada; guarda data_prevista (prazo de envio) para a tela marcar "atrasado". A busca de 2 em 2 min passa a
+//     conferir também os pedidos antigos ainda na tela: se saíram de "Em aberto" no Bling (cancelado, atendido), a situação é atualizada.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -308,6 +311,52 @@ async function atenderDespachados() {
   }
   return n;
 }
+// grava um pedido do Bling em pedidos_online (itens com foto, localização e componentes de kit)
+async function inserirPedido(o: any, sid: number) {
+  const det = (await bling(`/pedidos/vendas/${o.id}`)).data || {}; await espera(340);
+  const itens: any[] = [];
+  for (const it of (det.itens || [])) {
+    const pi = await produtoInfo(Number(it.produto?.id)).catch(() => null);
+    itens.push({ produto_id: it.produto?.id || null, codigo: it.codigo || pi?.codigo || "", descricao: it.descricao || pi?.nome || "", quantidade: Number(it.quantidade) || 0, valor: Number(it.valor) || 0,
+      gtin: pi?.gtin || "", imagem: pi?.imagem || "", localizacao: pi?.localizacao || "", formato: pi?.formato || "S", componentes: pi?.componentes || [] });
+  }
+  const loja = String(o.loja?.id || det.loja?.id || "");
+  await rest("pedidos_online?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({
+    id: o.id, numero: o.numero, numero_loja: o.numeroLoja || det.numeroLoja || null, loja_bling: loja ? Number(loja) : null, canal: CANAIS[loja] || (loja ? "Canal " + loja : "Bling"),
+    data: o.data, total: Number(o.total) || 0, cliente: String(o.contato?.nome || det.contato?.nome || "").replace(/\s*\([^)]*\)\s*$/, "").slice(0, 80),
+    situacao_id: sid, situacao: SITU[sid] || String(sid), itens,
+    data_prevista: /^\d{4}-\d{2}-\d{2}$/.test(String(o.dataPrevista || det.dataPrevista || "")) && !String(o.dataPrevista || det.dataPrevista).startsWith("0000") ? (o.dataPrevista || det.dataPrevista) : null }) });
+}
+const LOJAS_SEP = [203783765, 204785926]; // Mercado Livre, Shopee
+// todos os "Em aberto" (situação 6) dessas lojas no Bling
+async function abertosBling(): Promise<any[]> {
+  const l: any[] = [];
+  for (let pg = 1; pg <= 5; pg++) { const r = await bling(`/pedidos/vendas?idsSituacoes[]=6&limite=100&pagina=${pg}`); const d = r.data || []; l.push(...d); await espera(340); if (d.length < 100) break; }
+  return l.filter(o => LOJAS_SEP.includes(Number(o.loja?.id)));
+}
+async function importarAbertos(max = 20) {
+  const ab = await abertosBling();
+  const ja: any[] = ab.length ? (await rest(`pedidos_online?select=id&id=in.(${ab.map(o => o.id).join(",")})`)) || [] : [];
+  const sj = new Set(ja.map(x => Number(x.id)));
+  const falta = ab.filter(o => !sj.has(Number(o.id))).sort((x, y) => String(x.data).localeCompare(String(y.data)));
+  let feitos = 0; const erros: string[] = [];
+  for (const o of falta.slice(0, max)) {
+    try { await inserirPedido(o, 6); feitos++; } catch (e) { erros.push(o.id + ": " + String((e as Error).message).slice(0, 120)); }
+  }
+  return { abertos: ab.length, importados: feitos, faltam: falta.length - feitos, erros };
+}
+// pedidos antigos (fora da janela de 3 dias) ainda pendentes na tela: se saíram de "Em aberto" no Bling, atualiza a situação
+async function atualizarAntigos(dIni: string) {
+  const loc: any[] = (await rest(`pedidos_online?select=id&despachado_em=is.null&situacao_id=eq.6&data=lt.${dIni}&limit=300`)) || [];
+  if (!loc.length) return 0;
+  const ab = new Set((await abertosBling()).map(o => Number(o.id)));
+  let n = 0;
+  for (const p of loc.filter(x => !ab.has(Number(x.id))).slice(0, 15)) {
+    const sid = Number(((await bling(`/pedidos/vendas/${p.id}`)).data || {}).situacao?.id); await espera(340);
+    if (sid && sid !== 6) { await rest(`pedidos_online?id=eq.${p.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ situacao_id: sid, situacao: SITU[sid] || String(sid), atualizado_em: new Date().toISOString() }) }); n++; }
+  }
+  return n;
+}
 async function buscarPedidos() {
   const atendidos = await atenderDespachados().catch(() => 0);
   const r = await buscarNovos();
@@ -319,10 +368,11 @@ async function buscarNovos() {
   const ini = new Date(Date.now() - 3 * 3600e3 - 3 * 864e5).toISOString().slice(0, 10), dIni = ini > desdeDia ? ini : desdeDia;
   const lista: any[] = [];
   for (let pg = 1; pg <= 3; pg++) { const r = await bling(`/pedidos/vendas?dataInicial=${dIni}&limite=100&pagina=${pg}`); const d = r.data || []; lista.push(...d); await espera(340); if (d.length < 100) break; }
-  if (!lista.length) return { novos: 0, atualizados: 0 };
+  let atualizados = await atualizarAntigos(dIni).catch(() => 0);
+  if (!lista.length) return { novos: 0, atualizados };
   const ja: any[] = (await rest(`pedidos_online?select=id,situacao_id&id=in.(${lista.map(o => o.id).join(",")})`)) || [];
   const mj = new Map<number, number>(ja.map(x => [Number(x.id), Number(x.situacao_id)]));
-  let novos = 0, atualizados = 0;
+  let novos = 0;
   for (const o of lista) {
     const sid = Number(o.situacao?.id);
     if (mj.has(Number(o.id))) {
@@ -330,18 +380,7 @@ async function buscarNovos() {
       continue;
     }
     if (sid === 12 || sid === 9 || String(o.data || "") < desdeDia) continue; // cancelado/atendido antes de chegar aqui, ou anterior ao início
-    const det = (await bling(`/pedidos/vendas/${o.id}`)).data || {}; await espera(340);
-    const itens: any[] = [];
-    for (const it of (det.itens || [])) {
-      const pi = await produtoInfo(Number(it.produto?.id)).catch(() => null);
-      itens.push({ produto_id: it.produto?.id || null, codigo: it.codigo || pi?.codigo || "", descricao: it.descricao || pi?.nome || "", quantidade: Number(it.quantidade) || 0, valor: Number(it.valor) || 0,
-        gtin: pi?.gtin || "", imagem: pi?.imagem || "", localizacao: pi?.localizacao || "", formato: pi?.formato || "S", componentes: pi?.componentes || [] });
-    }
-    const loja = String(o.loja?.id || det.loja?.id || "");
-    await rest("pedidos_online?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({
-      id: o.id, numero: o.numero, numero_loja: o.numeroLoja || det.numeroLoja || null, loja_bling: loja ? Number(loja) : null, canal: CANAIS[loja] || (loja ? "Canal " + loja : "Bling"),
-      data: o.data, total: Number(o.total) || 0, cliente: String(o.contato?.nome || det.contato?.nome || "").replace(/\s*\([^)]*\)\s*$/, "").slice(0, 80),
-      situacao_id: sid, situacao: SITU[sid] || String(sid), itens }) });
+    await inserirPedido(o, sid);
     novos++;
   }
   return { novos, atualizados };
@@ -383,6 +422,9 @@ Deno.serve(async (req: Request) => {
     const a = await lerAuth();
     if (!a.cron_token || tokCron !== a.cron_token) return resp({ ok: false, erro: "sem_permissao" }, 403);
     const corpoCron = await req.clone().json().catch(() => ({}));
+    if (corpoCron?.acao === "importar_abertos") {
+      try { return resp({ ok: true, ...(await importarAbertos(20)) }); } catch (e) { return resp({ ok: false, msg: String((e as Error).message) }); }
+    }
     if (corpoCron?.acao === "pedidos") {
       try { const r = await buscarPedidos(); await gravarAuth({ pedidos_em: new Date().toISOString(), pedidos_msg: `${r.novos} novo(s), ${r.atualizados} atualizado(s), ${r.atendidos} despachado(s) → Atendido` }); return resp({ ok: true, ...r }); }
       catch (e) { await gravarAuth({ pedidos_em: new Date().toISOString(), pedidos_msg: "falhou: " + String((e as Error).message).slice(0, 200) }); return resp({ ok: false, msg: String((e as Error).message) }); }

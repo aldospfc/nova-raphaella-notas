@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="90">
+<meta name="versao" content="91">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2962,7 +2962,14 @@ function sepSomIniciar() {
   // repetir a cada minuto enquanto houver pedido esperando separação
   setInterval(() => { if (r.checked && (SEP.pend || 0) > 0) sepBip(); }, 60000);
 }
-function sepAviso(p) { sepBip(); msg(`Pedido novo (${p.canal || "online"}): ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + i.descricao).join(", ").slice(0, 140)} — separar`); }
+// vários pedidos chegando juntos (ex.: importação) → um som e um aviso só
+let sepFilaAviso = [], sepAvisoT = null;
+function sepAviso(p) {
+  sepFilaAviso.push(p); clearTimeout(sepAvisoT);
+  sepAvisoT = setTimeout(() => { const l = sepFilaAviso; sepFilaAviso = []; sepBip();
+    if (l.length === 1) msg(`Pedido novo (${l[0].canal || "online"}): ${(l[0].itens || []).map(i => br(i.quantidade, 0) + "× " + i.descricao).join(", ").slice(0, 140)} — separar`);
+    else msg(`${l.length} pedidos novos para separar`); }, 2500);
+}
 async function sepContar() {
   if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).not("situacao_id", "in", "(9,12)");
   const b = document.getElementById("sepBadge"); if (b) { b.textContent = count || ""; b.style.display = count ? "" : "none"; } SEP.pend = count || 0;
@@ -2971,23 +2978,34 @@ async function sepCarregar() {
   const el = document.getElementById("sepLista"); if (!supa) return;
   if (!SEP.lista.length) el.innerHTML = `<div class="painel orig">Carregando pedidos…</div>`;
   const de = new Date(Date.now() - 7 * 864e5).toISOString();
-  const { data, error } = await supa.from("pedidos_online").select("*").gte("criado_em", de).order("criado_em", { ascending: true }).limit(400);
+  const { data, error } = await supa.from("pedidos_online").select("*").or(`despachado_em.is.null,criado_em.gte.${de}`).order("criado_em", { ascending: true }).limit(600);
   if (error) { el.innerHTML = `<div class="painel">Não consegui ler os pedidos: ${escH(error.message)}</div>`; return; }
   SEP.lista = data || []; sepDesenhar(); sepContar();
 }
 function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
   // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
-  const pend = L.filter(p => !p.separado_em && p.situacao_id !== 12 && p.situacao_id !== 9), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
+  const prazo = p => p.data_prevista || p.data || String(p.criado_em || "").slice(0, 10);
+  const pend = L.filter(p => !p.separado_em && p.situacao_id !== 12 && p.situacao_id !== 9).sort((a, b) => prazo(a).localeCompare(prazo(b)) || String(a.criado_em).localeCompare(String(b.criado_em))), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
     aguard = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12), feitos = L.filter(p => p.despachado_em || (p.separado_em && p.situacao_id === 12 && p.devolvido_em)).reverse();
   const ha = d => { const m = Math.round((agora - new Date(d)) / 60000); return m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60) + " min" : ""}` : `há ${Math.floor(m / 1440)} dia(s)`; };
   const canal = p => `<span class="sep-canal ${/mercado/i.test(p.canal) ? "ml" : /shopee/i.test(p.canal) ? "sh" : ""}">${escH(p.canal || "Online")}</span>`;
   const foto = u => u ? `<img src="${escH(u)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=semfoto></span>'">` : `<span class="semfoto"></span>`;
   const item = it => `<div class="sep-it"><div class="sep-qtd">${br(it.quantidade, it.quantidade % 1 ? 2 : 0)}×</div>${foto(it.imagem)}<div style="flex:1;min-width:0"><b>${escH(it.descricao || "")}</b><div class="orig" style="margin:2px 0 0;font-size:12px">${escH([it.codigo ? "cód. " + it.codigo : "", it.gtin ? "EAN " + it.gtin : "", it.localizacao ? "local: " + it.localizacao : ""].filter(Boolean).join(" · "))}</div>${(it.componentes || []).length ? `<div class="sep-comp"><b>Kit — separar:</b>${it.componentes.map(c => `<div>${br((c.quantidade || 1) * (it.quantidade || 1), 0)}× ${escH(c.nome || c.codigo || "")}${c.gtin ? ` <span class="orig">EAN ${escH(c.gtin)}</span>` : ""}${c.localizacao ? ` <span class="orig">· local: ${escH(c.localizacao)}</span>` : ""}</div>`).join("")}</div>` : ""}</div></div>`;
-  const card = (p, bt) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}"><div class="sep-cab">${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${ha(p.criado_em)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : ""}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
+  // data da venda, prazo de envio (data prevista do Bling) e marca de atraso
+  const hojeSP = new Date(agora - 3 * 3600e3).toISOString().slice(0, 10), dm = d => d ? d.slice(8, 10) + "/" + d.slice(5, 7) : "";
+  const dias = (a, b) => Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 864e5);
+  const quando = p => {
+    const v = p.data ? (p.data === hojeSP ? "venda de hoje" : "venda " + dm(p.data)) : ha(p.criado_em);
+    const pz = p.data_prevista ? (p.data_prevista < hojeSP ? "" : p.data_prevista === hojeSP ? " · enviar hoje" : " · enviar até " + dm(p.data_prevista)) : "";
+    return v + pz;
+  };
+  const atraso = p => { const ref = p.data_prevista || (p.data && dias(p.data, hojeSP) >= 3 ? p.data : null); if (!ref || ref >= hojeSP) return "";
+    const n = dias(ref, hojeSP); return `<span class="chip falta" title="${p.data_prevista ? "prazo de envio era " + dm(p.data_prevista) : "venda de " + n + " dias atrás"}">atrasado${n > 0 ? " · " + n + " dia" + (n > 1 ? "s" : "") : ""}</span>`; };
+  const card = (p, bt) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}"><div class="sep-cab">${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : atraso(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
   let h = "";
   if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
-  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— do mais antigo para o mais novo</span></div>` + pend.map(p => card(p, `<button class="sep-bt" data-sep="${p.id}">Separei</button>`)).join("")
+  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— do mais antigo para o mais novo</span></div>` + pend.map(p => card(p, `<div class="linha" style="gap:10px;align-items:center"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a></div>`)).join("")
     : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   const dh = d => escH(new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
   if (aguard.length) h += `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta ou postagem), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
@@ -3000,6 +3018,7 @@ function sepDesenhar() {
   for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
   for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };
   for (const b of el.querySelectorAll("[data-desp]")) b.onclick = () => { b.disabled = true; acao(b.dataset.desp, "despachar"); };
+  for (const b of el.querySelectorAll("[data-jaenv]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Este pacote já foi enviado antes?\n\nEle sai da lista e vira \"Atendido\" no Bling (o Bling baixa o estoque agora).")) acao(b.dataset.jaenv, "despachar"); };
   { const t = el.querySelector("#sepTodos"); if (t) t.onclick = () => { if (confirm(`Marcar os ${aguard.length} pedidos separados como despachados? Eles viram "Atendido" no Bling.`)) { t.disabled = true; acao(0, "despachar_todos"); } }; }
 }
 function mostrarLogin(sim) {

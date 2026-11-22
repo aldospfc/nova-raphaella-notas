@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="92">
+<meta name="versao" content="93">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -237,6 +237,8 @@
   .nav-badge { margin-left: auto; background: #e08a00; color: #fff; border-radius: 10px; padding: 0 7px; font-size: 11px; line-height: 18px; }
   .sep-ped { border: 1px solid var(--borda); border-radius: 10px; background: #fff; padding: 12px 14px; margin-bottom: 10px; }
   .sep-ped.novo { border-color: #e08a00; box-shadow: 0 0 0 2px #ffe2b3; }
+  .sep-links { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
+  .sep-links a { color: var(--azul, #1b2d4b); white-space: nowrap; }
   .sep-sel { width: 20px; height: 20px; margin: 0; cursor: pointer; }
   .sep-ped.marcado { border-color: var(--azul, #1b2d4b); box-shadow: 0 0 0 2px #1b2d4b22; }
   .sep-barra { position: sticky; top: 0; z-index: 5; background: #fff; }
@@ -3007,9 +3009,14 @@ function sepDesenhar() {
   };
   const atraso = p => { const ref = p.data_prevista || (p.data && dias(p.data, hojeSP) >= 3 ? p.data : null); if (!ref || ref >= hojeSP) return "";
     const n = dias(ref, hojeSP); return `<span class="chip falta" title="${p.data_prevista ? "prazo de envio era " + dm(p.data_prevista) : "venda de " + n + " dias atrás"}">atrasado${n > 0 ? " · " + n + " dia" + (n > 1 ? "s" : "") : ""}</span>`; };
+  // links: página do pedido no marketplace e no Bling (a Shopee não aceita link direto pelo número: abre "Meus pedidos" e copia o número)
+  const links = p => { const nl = String(p.numero_loja || ""), ml = /mercado/i.test(p.canal || ""), sh = /shopee/i.test(p.canal || "");
+    const mk = ml && nl ? `<a href="https://www.mercadolivre.com.br/vendas/${encodeURIComponent(nl)}/detalhe" target="_blank" rel="noopener">abrir no Mercado Livre ↗</a>`
+      : sh && nl ? `<a href="https://seller.shopee.com.br/portal/sale/order" target="_blank" rel="noopener" data-copia="${escH(nl)}" title="abre Meus Pedidos da Shopee e copia o número do pedido para colar na busca">abrir na Shopee ↗</a>` : "";
+    return `<span class="sep-links">${mk}<a href="https://www.bling.com.br/vendas.php#edit/${p.id}" target="_blank" rel="noopener">abrir no Bling ↗</a></span>`; };
   const enviado = p => (p.nf_id > 0) || !!p.rastreio; // nota emitida ou rastreio no Bling: provavelmente já saiu
   const sinais = p => (p.nf_id > 0 ? `<span class="chip" title="o Bling tem nota fiscal emitida para este pedido">NF emitida</span>` : "") + (p.rastreio ? `<span class="chip" title="código de rastreio no Bling">rastreio ${escH(String(p.rastreio).slice(0, 26))}</span>` : "");
-  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : atraso(p)}${sinais(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
+  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : atraso(p)}${sinais(p)}${links(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
   let h = "";
   if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
   for (const id of [...SEP.sel]) if (!pend.some(p => p.id === id)) SEP.sel.delete(id);
@@ -3026,8 +3033,8 @@ function sepDesenhar() {
     : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   const dh = d => escH(new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
   if (aguard.length) h += `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta ou postagem), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
-    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <b>${escH(p.cliente || "")}</b> <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><button data-desp="${p.id}">Despachei</button></div></div>`).join("");
-  if (feitos.length) h += `<div class="painel"><details><summary style="cursor:pointer"><b>Despachados nos últimos 7 dias (${feitos.length})</b></summary>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} ${escH(p.cliente || "")} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}</div></div>`).join("") + `</details></div>`;
+    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <b>${escH(p.cliente || "")}</b> ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><button data-desp="${p.id}">Despachei</button></div></div>`).join("");
+  if (feitos.length) h += `<div class="painel"><details><summary style="cursor:pointer"><b>Despachados nos últimos 7 dias (${feitos.length})</b></summary>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}</div></div>`).join("") + `</details></div>`;
   el.innerHTML = h;
   for (const p of L) SEP.vistos.add(p.id); SEP.primeira = false;
   const acao = async (id, a) => { const { error } = await supa.rpc("pedido_separar", { p_id: Number(id), p_acao: a }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
@@ -3035,6 +3042,7 @@ function sepDesenhar() {
   for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
   for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };
   for (const b of el.querySelectorAll("[data-desp]")) b.onclick = () => { b.disabled = true; acao(b.dataset.desp, "despachar"); };
+  for (const a of el.querySelectorAll("[data-copia]")) a.addEventListener("click", () => { try { navigator.clipboard.writeText(a.dataset.copia); msg("Número " + a.dataset.copia + " copiado — cole na busca de Meus Pedidos da Shopee"); } catch (e) {} });
   for (const b of el.querySelectorAll("[data-canc]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Este pedido foi cancelado no Mercado Livre/Shopee?\n\nEle só sai desta tela. Lembre de cancelar também no Bling para soltar a reserva do estoque.")) acao(b.dataset.canc, "ignorar"); };
   for (const b of el.querySelectorAll("[data-sel]")) b.onchange = () => { const id = Number(b.dataset.sel); b.checked ? SEP.sel.add(id) : SEP.sel.delete(id); sepDesenhar(); };
   const marca = f => { pend.filter(f).forEach(p => SEP.sel.add(p.id)); sepDesenhar(); };

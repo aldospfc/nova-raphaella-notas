@@ -11,6 +11,7 @@ import { unzipSync, strFromU8 } from "https://esm.sh/fflate@0.8.2";
 // v1 (22/11/2026).
 // v2 (22/11/2026): nfe — gera a NF-e do pedido no Bling e transmite (o Bling manda a nota ao ML); etiqueta — etiqueta do ML em ZPL
 //     (impressora Zebra pelo Browser Print) ou PDF; Shopee pelo Bling (logísticas/etiquetas).
+// v3 (22/11/2026): nfe acha a nota gerada pelo próprio pedido quando o Bling não devolve o id.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -84,7 +85,14 @@ async function emitirNfe(id: number): Promise<{ ok: boolean; msg: string; nf?: n
   if (nf) { const n = (await bling(`/nfe/${nf}`)).data || {}; await espera(350); const st = Number(n.situacao);
     if ([5, 6, 7].includes(st)) return { ok: true, msg: "já tinha NF autorizada (nº " + (n.numero || "?") + ")", nf };
     if (st === 2 || st === 9) nf = 0; }
-  if (!nf) { const g = await bling(`/pedidos/vendas/${id}/gerar-nfe`, { method: "POST", body: "{}" }); nf = Number(g?.data?.id) || 0; await espera(400); if (!nf) throw new Error("o Bling não devolveu a nota gerada"); }
+  if (!nf) {
+    // 1º passo (como "Gerar nota fiscal" no pedido): cria a NF pendente no Bling
+    const g = await bling(`/pedidos/vendas/${id}/gerar-nfe`, { method: "POST", body: "{}" }); await espera(800);
+    nf = Number(g?.data?.id || g?.data?.idNotaFiscal || g?.data?.notaFiscal?.id || g?.id) || 0;
+    if (!nf) { const p2 = (await bling(`/pedidos/vendas/${id}`)).data || {}; nf = Number(p2?.notaFiscal?.id) || 0; await espera(350); } // o pedido passa a apontar para a nota
+    if (!nf) throw new Error("o Bling gerou a nota mas não informou qual — veja em Notas fiscais (pendentes) e clique de novo em Emitir NF");
+  }
+  // 2º passo (como selecionar a nota pendente e "Enviar"): transmite à SEFAZ
   await bling(`/nfe/${nf}/enviar`, { method: "POST", body: "{}" }); await espera(1500);
   const n = (await bling(`/nfe/${nf}`)).data || {}; const st = Number(n.situacao);
   await rest(`pedidos_online?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ nf_id: nf }) });

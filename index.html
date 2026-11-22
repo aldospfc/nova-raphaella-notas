@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="99">
+<meta name="versao" content="100">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2967,8 +2967,11 @@ function sepIniciar() {
 }
 // impressora Zebra pelo Browser Print (programa da Zebra no PC; na 1ª vez ele pergunta se libera este site)
 async function zebraImprimir(zpl) {
-  const base = "https://127.0.0.1:9101/";
-  let r; try { r = await fetch(base + "default?type=printer"); } catch (e) { throw new Error("o Zebra Browser Print não respondeu neste computador (está aberto? já liberou este site?)"); }
+  // o Browser Print escuta em 127.0.0.1 e em localhost (porta 9101 para sites https)
+  let r, base = "";
+  for (const b of ["https://127.0.0.1:9101/", "https://localhost:9101/"]) { try { r = await fetch(b + "default?type=printer"); base = b; break; } catch (e) { /* tenta o outro */ } }
+  if (!base) throw new Error("o Zebra Browser Print não respondeu. Se ele acabou de perguntar se aceita o site notas.novaraphaella.com.br, clique em Sim (Yes) e tente de novo");
+  if (r.status === 403 || r.status === 401) throw new Error("o Browser Print ainda não liberou este site — aceite notas.novaraphaella.com.br na janelinha dele e tente de novo");
   const t = (await r.text()).trim(); if (!t) throw new Error("o Browser Print não tem impressora padrão escolhida");
   const dev = JSON.parse(t);
   const w = await fetch(base + "write", { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify({ device: dev, data: zpl }) });

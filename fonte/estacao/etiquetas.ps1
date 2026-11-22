@@ -1,8 +1,9 @@
 # Estacao de etiquetas Nova Raphaella - roda no PC onde a impressora de etiquetas esta ligada (ex.: caixa 2 da Loja 1).
 # So imprime: pega na nuvem os pedidos de etiqueta da loja e manda o ZPL cru para a impressora local.
+# 1.1.0: etiquetas de envio (Mercado Livre/Shopee, tipo "etiqueta_envio") vao para a Zebra; gondola continua na Elgin.
 # Nao mexe no Gestao, no caixa nem em vendas. E' mantida viva pela tarefa "Nova Raphaella Etiquetas" (a cada 5 min).
 $ErrorActionPreference = "Stop"
-$Versao = "1.0.0"
+$Versao = "1.1.0"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "etiquetas.log"
 $Vivo = Join-Path $Pasta "etiquetas.alive"
@@ -62,6 +63,8 @@ public class NrRawEst {
 }
 "@
 function ListaImpressoras { try { return @(Get-WmiObject Win32_Printer | ForEach-Object { [string]$_.Name }) } catch { return @() } }
+$ReElgin = "L42|ELGIN"
+$ReZebra = "ZDesigner|Zebra|\bZD\d"
 
 function Imprime($item) {
   $id = [long]$item.id
@@ -69,18 +72,30 @@ function Imprime($item) {
   $pedida = ""; $corpo = New-Object System.Collections.ArrayList
   foreach ($ln in $linhas) { if ($ln.StartsWith("--IMPRESSORA ")) { $pedida = $ln.Substring(13).Trim() } elseif (-not $ln.StartsWith("--")) { [void]$corpo.Add($ln) } }
   $lista = ListaImpressoras
+  $envio = ($item.tipo -eq "etiqueta_envio")
   $alvo = ""
-  if ($cfg.impressora) { $alvo = @($lista | Where-Object { $_ -eq [string]$cfg.impressora })[0] }
-  if (-not $alvo -and $pedida) { $alvo = @($lista | Where-Object { ($_ -eq $pedida -or $_ -like ("*" + $pedida + "*")) -and $_ -match "L42|ELGIN" })[0] }
-  if (-not $alvo) { $alvo = @($lista | Where-Object { $_ -match "L42|ELGIN" })[0] }
+  if ($envio) {
+    # etiqueta de envio: Zebra (nunca a Elgin da gondola)
+    if ($cfg.impressora_envio) { $alvo = @($lista | Where-Object { $_ -eq [string]$cfg.impressora_envio })[0] }
+    if (-not $alvo) { $alvo = @($lista | Where-Object { $_ -match $ReZebra -and $_ -notmatch $ReElgin })[0] }
+  } else {
+    if ($cfg.impressora) { $alvo = @($lista | Where-Object { $_ -eq [string]$cfg.impressora })[0] }
+    if (-not $alvo -and $pedida) { $alvo = @($lista | Where-Object { ($_ -eq $pedida -or $_ -like ("*" + $pedida + "*")) -and $_ -match $ReElgin })[0] }
+    if (-not $alvo) { $alvo = @($lista | Where-Object { $_ -match $ReElgin })[0] }
+  }
   $res = ""; $ok = $false
-  if ($item.tipo -eq "impressoras") { $ok = $true; $res = "IMPRESSORAS NESTE PC (" + $env:COMPUTERNAME + "):`r`n" + ($lista -join "`r`n") + "`r`n`r`nEscolhida para etiquetas: " + $alvo }
-  elseif (-not $alvo) { $res = "ERRO: nenhuma impressora Elgin/L42 encontrada no " + $env:COMPUTERNAME + ". Impressoras instaladas:`r`n" + ($lista -join "`r`n") }
+  if ($item.tipo -eq "impressoras") {
+    $z = @($lista | Where-Object { $_ -match $ReZebra -and $_ -notmatch $ReElgin })[0]
+    $ok = $true; $res = "IMPRESSORAS NESTE PC (" + $env:COMPUTERNAME + "):`r`n" + ($lista -join "`r`n") + "`r`n`r`nEscolhida para etiquetas de gondola: " + $alvo + "`r`nEscolhida para etiquetas de envio: " + $z
+  }
+  elseif (-not $alvo) { $res = "ERRO: nenhuma impressora " + $(if ($envio) { "Zebra (etiqueta de envio)" } else { "Elgin/L42" }) + " encontrada no " + $env:COMPUTERNAME + ". Impressoras instaladas:`r`n" + ($lista -join "`r`n") }
   else {
     try {
       if (-not ("NrRawEst" -as [type])) { Add-Type -TypeDefinition $RawCs }
-      $bytes = [Text.Encoding]::GetEncoding(1252).GetBytes(($corpo -join "`r`n"))
-      $e = [NrRawEst]::Envia($alvo, $bytes, ("Etiquetas " + $id))
+      # gondola: ZPL montado pelo site em Windows-1252; envio: ZPL do Mercado Livre/Shopee em UTF-8
+      $cod = if ($envio) { New-Object System.Text.UTF8Encoding($false) } else { [Text.Encoding]::GetEncoding(1252) }
+      $bytes = $cod.GetBytes(($corpo -join "`r`n"))
+      $e = [NrRawEst]::Envia($alvo, $bytes, $(if ($envio) { "Etiqueta de envio " + $id } else { "Etiquetas " + $id }))
       if ($e) { $res = "ERRO na impressora " + $alvo + ": " + $e } else { $ok = $true; $res = "IMPRESSO em " + $alvo + " no " + $env:COMPUTERNAME + " (" + $bytes.Length + " bytes)" }
     } catch { $res = "ERRO: " + $_.Exception.Message }
   }
@@ -115,7 +130,7 @@ while ($true) {
     if (Test-Path $Parar) { Escreve "Pedido para parar. Encerrando."; Remove-Item $Parar -Force; break }
     if (((Get-Date) - $ultimaBatida).TotalSeconds -ge 60) {
       $ultimaBatida = Get-Date
-      $imp = @(ListaImpressoras | Where-Object { $_ -match "L42|ELGIN" })
+      $imp = @(ListaImpressoras | Where-Object { $_ -match $ReElgin -or $_ -match $ReZebra })
       $b = Rpc "estacao_bate" @{ p_token = $cfg.token; p_versao = $Versao; p_info = @{ pc = $env:COMPUTERNAME; impressoras = $imp } }
       if (-not $b.ok) { throw ("nuvem recusou: " + $b.erro) }
       if ($b.versao -and $b.versao -ne $Versao) { if (Atualiza ([string]$b.versao)) { break } }

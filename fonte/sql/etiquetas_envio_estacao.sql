@@ -1,0 +1,4 @@
+-- 22/11/2026: etiquetas de envio (ML/Shopee) pela estação do caixa 2 (Zebra).
+-- fila_rotear passa a rotear 'etiqueta_envio' para a estação; fila_avaliar/fila_trava/avisos_tg_fila ignoram esse tipo (não é SQL).
+-- RPCs: fila_etiqueta_envio(p_zpl, p_titulo) e fila_etiqueta_status(p_id), liberadas para quem pode_separar().
+-- (aplicado como migração "etiquetas_envio_estacao" no Supabase)

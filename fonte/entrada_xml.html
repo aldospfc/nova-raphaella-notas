@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="114">
+<meta name="versao" content="115">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3316,6 +3316,16 @@ async function zebraImprimir(zpl) {
   if (!w.ok) throw new Error("a impressora recusou: " + (await w.text()).slice(0, 120));
   return dev.name || "Zebra";
 }
+// acompanha a etiqueta de envio mandada para a estação (Zebra do caixa 2)
+function sepEtqAcompanhar(id) {
+  const ini = Date.now();
+  const t = setInterval(async () => {
+    const r = await supa.rpc("fila_etiqueta_status", { p_id: id }); const f = r.data;
+    if (f && f.status === "aplicado") { clearInterval(t); msg("Etiqueta impressa na Zebra ✅"); }
+    else if (f && f.status === "erro") { clearInterval(t); msg("A Zebra não imprimiu: " + String(f.resultado || "").replace(/\s+/g, " ").slice(0, 220)); }
+    else if (Date.now() - ini > 120000) { clearInterval(t); msg("A etiqueta está na fila da Zebra, esperando o PC do caixa 2."); }
+  }, 3000);
+}
 async function sepEtiquetas(ids) {
   if (!ids.length) return;
   msg(`Buscando ${ids.length} etiqueta(s)…`);
@@ -3323,7 +3333,15 @@ async function sepEtiquetas(ids) {
   if (error || !d || !d.ok) return msg("Não deu: " + ((d && d.msg) || (error && error.message) || ""));
   const erros = d.erros || [];
   if (d.zpl && d.zpl.length) {
-    try { const nome = await zebraImprimir(d.zpl.join("\n")); msg(`${d.zpl.length > 1 ? d.zpl.length + " arquivos de etiqueta enviados" : "Etiqueta enviada"} para ${nome}${erros.length ? " · " + erros.join(" · ") : ""}`); }
+    // 1º caminho: pela nuvem até a estação do caixa 2, que manda para a Zebra (funciona do celular e de qualquer PC)
+    const zpl = d.zpl.join("\n"), txtErros = erros.length ? " · " + erros.join(" · ") : "";
+    const est = await supa.rpc("fila_etiqueta_envio", { p_zpl: zpl, p_titulo: (ids.length > 1 ? ids.length + " etiquetas de envio" : "Etiqueta de envio") + " (Separação)" });
+    if (!est.error && est.data && est.data.ok) {
+      msg(`${ids.length > 1 ? ids.length + " etiquetas enviadas" : "Etiqueta enviada"} para a Zebra (${est.data.estacao})` + (est.data.online ? " — imprimindo…" : " — o PC do caixa 2 parece desligado; imprime assim que ligar") + txtErros);
+      sepEtqAcompanhar(est.data.id); sepVigiar(ids, "etq"); return;
+    }
+    // sem estação: Zebra ligada neste PC pelo Browser Print
+    try { const nome = await zebraImprimir(zpl); msg(`${d.zpl.length > 1 ? d.zpl.length + " arquivos de etiqueta enviados" : "Etiqueta enviada"} para ${nome}${erros.length ? " · " + erros.join(" · ") : ""}`); }
     catch (e) {
       if (confirm("Não consegui mandar para a Zebra: " + e.message + "\n\nAbrir a etiqueta em PDF para imprimir pelo navegador?")) {
         const { data: p } = await supa.functions.invoke("envios", { body: { acao: "etiqueta", ids, formato: "pdf" } });
@@ -3463,7 +3481,7 @@ function sepDesenhar() {
   const precisaNf = p => p.ml_substatus === "invoice_pending" || (!/mercado/i.test(p.canal || "") && !(p.nf_id > 0));
   const temEtiqueta = p => /^(ready_to_print|printed)$/.test(p.ml_substatus || "") || (/shopee/i.test(p.canal || "") && p.nf_id > 0);
   const botoesEnvio = p => (adm && precisaNf(p) ? `<button class="sec sep-mini" data-nf="${p.id}" title="gera e transmite a NF-e deste pedido pelo Bling">Emitir NF</button>` : "") +
-    (temEtiqueta(p) ? `<button class="sec sep-mini" data-etq="${p.id}" title="manda a etiqueta direto para a Zebra (Browser Print)">${p.ml_substatus === "printed" ? "Reimprimir etiqueta" : "Imprimir etiqueta"}</button>` : "");
+    (temEtiqueta(p) ? `<button class="sec sep-mini" data-etq="${p.id}" title="manda a etiqueta para a Zebra do caixa 2 (funciona também pelo celular)">${p.ml_substatus === "printed" ? "Reimprimir etiqueta" : "Imprimir etiqueta"}</button>` : "");
   // ===== abas e cartões por forma de envio (como no painel do Mercado Livre) =====
   const LG = { flex: "Flex", agencia: "Agência", coleta: "Coleta", full: "Full", shopee_direta: "Shopee · Entrega Direta", shopee_xpress: "Shopee Xpress", shopee_retirada: "Shopee · Retirada", outro: "Outros envios", ml: "Mercado Livre", shopee: "Shopee" };
   const LGORD = ["flex", "agencia", "coleta", "shopee_direta", "shopee_xpress", "shopee_retirada", "ml", "shopee", "outro", "full"];

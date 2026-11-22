@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Sistema das Lojas — Nova Raphaella</title>
-<meta name="versao" content="108">
+<meta name="versao" content="109">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2021,7 +2021,7 @@ function mfaPedirCodigo(factorId) {
 }
 async function mfaCadastrar(info, todos) {
   for (const f of todos || []) if (f.factor_type === "totp" && f.status !== "verified") await supa.auth.mfa.unenroll({ factorId: f.id }).catch(() => {});
-  const e = await supa.auth.mfa.enroll({ factorType: "totp", friendlyName: "Celular " + new Date().toLocaleDateString("pt-BR") + " " + Date.now() % 10000 });
+  const e = await supa.auth.mfa.enroll({ factorType: "totp", issuer: "Nova Raphaella", friendlyName: "Celular " + new Date().toLocaleDateString("pt-BR") + " " + Date.now() % 10000 });
   if (e.error) {
     return new Promise(res => {
       const b = mfaCaixa(`<h2 style="margin:0 0 8px;font-size:16px;color:var(--azul)">Verificação em duas etapas</h2>
@@ -2032,7 +2032,10 @@ async function mfaCadastrar(info, todos) {
   }
   const t = e.data.totp, factorId = e.data.id;
   // o Supabase devolve o QR ora como "data:image/svg+xml…", ora como o próprio <svg> em texto
-  const qr = /^data:/.test(t.qr_code || "") ? t.qr_code : "data:image/svg+xml;charset=utf-8," + encodeURIComponent(String(t.qr_code || "").replace(/<!--[\s\S]*?-->/g, "").trim());
+  let svg = String(t.qr_code || "");
+  if (/^data:[^,]*;base64,/.test(svg)) { try { svg = atob(svg.slice(svg.indexOf(",") + 1)); } catch (x) {} }
+  else if (/^data:/.test(svg)) { svg = svg.slice(svg.indexOf(",") + 1); try { if (/%3C/i.test(svg)) svg = decodeURIComponent(svg); } catch (x) {} }
+  const qr = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace(/<!--[\s\S]*?-->/g, "").trim());
   return new Promise(res => {
     const b = mfaCaixa(`<h2 style="margin:0 0 8px;font-size:16px;color:var(--azul)">Ative a verificação em duas etapas</h2>
       <div class="orig">A partir de agora, além da senha, o sistema pede um código que muda a cada 30 segundos no seu celular. Assim, mesmo que alguém descubra a senha, não consegue mexer nos preços.</div>
@@ -2040,14 +2043,14 @@ async function mfaCadastrar(info, todos) {
         <li>Instale no celular o <b>Google Authenticator</b> ou o <b>Microsoft Authenticator</b> (grátis).</li>
         <li>No aplicativo, toque em <b>+</b> e leia este QR code${/Android|iPhone|iPad/i.test(navigator.userAgent) ? ` — ou, se estiver no próprio celular, <a href="${escH(t.uri)}">toque aqui para abrir no aplicativo</a>` : ""}:</li>
       </ol>
-      <img src="${escH(qr)}" alt="QR code" style="background:#fff">
+      <img id="mfQr" alt="QR code" style="background:#fff">
       <div class="orig" style="text-align:center;word-break:break-all">ou digite a chave: <b>${escH(t.secret)}</b></div>
       <div style="margin-top:10px;font-size:13px">3. Digite o código de 6 dígitos que apareceu no aplicativo:</div>
       <input class="cod" id="mfCod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="margin-top:6px">
       <div class="linha" style="margin-top:12px;gap:8px"><button id="mfOk">Ativar</button><a href="#" data-sair style="align-self:center">sair</a></div>
       <div id="mfMsg" class="aviso" style="margin-top:10px"></div>
       <div class="orig" style="margin-top:8px">Guarde a chave acima num lugar seguro: se trocar de celular, é com ela que você cadastra de novo.</div>`);
-    mfaSairLink(b);
+    mfaSairLink(b); b.querySelector("#mfQr").src = qr;
     const i = b.querySelector("#mfCod"), m = b.querySelector("#mfMsg");
     const ir = async () => {
       const code = i.value.replace(/\D/g, ""); if (code.length !== 6) { m.textContent = "Digite os 6 números."; return; }

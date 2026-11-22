@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="91">
+<meta name="versao" content="92">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -237,6 +237,9 @@
   .nav-badge { margin-left: auto; background: #e08a00; color: #fff; border-radius: 10px; padding: 0 7px; font-size: 11px; line-height: 18px; }
   .sep-ped { border: 1px solid var(--borda); border-radius: 10px; background: #fff; padding: 12px 14px; margin-bottom: 10px; }
   .sep-ped.novo { border-color: #e08a00; box-shadow: 0 0 0 2px #ffe2b3; }
+  .sep-sel { width: 20px; height: 20px; margin: 0; cursor: pointer; }
+  .sep-ped.marcado { border-color: var(--azul, #1b2d4b); box-shadow: 0 0 0 2px #1b2d4b22; }
+  .sep-barra { position: sticky; top: 0; z-index: 5; background: #fff; }
   .sep-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
   .sep-canal { font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #eef1f4; color: #293343; }
   .sep-canal.ml { background: #fff159; color: #2d3277; } .sep-canal.sh { background: #ee4d2d; color: #fff; }
@@ -2925,7 +2928,7 @@ function vivoAtualizar() {
   }
 }
 // ===== Separação de pedidos online (Mercado Livre, Shopee… via Bling; a nuvem busca de 2 em 2 min) =====
-const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true };
+const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true, sel: new Set() };
 function sepIniciar() {
   if (!supa || SEP.canal) return;
   SEP.canal = supa.channel("pedidos-online").on("postgres_changes", { event: "*", schema: "public", table: "pedidos_online" }, ev => {
@@ -2971,7 +2974,7 @@ function sepAviso(p) {
     else msg(`${l.length} pedidos novos para separar`); }, 2500);
 }
 async function sepContar() {
-  if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).not("situacao_id", "in", "(9,12)");
+  if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).is("ignorado_em", null).not("situacao_id", "in", "(9,12)");
   const b = document.getElementById("sepBadge"); if (b) { b.textContent = count || ""; b.style.display = count ? "" : "none"; } SEP.pend = count || 0;
 }
 async function sepCarregar() {
@@ -2986,8 +2989,8 @@ function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
   // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
   const prazo = p => p.data_prevista || p.data || String(p.criado_em || "").slice(0, 10);
-  const pend = L.filter(p => !p.separado_em && p.situacao_id !== 12 && p.situacao_id !== 9).sort((a, b) => prazo(a).localeCompare(prazo(b)) || String(a.criado_em).localeCompare(String(b.criado_em))), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
-    aguard = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12), feitos = L.filter(p => p.despachado_em || (p.separado_em && p.situacao_id === 12 && p.devolvido_em)).reverse();
+  const pend = L.filter(p => !p.separado_em && !p.ignorado_em && p.situacao_id !== 12 && p.situacao_id !== 9).sort((a, b) => prazo(a).localeCompare(prazo(b)) || String(a.criado_em).localeCompare(String(b.criado_em))), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
+    aguard = L.filter(p => p.separado_em && !p.despachado_em && !p.ignorado_em && p.situacao_id !== 12), feitos = L.filter(p => p.despachado_em || (p.separado_em && p.situacao_id === 12 && p.devolvido_em)).reverse();
   const ha = d => { const m = Math.round((agora - new Date(d)) / 60000); return m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60) + " min" : ""}` : `há ${Math.floor(m / 1440)} dia(s)`; };
   const canal = p => `<span class="sep-canal ${/mercado/i.test(p.canal) ? "ml" : /shopee/i.test(p.canal) ? "sh" : ""}">${escH(p.canal || "Online")}</span>`;
   const foto = u => u ? `<img src="${escH(u)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=semfoto></span>'">` : `<span class="semfoto"></span>`;
@@ -3002,10 +3005,22 @@ function sepDesenhar() {
   };
   const atraso = p => { const ref = p.data_prevista || (p.data && dias(p.data, hojeSP) >= 3 ? p.data : null); if (!ref || ref >= hojeSP) return "";
     const n = dias(ref, hojeSP); return `<span class="chip falta" title="${p.data_prevista ? "prazo de envio era " + dm(p.data_prevista) : "venda de " + n + " dias atrás"}">atrasado${n > 0 ? " · " + n + " dia" + (n > 1 ? "s" : "") : ""}</span>`; };
-  const card = (p, bt) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}"><div class="sep-cab">${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : atraso(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
+  const enviado = p => (p.nf_id > 0) || !!p.rastreio; // nota emitida ou rastreio no Bling: provavelmente já saiu
+  const sinais = p => (p.nf_id > 0 ? `<span class="chip" title="o Bling tem nota fiscal emitida para este pedido">NF emitida</span>` : "") + (p.rastreio ? `<span class="chip" title="código de rastreio no Bling">rastreio ${escH(String(p.rastreio).slice(0, 26))}</span>` : "");
+  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : atraso(p)}${sinais(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
   let h = "";
   if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
-  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— do mais antigo para o mais novo</span></div>` + pend.map(p => card(p, `<div class="linha" style="gap:10px;align-items:center"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a></div>`)).join("")
+  for (const id of [...SEP.sel]) if (!pend.some(p => p.id === id)) SEP.sel.delete(id);
+  const nEnv = pend.filter(enviado).length, nAntigos = pend.filter(p => p.data && p.data < hojeSP).length;
+  if (pend.length > 1) h += `<div class="painel sep-barra"><b>Conferir em lote</b> <span class="orig">— marque as caixinhas e escolha o que fazer</span>
+    <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+      ${nEnv ? `<button class="sec" id="sepSelEnv" title="pedidos com nota fiscal emitida ou código de rastreio no Bling">Marcar os com NF ou rastreio (${nEnv})</button>` : ""}
+      ${nAntigos ? `<button class="sec" id="sepSelAnt">Marcar os de antes de hoje (${nAntigos})</button>` : ""}
+      <button class="sec" id="sepSelTodos">Marcar todos</button><button class="sec" id="sepSelLimpa">Desmarcar</button>
+      <span style="flex:1"></span>
+      <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
+      <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div></div>`;
+  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— do mais antigo para o mais novo</span></div>` + pend.map(p => card(p, `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true)).join("")
     : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   const dh = d => escH(new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
   if (aguard.length) h += `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta ou postagem), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
@@ -3018,6 +3033,19 @@ function sepDesenhar() {
   for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
   for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };
   for (const b of el.querySelectorAll("[data-desp]")) b.onclick = () => { b.disabled = true; acao(b.dataset.desp, "despachar"); };
+  for (const b of el.querySelectorAll("[data-canc]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Este pedido foi cancelado no Mercado Livre/Shopee?\n\nEle só sai desta tela. Lembre de cancelar também no Bling para soltar a reserva do estoque.")) acao(b.dataset.canc, "ignorar"); };
+  for (const b of el.querySelectorAll("[data-sel]")) b.onchange = () => { const id = Number(b.dataset.sel); b.checked ? SEP.sel.add(id) : SEP.sel.delete(id); sepDesenhar(); };
+  const marca = f => { pend.filter(f).forEach(p => SEP.sel.add(p.id)); sepDesenhar(); };
+  const bt = id => document.getElementById(id);
+  if (bt("sepSelEnv")) bt("sepSelEnv").onclick = () => marca(enviado);
+  if (bt("sepSelAnt")) bt("sepSelAnt").onclick = () => marca(p => p.data && p.data < hojeSP);
+  if (bt("sepSelTodos")) bt("sepSelTodos").onclick = () => marca(() => true);
+  if (bt("sepSelLimpa")) bt("sepSelLimpa").onclick = () => { SEP.sel.clear(); sepDesenhar(); };
+  const lote = async (a, txt) => { const ids = [...SEP.sel]; if (!ids.length || !confirm(txt.replace("{n}", ids.length))) return;
+    let ok = 0, erro = ""; for (const id of ids) { const { error } = await supa.rpc("pedido_separar", { p_id: id, p_acao: a }); if (error) erro = error.message; else ok++; }
+    SEP.sel.clear(); msg(erro ? `${ok} feito(s); erro: ${erro}` : `${ok} pedido(s) atualizado(s)`); sepCarregar(); };
+  if (bt("sepLoteEnv")) bt("sepLoteEnv").onclick = () => lote("despachar", "Marcar {n} pedido(s) como JÁ ENVIADOS?\n\nEles saem da lista e viram \"Atendido\" no Bling em até 2 minutos (o Bling baixa o estoque deles agora).");
+  if (bt("sepLoteCanc")) bt("sepLoteCanc").onclick = () => lote("ignorar", "Tirar {n} pedido(s) da lista como CANCELADOS?\n\nNada muda no Bling: cancele-os lá também para soltar a reserva do estoque.");
   for (const b of el.querySelectorAll("[data-jaenv]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Este pacote já foi enviado antes?\n\nEle sai da lista e vira \"Atendido\" no Bling (o Bling baixa o estoque agora).")) acao(b.dataset.jaenv, "despachar"); };
   { const t = el.querySelector("#sepTodos"); if (t) t.onclick = () => { if (confirm(`Marcar os ${aguard.length} pedidos separados como despachados? Eles viram "Atendido" no Bling.`)) { t.disabled = true; acao(0, "despachar_todos"); } }; }
 }
@@ -3691,8 +3719,8 @@ async function hjCarregar() {
       supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em, resultado").in("status", ["erro", "pendente", "aplicando"]).is("dispensado_em", null).not("tipo", "in", "(teste,diagnostico)").gte("criado_em", de2).order("id", { ascending: false }).limit(60),
       supa.rpc("bling_saude")]);
     HJ.sis = { fila: rf.data || [], bling: rb.data || null };
-    { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, despachado_em, situacao_id, devolvido_em").gte("criado_em", new Date(Date.now() - 7 * 864e5).toISOString()).limit(400);
-      const L = rp.data || []; HJ.ped = { pend: L.filter(p => !p.separado_em && p.situacao_id !== 12 && p.situacao_id !== 9), dev: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em), desp: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12) }; }
+    { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, despachado_em, situacao_id, devolvido_em, ignorado_em").or(`despachado_em.is.null,criado_em.gte.${new Date(Date.now() - 7 * 864e5).toISOString()}`).limit(600);
+      const L = (rp.data || []).filter(p => !p.ignorado_em); HJ.ped = { pend: L.filter(p => !p.separado_em && p.situacao_id !== 12 && p.situacao_id !== 9), dev: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em), desp: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12) }; }
   } catch (e) { console.warn("hoje", e); }
   HJ.carregando = false; hjDesenhar();
   clearTimeout(HJ.t); if (vista === "hoje") HJ.t = setTimeout(() => { if (vista === "hoje") hjCarregar(); }, 120000);

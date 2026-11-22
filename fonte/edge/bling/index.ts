@@ -27,6 +27,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // v8 (22/11/2026): importar_abertos (pedido do Aldo) — traz os pedidos "Em aberto" do Mercado Livre e da Shopee, inclusive atrasados,
 //     em lotes de 20 por chamada; guarda data_prevista (prazo de envio) para a tela marcar "atrasado". A busca de 2 em 2 min passa a
 //     conferir também os pedidos antigos ainda na tela: se saíram de "Em aberto" no Bling (cancelado, atendido), a situação é atualizada.
+// v9 (22/11/2026): guarda nf_id e rastreio do pedido (nota emitida + rastreio = pacote já saiu); completar_nf preenche os já importados.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -311,6 +312,19 @@ async function atenderDespachados() {
   }
   return n;
 }
+const rastreioDe = (det: any) => ((det.transporte?.volumes || []).map((v: any) => v.codigoRastreamento).filter(Boolean).join(" ") || null);
+// pedidos já na tabela sem a informação de nota fiscal: busca no Bling (lotes de 40)
+async function completarNf(max = 40) {
+  const ps: any[] = (await rest(`pedidos_online?select=id&nf_id=is.null&despachado_em=is.null&order=data.asc&limit=${max}`)) || [];
+  let n = 0;
+  for (const p of ps) {
+    const det = (await bling(`/pedidos/vendas/${p.id}`)).data || {}; await espera(340);
+    await rest(`pedidos_online?id=eq.${p.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ nf_id: Number(det.notaFiscal?.id) || 0, rastreio: rastreioDe(det) }) });
+    n++;
+  }
+  const r = await fetch(URL_SB + "/rest/v1/pedidos_online?select=id&nf_id=is.null&despachado_em=is.null", { headers: { apikey: SERVICO, Authorization: "Bearer " + SERVICO, Prefer: "count=exact", Range: "0-0" } });
+  return { preenchidos: n, faltam: Number((r.headers.get("content-range") || "/0").split("/")[1]) || 0 };
+}
 // grava um pedido do Bling em pedidos_online (itens com foto, localização e componentes de kit)
 async function inserirPedido(o: any, sid: number) {
   const det = (await bling(`/pedidos/vendas/${o.id}`)).data || {}; await espera(340);
@@ -324,7 +338,7 @@ async function inserirPedido(o: any, sid: number) {
   await rest("pedidos_online?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({
     id: o.id, numero: o.numero, numero_loja: o.numeroLoja || det.numeroLoja || null, loja_bling: loja ? Number(loja) : null, canal: CANAIS[loja] || (loja ? "Canal " + loja : "Bling"),
     data: o.data, total: Number(o.total) || 0, cliente: String(o.contato?.nome || det.contato?.nome || "").replace(/\s*\([^)]*\)\s*$/, "").slice(0, 80),
-    situacao_id: sid, situacao: SITU[sid] || String(sid), itens,
+    situacao_id: sid, situacao: SITU[sid] || String(sid), itens, nf_id: Number(det.notaFiscal?.id) || 0, rastreio: rastreioDe(det),
     data_prevista: /^\d{4}-\d{2}-\d{2}$/.test(String(o.dataPrevista || det.dataPrevista || "")) && !String(o.dataPrevista || det.dataPrevista).startsWith("0000") ? (o.dataPrevista || det.dataPrevista) : null }) });
 }
 const LOJAS_SEP = [203783765, 204785926]; // Mercado Livre, Shopee
@@ -422,6 +436,9 @@ Deno.serve(async (req: Request) => {
     const a = await lerAuth();
     if (!a.cron_token || tokCron !== a.cron_token) return resp({ ok: false, erro: "sem_permissao" }, 403);
     const corpoCron = await req.clone().json().catch(() => ({}));
+    if (corpoCron?.acao === "completar_nf") {
+      try { return resp({ ok: true, ...(await completarNf(40)) }); } catch (e) { return resp({ ok: false, msg: String((e as Error).message) }); }
+    }
     if (corpoCron?.acao === "importar_abertos") {
       try { return resp({ ok: true, ...(await importarAbertos(20)) }); } catch (e) { return resp({ ok: false, msg: String((e as Error).message) }); }
     }

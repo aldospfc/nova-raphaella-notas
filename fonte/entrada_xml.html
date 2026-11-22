@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Sistema das Lojas — Nova Raphaella</title>
-<meta name="versao" content="106">
+<meta name="versao" content="107">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -157,6 +157,13 @@
   #usuario a:hover { background: var(--muted); }
   #login { box-shadow: 0 10px 30px rgba(27,45,75,.10); }
   @media (max-width: 900px) { #alertas { display: none; } }
+  #travaChip .chip { cursor: pointer; margin: 0 6px 0 0; font-size: 11px; padding: 3px 9px; white-space: nowrap; }
+  @media (max-width: 900px) { #travaChip { margin-left: auto; } }
+  #mfa { max-width: 380px; margin: 60px auto; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 18px 20px; }
+  #mfa img { display: block; width: 200px; height: 200px; margin: 10px auto; }
+  #mfa input.cod { font-size: 22px; letter-spacing: 6px; text-align: center; width: 100%; }
+  .trava-it { border: 1px solid var(--borda); border-radius: 6px; padding: 8px; margin-top: 8px; }
+  .trava-it .mot { font-size: 12px; color: #b42318; margin: 4px 0; white-space: pre-wrap; }
   #barraMob, #veu { display: none; }
   @media (max-width: 760px) {
     /* menu vira gaveta (com os nomes) aberta pelo botão do topo ou pelo "Menu" da barra de baixo */
@@ -375,7 +382,7 @@
 </style>
 </head>
 <body>
-<header><button type="button" class="ico" id="bMenu" title="Recolher / abrir o menu"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg></button><h1 id="hTitulo">Nova Raphaella</h1><span class="hver" title="versão do site; se uma novidade não aparecer, recarregue a página">v<script>document.write(document.querySelector('meta[name=versao]').content)</script></span><span id="alertas"></span><span id="usuario"></span></header>
+<header><button type="button" class="ico" id="bMenu" title="Recolher / abrir o menu"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg></button><h1 id="hTitulo">Nova Raphaella</h1><span class="hver" title="versão do site; se uma novidade não aparecer, recarregue a página">v<script>document.write(document.querySelector('meta[name=versao]').content)</script></span><span id="alertas"></span><span id="travaChip"></span><span id="usuario"></span></header>
 <div id="login" style="display:none;max-width:360px;margin:60px auto;background:#fff;border:1px solid var(--borda);border-radius:8px;padding:18px 20px">
   <h2 style="margin:0 0 10px;font-size:16px;color:var(--azul)">Entrar</h2>
   <label class="c">E-mail<input type="email" id="lgEmail" autocomplete="username" style="width:100%"></label>
@@ -384,6 +391,7 @@
   <div id="lgMsg" class="aviso" style="margin-top:10px"></div>
   <div class="orig" style="margin-top:10px">Contas novas só entram se um administrador incluir o e-mail. A primeira conta criada vira administrador.</div>
 </div>
+<div id="mfa" style="display:none"></div>
 <nav id="abas" style="display:none">
   <div class="brand"><span class="brand-mark"><i style="background:#C35078"></i><i style="background:#B83D50"></i><i style="background:#7AAB30"></i><i style="background:#3A8DA6"></i></span><span class="brand-txt"><span class="brand-name" style="display:block">Nova Raphaella</span><span class="brand-caption" style="display:block">Sistema das lojas</span></span></div>
   <div class="nav-groups">
@@ -1943,7 +1951,10 @@ function chipEnvio(e, v, rot, loja, baixadoLocal) {
   if (!e) return;
   const quando = iso => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   e.onclick = null; e.style.cursor = "";
-  if (v && (v.status === "pendente" || v.status === "aplicando")) {
+  if (v && v.status === "aguardando") {
+    e.className = "chip falta"; e.style.display = ""; e.style.cursor = "pointer";
+    e.textContent = rot + "segurado pela trava de segurança — só grava depois que o administrador liberar (clique para ver)"; e.onclick = travaAbrir;
+  } else if (v && (v.status === "pendente" || v.status === "aplicando")) {
     e.className = "chip av"; e.style.display = "";
     const on = agenteInfo && agenteInfo[loja] && agenteInfo[loja].online;
     e.textContent = rot + (v.status === "aplicando" ? "o PC da loja está gravando no Gestão…" : on ? "enviado — aguardando o PC da loja gravar (segundos)…" : "enviado — o PC da loja parece desligado; grava assim que ligar");
@@ -1967,6 +1978,126 @@ function mostrarResultadoEnvio(v) {
   b.querySelector("#bx").onclick = () => b.style.display = "none";
   supa.from("fila").select("resultado").eq("id", v.id).single().then(r => { b.querySelector("#bRes").textContent = (r.data && r.data.resultado) || (r.error ? "não consegui ler: " + r.error.message : "(sem detalhes)"); });
 }
+// ===================== Segurança: verificação em duas etapas =====================
+// Quem tem acesso completo entra com senha + código de 6 dígitos do aplicativo autenticador do celular.
+function mfaCaixa(html) {
+  const b = document.getElementById("mfa");
+  document.getElementById("login").style.display = "none";
+  b.innerHTML = html; b.style.display = html ? "" : "none";
+  return b;
+}
+async function mfaGarantir(info) {
+  const a = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (!a.error && a.data && a.data.currentLevel === "aal2") { mfaCaixa(""); return true; }
+  const fs = await supa.auth.mfa.listFactors();
+  const todos = (fs.data && (fs.data.all || fs.data.totp)) || [];
+  const ok = todos.find(f => f.factor_type === "totp" && f.status === "verified");
+  const r = ok ? await mfaPedirCodigo(ok.id) : await mfaCadastrar(info, todos);
+  mfaCaixa("");
+  return r;
+}
+function mfaSairLink(b) { const a = b.querySelector("[data-sair]"); if (a) a.onclick = async ev => { ev.preventDefault(); await supa.auth.signOut(); location.reload(); }; }
+function mfaPedirCodigo(factorId) {
+  return new Promise(res => {
+    const b = mfaCaixa(`<h2 style="margin:0 0 8px;font-size:16px;color:var(--azul)">Código de verificação</h2>
+      <div class="orig">Abra o aplicativo autenticador no celular e digite o código de 6 dígitos da Nova Raphaella.</div>
+      <input class="cod" id="mfCod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="margin-top:10px">
+      <div class="linha" style="margin-top:12px;gap:8px"><button id="mfOk">Entrar</button><a href="#" data-sair style="align-self:center">sair</a></div>
+      <div id="mfMsg" class="aviso" style="margin-top:10px"></div>`);
+    mfaSairLink(b);
+    const i = b.querySelector("#mfCod"), m = b.querySelector("#mfMsg"); i.focus();
+    const ir = async () => {
+      const code = i.value.replace(/\D/g, ""); if (code.length !== 6) { m.textContent = "Digite os 6 números."; return; }
+      m.textContent = "conferindo…";
+      const r = await supa.auth.mfa.challengeAndVerify({ factorId, code });
+      if (r.error) { m.textContent = /invalid|expired/i.test(r.error.message) ? "Código errado ou vencido. Espere o próximo e tente de novo." : "Erro: " + r.error.message; i.select(); return; }
+      res(true);
+    };
+    b.querySelector("#mfOk").onclick = ir;
+    i.addEventListener("input", () => { if (i.value.replace(/\D/g, "").length === 6) ir(); });
+  });
+}
+async function mfaCadastrar(info, todos) {
+  for (const f of todos || []) if (f.factor_type === "totp" && f.status !== "verified") await supa.auth.mfa.unenroll({ factorId: f.id }).catch(() => {});
+  const e = await supa.auth.mfa.enroll({ factorType: "totp", friendlyName: "Celular " + new Date().toLocaleDateString("pt-BR") + " " + Date.now() % 10000 });
+  if (e.error) {
+    return new Promise(res => {
+      const b = mfaCaixa(`<h2 style="margin:0 0 8px;font-size:16px;color:var(--azul)">Verificação em duas etapas</h2>
+        <div class="aviso">Não consegui preparar o código agora: ${escH(e.error.message)}</div>
+        <div class="linha" style="margin-top:12px;gap:8px">${info && info.exige_2fa ? "" : `<button id="mfDepois" class="sec">Entrar e configurar depois</button>`}<a href="#" data-sair style="align-self:center">sair</a></div>`);
+      mfaSairLink(b); const d = b.querySelector("#mfDepois"); if (d) d.onclick = () => res(true);
+    });
+  }
+  const t = e.data.totp, factorId = e.data.id;
+  return new Promise(res => {
+    const b = mfaCaixa(`<h2 style="margin:0 0 8px;font-size:16px;color:var(--azul)">Ative a verificação em duas etapas</h2>
+      <div class="orig">A partir de agora, além da senha, o sistema pede um código que muda a cada 30 segundos no seu celular. Assim, mesmo que alguém descubra a senha, não consegue mexer nos preços.</div>
+      <ol style="font-size:13px;padding-left:18px;margin:10px 0 0">
+        <li>Instale no celular o <b>Google Authenticator</b> ou o <b>Microsoft Authenticator</b> (grátis).</li>
+        <li>No aplicativo, toque em <b>+</b> e leia este QR code${/Android|iPhone|iPad/i.test(navigator.userAgent) ? ` — ou, se estiver no próprio celular, <a href="${escH(t.uri)}">toque aqui para abrir no aplicativo</a>` : ""}:</li>
+      </ol>
+      <img src="${escH(t.qr_code)}" alt="QR code">
+      <div class="orig" style="text-align:center;word-break:break-all">ou digite a chave: <b>${escH(t.secret)}</b></div>
+      <div style="margin-top:10px;font-size:13px">3. Digite o código de 6 dígitos que apareceu no aplicativo:</div>
+      <input class="cod" id="mfCod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="margin-top:6px">
+      <div class="linha" style="margin-top:12px;gap:8px"><button id="mfOk">Ativar</button><a href="#" data-sair style="align-self:center">sair</a></div>
+      <div id="mfMsg" class="aviso" style="margin-top:10px"></div>
+      <div class="orig" style="margin-top:8px">Guarde a chave acima num lugar seguro: se trocar de celular, é com ela que você cadastra de novo.</div>`);
+    mfaSairLink(b);
+    const i = b.querySelector("#mfCod"), m = b.querySelector("#mfMsg");
+    const ir = async () => {
+      const code = i.value.replace(/\D/g, ""); if (code.length !== 6) { m.textContent = "Digite os 6 números."; return; }
+      m.textContent = "conferindo…";
+      const r = await supa.auth.mfa.challengeAndVerify({ factorId, code });
+      if (r.error) { m.textContent = "Código não confere. Confira se leu o QR code desta tela e digite o código atual."; i.select(); return; }
+      msg("Verificação em duas etapas ativada. Nos próximos acessos o sistema vai pedir o código do celular.");
+      res(true);
+    };
+    b.querySelector("#mfOk").onclick = ir;
+    i.addEventListener("input", () => { if (i.value.replace(/\D/g, "").length === 6) ir(); });
+  });
+}
+// ===================== Segurança: trava de preço =====================
+// Envio que derruba preço (mais de 50%), zera preço, mexe no cadastro em massa ou traz comando estranho
+// fica "aguardando" no banco: não vai ao Gestão nem aos caixas até o administrador liberar aqui.
+const TRV = { fila: [], promo: [] };
+async function travaVerificar() {
+  if (!supa || document.body.classList.contains("perfil-sep")) return;
+  const [a, b] = await Promise.all([
+    supa.from("fila").select("id, loja_id, tipo, titulo, criado_em, criado_por, trava_motivo").eq("status", "aguardando").order("id").limit(100),
+    supa.from("promocoes").select("id, loja_id, ean, descricao, preco_normal, preco_promo, inicio, fim, criado_por, trava_motivo").eq("status", "aguardando").order("id").limit(300)]);
+  TRV.fila = a.data || []; TRV.promo = b.data || [];
+  const el = document.getElementById("travaChip"); if (!el) return;
+  const n = TRV.fila.length + TRV.promo.length;
+  el.innerHTML = n ? `<span class="chip falta" title="envios segurados pela trava de segurança">🔒 ${n} aguardando liberação</span>` : "";
+  if (n) el.firstChild.onclick = travaAbrir;
+}
+async function travaAbrir() {
+  await travaVerificar();
+  const b = document.getElementById("busca"); b.style.display = "block";
+  const hm = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const adm = !!window.__admin;
+  const F = TRV.fila, P = TRV.promo;
+  b.innerHTML = `<b>🔒 Trava de segurança</b>
+    <div class="orig" style="margin-top:4px">Estes envios <b>não foram</b> para o Gestão nem para os caixas. Confira o motivo: se foi você (ou alguém da loja) e está certo, libere; se não reconhece, recuse${adm ? "" : " — só o administrador pode liberar ou recusar"}.</div>
+    ${!F.length && !P.length ? `<div style="margin-top:10px">Nada aguardando.</div>` : ""}
+    ${F.map(f => `<div class="trava-it"><b>${escH(f.titulo || f.tipo)}</b> <span class="orig">· Loja ${f.loja_id} · ${hm(f.criado_em)} · ${escH(f.criado_por || "?")}</span>
+      <div class="mot">${escH(String(f.trava_motivo || "").split(" | ").join("\n"))}</div>
+      ${adm ? `<div class="linha" style="gap:8px"><button data-fl="${f.id}">Liberar</button><button class="sec" data-fr="${f.id}">Recusar</button><a href="#" data-fv="${f.id}" style="align-self:center">ver o envio</a></div>` : ""}</div>`).join("")}
+    ${P.length ? `<div class="trava-it"><b>Promoções seguradas (${P.length})</b>
+      <div style="max-height:40vh;overflow:auto">${P.map(p => `<div style="margin-top:6px;font-size:12px"><b>${escH(p.descricao || p.ean)}</b> · Loja ${p.loja_id} · ${escH(p.criado_por || "?")}<div class="mot">${escH(p.trava_motivo || "")}</div></div>`).join("")}</div>
+      ${adm ? `<div class="linha" style="gap:8px;margin-top:6px"><button data-pl="1">Liberar todas</button><button class="sec" data-pc="1">Cancelar todas</button></div>` : ""}</div>` : ""}
+    <div id="trMsg" class="aviso" style="margin-top:8px"></div>
+    <a style="cursor:pointer;color:#0b57d0;display:inline-block;margin-top:8px" id="bx">fechar</a>`;
+  b.querySelector("#bx").onclick = () => b.style.display = "none";
+  const m = b.querySelector("#trMsg");
+  const feito = async (r, txt) => { if (r.error) { m.textContent = "Erro: " + r.error.message; return; } m.textContent = txt; await travaVerificar(); setTimeout(travaAbrir, 600); if (vista === "promocoes" && typeof pmCarregar === "function") pmCarregar(); };
+  for (const x of b.querySelectorAll("[data-fl]")) x.onclick = async () => { if (!confirm("Liberar este envio? Ele vai para o Gestão (e caixas) da loja em seguida.")) return; feito(await supa.rpc("fila_liberar", { p_ids: [Number(x.dataset.fl)] }), "Liberado: o PC da loja grava em instantes."); };
+  for (const x of b.querySelectorAll("[data-fr]")) x.onclick = async () => feito(await supa.rpc("fila_recusar", { p_ids: [Number(x.dataset.fr)] }), "Recusado: nada foi gravado.");
+  for (const x of b.querySelectorAll("[data-fv]")) x.onclick = async ev => { ev.preventDefault(); const r = await supa.from("fila").select("conteudo").eq("id", Number(x.dataset.fv)).single(); const pre = document.createElement("pre"); pre.style.cssText = "white-space:pre-wrap;font-size:10px;max-height:40vh;overflow:auto;background:#f6f8fb;padding:6px"; pre.textContent = (r.data && r.data.conteudo) || "(vazio)"; x.closest(".trava-it").appendChild(pre); x.remove(); };
+  const pl = b.querySelector("[data-pl]"); if (pl) pl.onclick = async () => { if (!confirm(`Liberar ${P.length} promoção(ões)? Elas entram no horário agendado.`)) return; feito(await supa.rpc("promo_liberar", { p_ids: P.map(p => p.id) }), "Promoções liberadas."); };
+  const pc = b.querySelector("[data-pc]"); if (pc) pc.onclick = async () => feito(await supa.from("promocoes").update({ status: "cancelada", encerrada_em: new Date().toISOString() }).in("id", P.map(p => p.id)), "Promoções canceladas.");
+}
 // ---------- enviar ao Gestão pela fila (o ouvinte do PC de cada loja aplica) ----------
 const acompanhando = new Map();
 // o envio direto aos caixas só existe no PC da loja a partir do ouvinte 2.3 (ele se atualiza sozinho minutos depois de ligar)
@@ -1977,7 +2108,7 @@ function resumoPos(res) {
   const ls = String(res || "").split(/\r?\n/).filter(x => /^POS (OK|AVISO|ERRO)/.test(x)); if (!ls.length) return "";
   return ls.map(x => x.replace(/^POS OK: /, "caixas: ").replace(/^POS AVISO: /, "caixas — atenção: ").replace(/^POS ERRO: /, "caixas NÃO atualizados: ")).join(" ");
 }
-const emCurso = v => v && (v.status === "pendente" || v.status === "aplicando");
+const emCurso = v => v && (v.status === "pendente" || v.status === "aplicando" || v.status === "aguardando");
 async function enviarAoGestao(tipo, comPos) {
   if (!supa) return baixarArquivo(tipo);
   const dois = l2On(), dst = destino();
@@ -2033,7 +2164,7 @@ function acompanharEnvio(id, chave, campo) {
   const atual = () => campo === "envio2" ? envio2Atual : envioAtual;
   const parar = () => { const a = acompanhando.get(id); if (!a) return; clearInterval(a.t); try { supa.removeChannel(a.c); } catch (e) {} acompanhando.delete(id); };
   const trata = async f => {
-    if (!f || f.status === "pendente" || f.status === "aplicando") { const v = atual(); if (f && v && v.id === id && v.status !== f.status) { v.status = f.status; avisoBaixa(); } return; }
+    if (!f || f.status === "pendente" || f.status === "aplicando" || f.status === "aguardando") { const v = atual(); if (f && v && v.id === id && v.status !== f.status) { v.status = f.status; avisoBaixa(); if (f.status === "aguardando") travaVerificar(); } return; }
     if (!acompanhando.has(id)) return;
     parar();
     let resumo = ""; const mres = /PRODUTOS_ATUALIZADOS[\s=]*(\d+)/.exec(f.resultado || "");
@@ -2264,6 +2395,7 @@ function prAcompanhar(id, l, st) {
     const r = await supa.from("fila").select("status, resultado, aplicado_em").eq("id", id).single(); const f = r.data;
     if (f && f.status === "aplicado") { clearInterval(t); const rp = resumoPos(f.resultado); st.innerHTML = `<span class="chip ok">gravado na Loja ${l}</span>` + (rp ? ` <span class="chip ${/NÃO|atenção/.test(rp) ? "falta" : "ok"}">${escH(rp)}</span>` : ""); msg(`Ajuste gravado no Gestão da Loja ${l}.` + (rp ? " " + rp : " A busca mostra os valores novos em até 5 minutos.")); setTimeout(() => cadastroDaNuvem(true), 25000); }
     else if (f && f.status === "erro") { clearInterval(t); st.innerHTML = `<span class="chip falta" style="cursor:pointer">o Gestão da Loja ${l} recusou — toque para ver</span>`; st.firstChild.onclick = () => mostrarResultadoEnvio({ id, status: "erro" }); }
+    else if (f && f.status === "aguardando") { if (st.dataset.tv !== "1") { st.dataset.tv = "1"; st.innerHTML = `<span class="chip falta" style="cursor:pointer">segurado pela trava de segurança — aguarda o administrador liberar</span>`; st.firstChild.onclick = travaAbrir; travaVerificar(); } }
     else if (Date.now() - ini > 45000 && st.dataset.av !== "1") { st.dataset.av = "1"; st.innerHTML = `<span class="chip av">na fila — o PC da Loja ${l} parece desligado; grava assim que ligar</span>`; }
     if (Date.now() - ini > 30 * 60000) clearInterval(t);
   }, 3000);
@@ -2915,8 +3047,9 @@ async function entrarNoSistema(sessao) {
     document.getElementById("lgMsg").textContent = r.error ? "Erro ao entrar: " + r.error.message : "Este e-mail ainda não foi autorizado. Peça ao administrador para incluir.";
     await supa.auth.signOut(); mostrarLogin(true); return;
   }
+  if (r.data.perfil !== "separacao" && !(await mfaGarantir(r.data))) return;
   mostrarLogin(false);
-  window.__email = sessao.user.email;
+  window.__email = sessao.user.email; window.__admin = !!r.data.admin;
   const u = document.getElementById("usuario"); u.innerHTML = ""; u.append(sessao.user.email); const a = document.createElement("a"); a.textContent = "sair"; a.onclick = async () => { await supa.auth.signOut(); location.reload(); }; u.appendChild(a);
   if (r.data.perfil === "separacao") { // funcionário: só a tela de separação, sem cadastro, vendas, notas…
     document.body.classList.add("perfil-sep"); sepIniciar(); mostrar("separacao", true);
@@ -2924,6 +3057,7 @@ async function entrarNoSistema(sessao) {
   }
   sepIniciar();
   if (r.data.admin) { const b = document.createElement("a"); b.textContent = "incluir usuário"; b.onclick = incluirUsuario; u.appendChild(b); }
+  travaVerificar(); setInterval(travaVerificar, 60000);
   document.getElementById("lCad").style.display = "none";
   document.getElementById("soLocal").style.display = "none";
   db = dbSupabase(supa);
@@ -3905,7 +4039,7 @@ async function hjCarregar() {
     // saúde do sistema: pedidos ao Gestão recusados ou parados, e a ligação com o Bling
     const de2 = new Date(Date.now() - 2 * 864e5).toISOString();
     const [rf, rb] = await Promise.all([
-      supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em, resultado").in("status", ["erro", "pendente", "aplicando"]).is("dispensado_em", null).not("tipo", "in", "(teste,diagnostico)").gte("criado_em", de2).order("id", { ascending: false }).limit(60),
+      supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em, resultado").in("status", ["erro", "pendente", "aplicando", "aguardando"]).is("dispensado_em", null).not("tipo", "in", "(teste,diagnostico)").gte("criado_em", de2).order("id", { ascending: false }).limit(60),
       supa.rpc("bling_saude")]);
     HJ.sis = { fila: rf.data || [], bling: rb.data || null };
     { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, despachado_em, situacao_id, devolvido_em, ignorado_em, atendido_bling_em").or(`despachado_em.is.null,criado_em.gte.${new Date(Date.now() - 7 * 864e5).toISOString()}`).limit(600);
@@ -3928,8 +4062,9 @@ function hjSistema(tcard, row) {
     else { const [hh, mm] = String(u.ult).split(":").map(Number), min = Math.round((agora - new Date().setHours(hh, mm, 0, 0)) / 60000); if (min > 60) it.push(["av", `Nenhuma venda da Loja ${l} chega há ${min >= 120 ? Math.floor(min / 60) + " h" : min + " min"} (última às ${String(u.ult).slice(0, 5)})`]); }
   }
   const F = S.fila || [], nota = t => t === "entrada" || t === "precos";
-  const rec = F.filter(f => f.status === "erro" && !nota(f.tipo)), par = F.filter(f => f.status !== "erro" && agora - new Date(f.criado_em) > 15 * 60000);
+  const rec = F.filter(f => f.status === "erro" && !nota(f.tipo)), par = F.filter(f => f.status !== "erro" && f.status !== "aguardando" && agora - new Date(f.criado_em) > 15 * 60000), trv = F.filter(f => f.status === "aguardando");
   if (rec.length) { HJ.recusados = rec; it.push(["erro", `<a href="#" data-recusados="1" style="color:inherit"><strong>${rec.length}</strong> pedido${rec.length > 1 ? "s" : ""} ao Gestão recusado${rec.length > 1 ? "s" : ""} nos últimos 2 dias (${escH([...new Set(rec.map(f => f.tipo))].join(", "))}) — toque para ver ou dispensar</a>`]); }
+  if (trv.length) it.push(["erro", `<a href="#" data-trava="1" style="color:inherit"><strong>${trv.length}</strong> pedido${trv.length > 1 ? "s" : ""} segurado${trv.length > 1 ? "s" : ""} pela trava de segurança — toque para revisar</a>`]);
   if (par.length) it.push(["av", `<strong>${par.length}</strong> pedido${par.length > 1 ? "s" : ""} esperando o PC da loja há mais de 15 min`]);
   const B = S.bling;
   if (B) {
@@ -4053,6 +4188,7 @@ function hjDesenhar() {
   for (const a of el.querySelectorAll("a[data-v]")) a.addEventListener("click", ev => { ev.preventDefault(); mostrar(a.dataset.v); });
   el.querySelector("#hjAtu").addEventListener("click", () => { HJ.vendas = null; hjDesenhar(); hjCarregar(); });
   for (const x of el.querySelectorAll("[data-recusados]")) x.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); hjRecusados(); });
+  for (const x of el.querySelectorAll("[data-trava]")) x.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); travaAbrir(); });
   el.querySelector("#hjZap").addEventListener("click", () => {
     const T = [`*Nova Raphaella — resumo de ${new Date(h + "T12:00:00").toLocaleDateString("pt-BR")}*`, ""];
     for (const l of [1, 2]) T.push(`Loja ${l}: vendas de hoje ${orBrl(vd(l, h))} (ontem ${orBrl(vd(l, ontem))}, média 7 dias ${orBrl(media7(l))})`);
@@ -4460,8 +4596,8 @@ function pmNovo(pre) {
 function pmDesenhar() {
   const el = document.getElementById("pmPainel"); if (!el) return;
   const hoje = vdIso(new Date()), f = PM.filtro;
-  const vis = PM.lista.filter(p => f === "todas" ? true : f === "vigentes" ? (p.status === "ativa" || p.status === "agendada" || p.status === "pausada") : p.status === f);
-  const stChip = p => p.status === "ativa" ? `<span class="chip ok">ativa até ${p.diario ? (pmH(p.hora_fim) || "24:00") + " de hoje" : orData(p.fim) + (p.hora_fim ? " " + pmH(p.hora_fim) : "")}</span>` : p.status === "agendada" ? `<span class="chip av">começa ${orData(p.inicio)}${p.hora_ini ? " " + pmH(p.hora_ini) : ""}</span>` : p.status === "pausada" ? `<span class="chip novo" title="promoção diária fora do horário: preço normal agora">fora do horário · volta ${pmH(p.hora_ini) || "00:00"}</span>` : p.status === "encerrada" ? `<span class="chip" style="background:#eee">encerrada</span>` : `<span class="chip" style="background:#eee">cancelada</span>`;
+  const vis = PM.lista.filter(p => f === "todas" ? true : f === "vigentes" ? (p.status === "ativa" || p.status === "agendada" || p.status === "pausada" || p.status === "aguardando") : p.status === f);
+  const stChip = p => p.status === "ativa" ? `<span class="chip ok">ativa até ${p.diario ? (pmH(p.hora_fim) || "24:00") + " de hoje" : orData(p.fim) + (p.hora_fim ? " " + pmH(p.hora_fim) : "")}</span>` : p.status === "agendada" ? `<span class="chip av">começa ${orData(p.inicio)}${p.hora_ini ? " " + pmH(p.hora_ini) : ""}</span>` : p.status === "pausada" ? `<span class="chip novo" title="promoção diária fora do horário: preço normal agora">fora do horário · volta ${pmH(p.hora_ini) || "00:00"}</span>` : p.status === "encerrada" ? `<span class="chip" style="background:#eee">encerrada</span>` : p.status === "aguardando" ? `<span class="chip falta" title="${escH(p.trava_motivo || "")}">segurada pela trava — aguarda liberação</span>` : `<span class="chip" style="background:#eee">cancelada</span>`;
   const n = PM.novo;
   const form = n ? `<div class="painel" style="border:1px solid #0b57d0;margin-bottom:8px">
     <div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -4500,7 +4636,7 @@ function pmDesenhar() {
     ${form}
     ${vis.length ? `<div style="overflow:auto"><table><thead><tr><th>Produto</th><th>Loja</th><th>Promoção</th><th class="n">De</th><th class="n">Por</th><th class="n">Desc.</th><th>Período</th><th>Situação</th><th></th></tr></thead><tbody>
     ${vis.map(p => `<tr class="${p.status === "ativa" ? "pok" : ""}"><td>${escH(p.descricao || "")}<div class="orig mono" style="font-size:10px">${escH(p.ean)}</div></td><td>Loja ${p.loja_id}</td><td>${escH(p.nome || "")}</td>${p.tipo === "combo" || p.tipo === "levepague" ? `<td class="n">${orBrl(p.preco_normal)}<div class="orig">un.</div></td><td class="n"><b>${p.tipo === "levepague" ? `leve ${p.combo_qtd} pague ${p.pague}` : `${p.combo_qtd} por ${orBrl(p.combo_preco)}`}</b><div class="orig">combo · leve ${p.leve} + ${br(p.desconto_pct)}%</div></td><td class="n">${br(pmDesc(Number(p.preco_normal) * p.combo_qtd, Number(p.combo_preco)), 1)}%</td>` : `<td class="n"><s>${orBrl(p.preco_normal)}</s></td><td class="n"><b>${orBrl(p.preco_promo)}</b></td><td class="n">${br(pmDesc(Number(p.preco_normal), Number(p.preco_promo)), 1)}%</td>`}<td>${pmPer(p)}</td><td>${stChip(p)}${p.fila_ini && p.status === "ativa" ? ` <span class="orig" data-fila="${p.fila_ini}"></span>` : ""}</td>
-      <td style="white-space:nowrap">${p.status === "ativa" ? `<a href="#" data-enc="${p.id}" style="color:#b42318">encerrar agora</a>` : p.status === "agendada" || p.status === "pausada" ? `<a href="#" data-canc="${p.id}" style="color:#b42318">${p.status === "pausada" ? "encerrar" : "cancelar"}</a>` : `<a href="#" data-del="${p.id}" style="color:#8a94a6">apagar</a>`}</td></tr>`).join("")}</tbody></table></div>` : `<div class="orig">Nenhuma promoção ${f === "todas" ? "cadastrada" : "neste filtro"}.</div>`}`;
+      <td style="white-space:nowrap">${p.status === "ativa" ? `<a href="#" data-enc="${p.id}" style="color:#b42318">encerrar agora</a>` : p.status === "agendada" || p.status === "pausada" || p.status === "aguardando" ? `<a href="#" data-canc="${p.id}" style="color:#b42318">${p.status === "pausada" ? "encerrar" : "cancelar"}</a>` : `<a href="#" data-del="${p.id}" style="color:#8a94a6">apagar</a>`}</td></tr>`).join("")}</tbody></table></div>` : `<div class="orig">Nenhuma promoção ${f === "todas" ? "cadastrada" : "neste filtro"}.</div>`}`;
   const g = id => el.querySelector("#" + id);
   g("pmFiltro").addEventListener("change", ev => { PM.filtro = ev.target.value; pmDesenhar(); });
   if (g("pmNovoB")) g("pmNovoB").addEventListener("click", () => pmNovo());

@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="117">
+<meta name="versao" content="118">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5197,8 +5197,9 @@ function etZpl(it, c) {
   const [inteiro, cent] = etPreco(it.preco).split(","), xp = W - 300;
   const z = [`^XA^CI0^MTD^PW${W}^LL${H}^LH${Math.max(0, dx)},${Math.max(0, dy)}^MD${Math.max(0, Math.min(30, Number(c.escuro) || 15)) - 15}^PQ${Math.max(1, Math.floor(it.qtd || 1))},0,1,Y`];
   z.push(`^FO16,14^A0N,30,26^FB${xp - 30},2,4,L,0^FD${desc}^FS`);
-  if (ean.length === 13 && gtinValido(ean)) z.push(`^FO16,${H - 104}^BY2,2.5,52^BEN,52,Y,N^FD${ean.slice(0, 12)}^FS`);
-  else if (ean) z.push(`^FO16,${H - 104}^BY2,2.5,52^BCN,52,Y,N,N^FD${ean}^FS`);
+  // código de barras maior (módulo 3, 72 pontos de altura); códigos longos voltam ao módulo 2 para caber
+  if (ean.length === 13 && gtinValido(ean)) z.push(`^FO16,${H - 122}^BY3,2.5,72^BEN,72,Y,N^FD${ean.slice(0, 12)}^FS`);
+  else if (ean) z.push(`^FO16,${H - 122}^BY${ean.length > 13 ? 2 : 3},2.5,72^BCN,72,Y,N,N^FD${ean}^FS`);
   if (promo) {
     z.push(`^FO${xp},12^A0N,26,22^FDDE R$ ${etPreco(it.de)}^FS`, `^FO${xp},24^GB${Math.min(280, 14 * ("DE R$ " + etPreco(it.de)).length)},3,3^FS`, `^FO${xp},66^A0N,24,22^FDPOR^FS`);
     if (it.ate) z.push(`^FO${xp + 70},70^A0N,20,18^FDATE ${it.ate}^FS`);
@@ -5240,7 +5241,7 @@ const ET_UNIDADES = ["metro", "kg", "100 g", "litro", "cm", "pacote"];
 const ET_SOB = ["", "un.", "pct.", "cx.", "par", "dz.", "kit", "kg", "m"];
 function etBarras(ean, x, y, h, by) {
   if (ean.length === 13 && gtinValido(ean)) return `^FO${x},${y}^BY${by},2.5,${h}^BEN,${h},Y,N^FD${ean.slice(0, 12)}^FS`;
-  if (ean) return `^FO${x},${y}^BY${ean.length > 13 ? 1 : by},2.5,${h}^BCN,${h},Y,N,N^FD${ean}^FS`;
+  if (ean) return `^FO${x},${y}^BY${ean.length > 13 ? Math.max(1, by - 1) : by},2.5,${h}^BCN,${h},Y,N,N^FD${ean}^FS`;
   return "";
 }
 function etCabZpl(c, W, H, dxmm, dymm, qtd) {
@@ -5258,7 +5259,7 @@ function etZplModelo(it, c, modelo) {
     z.push(etBarras(ean, 40, H - 140, 90, 3));
   } else {
     z.push(`^FO16,14^A0N,30,26^FB${xp - 30},2,4,L,0^FD${etAscii(it.desc).toUpperCase().slice(0, 64)}^FS`);
-    z.push(etBarras(ean, 16, H - 104, 52, 2));
+    z.push(etBarras(ean, 16, H - 122, 72, 3));
     if (modelo === "combo") {
       const n = Math.max(2, Math.floor(it.cq || 0)), tot = Number(it.cp) || 0, [inteiro, cent] = etPreco(tot).split(",");
       z.push(`^FO${xp},10^A0N,34,28^FD${n} UNID. POR^FS`, `^FO${xp},58^A0N,24,20^FDR$^FS`);

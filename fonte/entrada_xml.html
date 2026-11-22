@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="88">
+<meta name="versao" content="90">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -489,7 +489,11 @@
  </div>
  <div id="vSeparacao" style="display:none">
   <div class="painel"><div class="linha" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b style="font-size:16px">Pedidos online para separar</b><div class="orig" id="sepInfo" style="margin:2px 0 0">Pedidos do Mercado Livre e da Shopee que entram no Bling. Separe o produto da prateleira e toque em <b>Separei</b>.</div></div>
-   <div class="linha" style="gap:8px"><label class="c" style="display:flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="sepSom" checked> som ao chegar pedido</label><button class="sec" id="sepAtu">Atualizar</button></div></div></div>
+   <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center">
+    <select id="sepSomTipo" title="som do aviso"><option value="sino">Som: sino</option><option value="campainha">Som: campainha (dim-dom)</option><option value="caixa">Som: caixa registradora</option><option value="alarme">Som: alarme</option><option value="apito">Som: apito curto</option><option value="nenhum">Sem som</option></select>
+    <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="volume">vol. <input type="range" id="sepVol" min="0" max="100" step="5" value="80" style="width:110px"></label>
+    <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="toca de novo a cada minuto enquanto houver pedido para separar"><input type="checkbox" id="sepRep"> repetir até separar</label>
+    <button class="sec" id="sepTeste">Testar som</button><button class="sec" id="sepAtu">Atualizar</button><input type="checkbox" id="sepSom" checked hidden></div></div></div>
   <div id="sepLista"></div>
  </div>
  <div id="vVendas" style="display:none">
@@ -2930,17 +2934,37 @@ function sepIniciar() {
   }).subscribe();
   sepContar(); setInterval(sepContar, 120000);
   document.getElementById("sepAtu").onclick = () => sepCarregar();
-  try { document.getElementById("sepSom").checked = localStorage.getItem("sepSom") !== "0"; } catch (e) {}
-  document.getElementById("sepSom").onchange = ev => { try { localStorage.setItem("sepSom", ev.target.checked ? "1" : "0"); } catch (e) {} };
+  sepSomIniciar();
 }
-function sepBip() {
-  try { if (!document.getElementById("sepSom").checked) return; const C = window.AudioContext || window.webkitAudioContext; const c = new C();
-    [[880, 0], [1175, .18], [1568, .36]].forEach(([f, t]) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; o.type = "sine"; g.gain.setValueAtTime(.0001, c.currentTime + t); g.gain.exponentialRampToValueAtTime(.3, c.currentTime + t + .02); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + t + .16); o.connect(g).connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + .18); });
+// sons sintetizados (sem arquivo): tipo e volume escolhidos na tela, guardados neste aparelho
+let sepCtx = null;
+function sepBip(forcar) {
+  try {
+    const tipo = document.getElementById("sepSomTipo").value; if (tipo === "nenhum") return;
+    const vol = Math.max(0, Math.min(1, Number(document.getElementById("sepVol").value) / 100)); if (!vol) return;
+    const C = window.AudioContext || window.webkitAudioContext; sepCtx = sepCtx || new C(); const c = sepCtx; if (c.state === "suspended") c.resume();
+    const saida = c.createDynamicsCompressor(); saida.connect(c.destination); // deixa alto sem distorcer
+    const nota = (f, t, dur, forma = "sine", pico = 1) => { const o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime + t; o.type = forma; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(Math.max(.001, vol * pico), t0 + .015); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur); o.connect(g).connect(saida); o.start(t0); o.stop(t0 + dur + .02); };
+    if (tipo === "sino") { [[880, 0], [1175, .18], [1568, .36]].forEach(([f, t]) => { nota(f, t, .5, "sine"); nota(f * 2, t, .25, "sine", .3); }); }
+    else if (tipo === "campainha") { nota(988, 0, .9, "triangle"); nota(784, .45, 1.1, "triangle"); nota(1976, 0, .3, "sine", .25); nota(1568, .45, .35, "sine", .25); }
+    else if (tipo === "caixa") { nota(2093, 0, .08, "square", .5); nota(2637, .09, .08, "square", .5); [0, .1, .2].forEach(t => nota(4186, .25 + t, .6, "sine", .6)); nota(3136, .3, .9, "sine", .5); }
+    else if (tipo === "alarme") { for (let i = 0; i < 6; i++) nota(i % 2 ? 660 : 880, i * .22, .2, "square", .7); }
+    else if (tipo === "apito") { nota(1760, 0, .25, "square", .8); }
   } catch (e) {}
+}
+function sepSomIniciar() {
+  const t = document.getElementById("sepSomTipo"), v = document.getElementById("sepVol"), r = document.getElementById("sepRep");
+  try { t.value = localStorage.getItem("sepSomTipo") || "sino"; v.value = localStorage.getItem("sepVol") || "80"; r.checked = localStorage.getItem("sepRep") === "1"; } catch (e) {}
+  const salva = () => { try { localStorage.setItem("sepSomTipo", t.value); localStorage.setItem("sepVol", v.value); localStorage.setItem("sepRep", r.checked ? "1" : "0"); } catch (e) {} };
+  t.onchange = () => { salva(); sepBip(); }; v.onchange = () => { salva(); sepBip(); }; r.onchange = salva;
+  document.getElementById("sepTeste").onclick = () => sepBip(true);
+  // repetir a cada minuto enquanto houver pedido esperando separação
+  setInterval(() => { if (r.checked && (SEP.pend || 0) > 0) sepBip(); }, 60000);
 }
 function sepAviso(p) { sepBip(); msg(`Pedido novo (${p.canal || "online"}): ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + i.descricao).join(", ").slice(0, 140)} — separar`); }
 async function sepContar() {
-  if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).neq("situacao_id", 12);
+  if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).not("situacao_id", "in", "(9,12)");
   const b = document.getElementById("sepBadge"); if (b) { b.textContent = count || ""; b.style.display = count ? "" : "none"; } SEP.pend = count || 0;
 }
 async function sepCarregar() {
@@ -2953,7 +2977,9 @@ async function sepCarregar() {
 }
 function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
-  const pend = L.filter(p => !p.separado_em && p.situacao_id !== 12), devolver = L.filter(p => p.separado_em && p.situacao_id === 12 && !p.devolvido_em), feitos = L.filter(p => p.separado_em && !(p.situacao_id === 12 && !p.devolvido_em)).reverse();
+  // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
+  const pend = L.filter(p => !p.separado_em && p.situacao_id !== 12 && p.situacao_id !== 9), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
+    aguard = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12), feitos = L.filter(p => p.despachado_em || (p.separado_em && p.situacao_id === 12 && p.devolvido_em)).reverse();
   const ha = d => { const m = Math.round((agora - new Date(d)) / 60000); return m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60) + " min" : ""}` : `há ${Math.floor(m / 1440)} dia(s)`; };
   const canal = p => `<span class="sep-canal ${/mercado/i.test(p.canal) ? "ml" : /shopee/i.test(p.canal) ? "sh" : ""}">${escH(p.canal || "Online")}</span>`;
   const foto = u => u ? `<img src="${escH(u)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=semfoto></span>'">` : `<span class="semfoto"></span>`;
@@ -2962,14 +2988,19 @@ function sepDesenhar() {
   let h = "";
   if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
   h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— do mais antigo para o mais novo</span></div>` + pend.map(p => card(p, `<button class="sep-bt" data-sep="${p.id}">Separei</button>`)).join("")
-    : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSom").checked ? " com um aviso sonoro" : ""}.</span></div>`;
-  if (feitos.length) h += `<div class="painel"><details><summary style="cursor:pointer"><b>Separados nos últimos 7 dias (${feitos.length})</b></summary>` + feitos.map(p => `<div class="linha" style="justify-content:space-between;border-top:1px solid var(--borda);padding:6px 0;gap:8px"><div>${canal(p)} ${escH(p.cliente || "")} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${escH(new Date(p.separado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}${p.separado_por ? " por " + escH(p.separado_por) : ""}${p.devolvido_em ? " · cancelado e devolvido à prateleira" : ""}</div></div>${p.devolvido_em ? "" : `<a href="#" data-desf="${p.id}" style="font-size:12px">desfazer</a>`}</div>`).join("") + `</details></div>`;
+    : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
+  const dh = d => escH(new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
+  if (aguard.length) h += `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta ou postagem), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
+    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <b>${escH(p.cliente || "")}</b> <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><button data-desp="${p.id}">Despachei</button></div></div>`).join("");
+  if (feitos.length) h += `<div class="painel"><details><summary style="cursor:pointer"><b>Despachados nos últimos 7 dias (${feitos.length})</b></summary>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} ${escH(p.cliente || "")} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}</div></div>`).join("") + `</details></div>`;
   el.innerHTML = h;
   for (const p of L) SEP.vistos.add(p.id); SEP.primeira = false;
   const acao = async (id, a) => { const { error } = await supa.rpc("pedido_separar", { p_id: Number(id), p_acao: a }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
   for (const b of el.querySelectorAll("[data-sep]")) b.onclick = () => { b.disabled = true; acao(b.dataset.sep, "separar"); };
   for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
   for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };
+  for (const b of el.querySelectorAll("[data-desp]")) b.onclick = () => { b.disabled = true; acao(b.dataset.desp, "despachar"); };
+  { const t = el.querySelector("#sepTodos"); if (t) t.onclick = () => { if (confirm(`Marcar os ${aguard.length} pedidos separados como despachados? Eles viram "Atendido" no Bling.`)) { t.disabled = true; acao(0, "despachar_todos"); } }; }
 }
 function mostrarLogin(sim) {
   document.body.classList.toggle("logado", !sim);
@@ -3641,8 +3672,8 @@ async function hjCarregar() {
       supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em, resultado").in("status", ["erro", "pendente", "aplicando"]).is("dispensado_em", null).not("tipo", "in", "(teste,diagnostico)").gte("criado_em", de2).order("id", { ascending: false }).limit(60),
       supa.rpc("bling_saude")]);
     HJ.sis = { fila: rf.data || [], bling: rb.data || null };
-    { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, situacao_id, devolvido_em").gte("criado_em", new Date(Date.now() - 7 * 864e5).toISOString()).limit(400);
-      const L = rp.data || []; HJ.ped = { pend: L.filter(p => !p.separado_em && p.situacao_id !== 12), dev: L.filter(p => p.separado_em && p.situacao_id === 12 && !p.devolvido_em) }; }
+    { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, despachado_em, situacao_id, devolvido_em").gte("criado_em", new Date(Date.now() - 7 * 864e5).toISOString()).limit(400);
+      const L = rp.data || []; HJ.ped = { pend: L.filter(p => !p.separado_em && p.situacao_id !== 12 && p.situacao_id !== 9), dev: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em), desp: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12) }; }
   } catch (e) { console.warn("hoje", e); }
   HJ.carregando = false; hjDesenhar();
   clearTimeout(HJ.t); if (vista === "hoje") HJ.t = setTimeout(() => { if (vista === "hoje") hjCarregar(); }, 120000);
@@ -3758,6 +3789,7 @@ function hjDesenhar() {
       ${(() => { const P = HJ.ped || { pend: [], dev: [] }, ico = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/></svg>`, ant = P.pend.length ? Math.round((Date.now() - Math.min(...P.pend.map(p => new Date(p.criado_em)))) / 60000) : 0;
         return tcard("Separação", ico, P.pend.length ? `${P.pend.length} para separar` : "em dia", "separacao",
           (P.pend.length ? row(ant > 60 ? "erro" : "av", `<strong>${P.pend.length}</strong> pedido${P.pend.length > 1 ? "s" : ""} online para separar (o mais antigo há ${ant >= 120 ? Math.floor(ant / 60) + " h" : ant + " min"})`, "") : row("vazio", "Nenhum pedido online esperando separação", `<span class="badge ok">ok</span>`)) +
+          ((P.desp || []).length ? row("av", `<strong>${P.desp.length}</strong> separado${P.desp.length > 1 ? "s" : ""} aguardando despacho`, "") : "") +
           (P.dev.length ? row("erro", `<strong>${P.dev.length}</strong> cancelado${P.dev.length > 1 ? "s" : ""} depois de separar: devolver à prateleira`, "") : "")); })()}
       ${tcard("Boletos", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg>`, `${bol.length} em aberto`, "boletos",
         (bv.length ? row("erro", `<strong>${bv.length}</strong> vencido${bv.length > 1 ? "s" : ""}`, `<strong>${orBrl(soma(bv))}</strong>`) : "") +

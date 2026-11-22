@@ -22,6 +22,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 //     pedidos_online, com itens, foto, localização e componentes de kit, para a loja separar (tela Separação). Só entram pedidos a partir de
 //     bling_auth.pedidos_desde (os antigos "Em aberto" não). A situação é atualizada a cada busca (cancelado depois de separado → devolver).
 //     bling(): uma nova tentativa quando o Bling responde 429 (limite de 3 chamadas por segundo).
+// v7 (22/11/2026): despacho — pedido marcado "Despachei" na tela Separação vira "Atendido" no Bling (o Bling lança o estoque nessa troca;
+//     a sincronização leva a baixa ao Gestão). bling(): se o Bling disser que o token não vale (401), renova uma vez e tenta de novo.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +77,11 @@ export async function bling(caminho: string, init: RequestInit = {}): Promise<an
   const chama = () => fetch(API + caminho, { ...init, headers: { Authorization: "Bearer " + t, Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } });
   let r = await chama();
   if (r.status === 429) { await new Promise(ok => setTimeout(ok, 1200)); r = await chama(); }
+  if (r.status === 401) { // token recusado antes do vencimento (ex.: escopos do aplicativo alterados): renova e tenta uma vez
+    const a = await lerAuth();
+    if (a.refresh_token) { const n = await pedirToken({ grant_type: "refresh_token", refresh_token: a.refresh_token }).catch(() => null);
+      if (n) { await gravarAuth({ ...n, ultimo_erro: null }); r = await fetch(API + caminho, { ...init, headers: { Authorization: "Bearer " + n.access_token, Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } }); } }
+  }
   const txt = await r.text(); let j: any = null; try { j = JSON.parse(txt); } catch { j = { texto: txt }; }
   if (!r.ok) throw new Error(`Bling ${r.status}: ${JSON.stringify(j?.error || j).slice(0, 400)}`);
   return j;
@@ -286,7 +293,27 @@ async function produtoInfo(id: number, nivel = 0): Promise<any> {
   await rest("produto_bling_cache?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id, dados: d, em: new Date().toISOString() }) });
   return d;
 }
+// despachados na tela Separação → "Atendido" no Bling (lança o estoque); até 5 tentativas por pedido
+async function atenderDespachados() {
+  const ps: any[] = (await rest("pedidos_online?select=id,situacao_id,atendido_tentativas&despachado_em=not.is.null&atendido_bling_em=is.null&atendido_tentativas=lt.5&order=despachado_em.asc&limit=40")) || [];
+  let n = 0;
+  for (const p of ps) {
+    try {
+      if (Number(p.situacao_id) !== 9) { await bling(`/pedidos/vendas/${p.id}/situacoes/9`, { method: "PATCH" }); await espera(340); }
+      await rest(`pedidos_online?id=eq.${p.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ situacao_id: 9, situacao: "Atendido", atendido_bling_em: new Date().toISOString(), atendido_erro: null, atendido_tentativas: (p.atendido_tentativas || 0) + 1, atualizado_em: new Date().toISOString() }) });
+      n++;
+    } catch (e) {
+      await rest(`pedidos_online?id=eq.${p.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ atendido_erro: String((e as Error).message).slice(0, 300), atendido_tentativas: (p.atendido_tentativas || 0) + 1 }) });
+    }
+  }
+  return n;
+}
 async function buscarPedidos() {
+  const atendidos = await atenderDespachados().catch(() => 0);
+  const r = await buscarNovos();
+  return { ...r, atendidos };
+}
+async function buscarNovos() {
   const a = await lerAuth(); if (!a.pedidos_desde) return { novos: 0, atualizados: 0 };
   const desdeDia = new Date(new Date(a.pedidos_desde).getTime() - 3 * 3600e3).toISOString().slice(0, 10); // dia em São Paulo
   const ini = new Date(Date.now() - 3 * 3600e3 - 3 * 864e5).toISOString().slice(0, 10), dIni = ini > desdeDia ? ini : desdeDia;
@@ -357,7 +384,7 @@ Deno.serve(async (req: Request) => {
     if (!a.cron_token || tokCron !== a.cron_token) return resp({ ok: false, erro: "sem_permissao" }, 403);
     const corpoCron = await req.clone().json().catch(() => ({}));
     if (corpoCron?.acao === "pedidos") {
-      try { const r = await buscarPedidos(); await gravarAuth({ pedidos_em: new Date().toISOString(), pedidos_msg: `${r.novos} novo(s), ${r.atualizados} atualizado(s)` }); return resp({ ok: true, ...r }); }
+      try { const r = await buscarPedidos(); await gravarAuth({ pedidos_em: new Date().toISOString(), pedidos_msg: `${r.novos} novo(s), ${r.atualizados} atualizado(s), ${r.atendidos} despachado(s) → Atendido` }); return resp({ ok: true, ...r }); }
       catch (e) { await gravarAuth({ pedidos_em: new Date().toISOString(), pedidos_msg: "falhou: " + String((e as Error).message).slice(0, 200) }); return resp({ ok: false, msg: String((e as Error).message) }); }
     }
     if (!(await travar())) return resp({ ok: true, pulou: "outra operação em andamento" });

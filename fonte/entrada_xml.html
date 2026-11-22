@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="100">
+<meta name="versao" content="101">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -267,7 +267,13 @@
   .sep-canal { font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #eef1f4; color: #293343; }
   .sep-canal.ml { background: #fff159; color: #2d3277; } .sep-canal.sh { background: #ee4d2d; color: #fff; }
   .sep-it { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px dashed var(--borda); }
-  .sep-it img, .sep-it .semfoto { width: 56px; height: 56px; object-fit: contain; border-radius: 6px; background: #f5f7f9; flex: none; }
+  .sep-it img, .sep-it .semfoto { width: 96px; height: 96px; object-fit: contain; border-radius: 8px; background: #f5f7f9; flex: none; border: 1px solid var(--borda); }
+  .sep-it img { cursor: zoom-in; }
+  @media (max-width: 600px) { .sep-it img, .sep-it .semfoto { width: 80px; height: 80px; } }
+  #sepZoom { position: fixed; inset: 0; background: #000c; display: none; align-items: center; justify-content: center; z-index: 9999; cursor: zoom-out; padding: 16px; }
+  #sepZoom.on { display: flex; }
+  #sepZoom img { width: min(92vw, 600px); height: min(92vw, 600px); max-height: 78vh; background: #fff; border-radius: 10px; object-fit: contain; }
+  #sepZoom .sep-zt { color: #fff; text-align: center; margin: 10px 0 0; font-weight: 700; max-width: 700px; }
   .sep-qtd { font-size: 22px; font-weight: 800; color: var(--azul); min-width: 44px; text-align: right; flex: none; }
   .sep-comp { margin: 4px 0 0 0; padding-left: 14px; font-size: 13px; color: #3b4658; }
   .sep-bt { width: 100%; margin-top: 10px; font-size: 16px; padding: 12px; }
@@ -521,6 +527,7 @@
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="toca de novo a cada minuto enquanto houver pedido para separar"><input type="checkbox" id="sepRep"> repetir até separar</label>
     <button class="sec" id="sepTeste">Testar som</button><button class="sec" id="sepAtu">Atualizar</button><input type="checkbox" id="sepSom" checked hidden></div></div></div>
   <div id="sepMl" class="orig" style="margin:-4px 2px 8px"></div>
+  <div id="sepZoom" title="toque para fechar"><div style="display:flex;flex-direction:column;align-items:center"><img alt=""><p class="sep-zt"></p></div></div>
   <div id="sepLista"></div>
  </div>
  <div id="vVendas" style="display:none">
@@ -2962,6 +2969,7 @@ function sepIniciar() {
   sepContar(); setInterval(sepContar, 120000);
   document.getElementById("sepAtu").onclick = () => sepCarregar();
   sepSomIniciar(); sepMlStatus();
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape") document.getElementById("sepZoom")?.classList.remove("on"); });
 }
 // impressora Zebra pelo Browser Print (programa da Zebra no PC; na 1ª vez ele pergunta se libera este site)
 async function zebraImprimir(zpl) {
@@ -3165,6 +3173,9 @@ function sepDesenhar() {
   if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
     : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;
   el.innerHTML = h;
+  for (const im of el.querySelectorAll(".sep-it img")) im.onclick = () => { const z = document.getElementById("sepZoom"); z.querySelector("img").src = im.src;
+    z.querySelector(".sep-zt").textContent = (im.closest(".sep-it")?.querySelector("b")?.textContent || ""); z.classList.add("on"); };
+  document.getElementById("sepZoom").onclick = () => document.getElementById("sepZoom").classList.remove("on");
   for (const b of el.querySelectorAll("[data-nf]")) b.onclick = () => sepEmitirNf([Number(b.dataset.nf)]);
   for (const b of el.querySelectorAll("[data-etq]")) b.onclick = () => sepEtiquetas([Number(b.dataset.etq)]);
   if (document.getElementById("sepLoteNf")) document.getElementById("sepLoteNf").onclick = () => sepEmitirNf([...SEP.sel].filter(id => { const p = SEP.lista.find(x => x.id === id); return p && precisaNf(p); }));

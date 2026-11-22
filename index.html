@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="98">
+<meta name="versao" content="99">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -255,6 +255,7 @@
   .sep-cl { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #4a5565; padding: 3px 0; }
   .sep-cl b { min-width: 20px; text-align: center; border-radius: 10px; padding: 0 6px; }
   .sep-cl b.r { background: #fde3e3; color: #b42318; }
+  .sep-mini { padding: 6px 10px; font-size: 13px; }
   .sep-lgchip { background: #eef3fb; color: #1b3d73; }
   .sep-grupo > summary { padding: 2px 0; }
   .sep-grupo[open] > summary { margin-bottom: 10px; }
@@ -2964,6 +2965,43 @@ function sepIniciar() {
   document.getElementById("sepAtu").onclick = () => sepCarregar();
   sepSomIniciar(); sepMlStatus();
 }
+// impressora Zebra pelo Browser Print (programa da Zebra no PC; na 1ª vez ele pergunta se libera este site)
+async function zebraImprimir(zpl) {
+  const base = "https://127.0.0.1:9101/";
+  let r; try { r = await fetch(base + "default?type=printer"); } catch (e) { throw new Error("o Zebra Browser Print não respondeu neste computador (está aberto? já liberou este site?)"); }
+  const t = (await r.text()).trim(); if (!t) throw new Error("o Browser Print não tem impressora padrão escolhida");
+  const dev = JSON.parse(t);
+  const w = await fetch(base + "write", { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify({ device: dev, data: zpl }) });
+  if (!w.ok) throw new Error("a impressora recusou: " + (await w.text()).slice(0, 120));
+  return dev.name || "Zebra";
+}
+async function sepEtiquetas(ids) {
+  if (!ids.length) return;
+  msg(`Buscando ${ids.length} etiqueta(s)…`);
+  const { data: d, error } = await supa.functions.invoke("envios", { body: { acao: "etiqueta", ids, formato: "zpl" } });
+  if (error || !d || !d.ok) return msg("Não deu: " + ((d && d.msg) || (error && error.message) || ""));
+  const erros = d.erros || [];
+  if (d.zpl && d.zpl.length) {
+    try { const nome = await zebraImprimir(d.zpl.join("\n")); msg(`${d.zpl.length > 1 ? d.zpl.length + " arquivos de etiqueta enviados" : "Etiqueta enviada"} para ${nome}${erros.length ? " · " + erros.join(" · ") : ""}`); }
+    catch (e) {
+      if (confirm("Não consegui mandar para a Zebra: " + e.message + "\n\nAbrir a etiqueta em PDF para imprimir pelo navegador?")) {
+        const { data: p } = await supa.functions.invoke("envios", { body: { acao: "etiqueta", ids, formato: "pdf" } });
+        for (const b64 of (p && p.pdf) || []) { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); window.open(URL.createObjectURL(new Blob([u], { type: "application/pdf" })), "_blank"); }
+      }
+    }
+  } else msg("Nenhuma etiqueta disponível: " + (erros.join(" · ") || "o ML ainda não liberou"));
+  setTimeout(() => supa.functions.invoke("envios", { body: { acao: "sync" } }).then(sepCarregar), 4000);
+}
+async function sepEmitirNf(ids) {
+  if (!ids.length || !confirm(`Emitir NF-e de ${ids.length} pedido(s) pelo Bling?\n\nO Bling gera a nota a partir do pedido e transmite à SEFAZ (igual a emitir lá). Depois o Bling manda a nota para o Mercado Livre e a etiqueta é liberada.`)) return;
+  msg("Emitindo no Bling…");
+  const { data: d, error } = await supa.functions.invoke("envios", { body: { acao: "nfe", ids } });
+  if (error || !d || !d.ok) return msg("Não deu: " + ((d && d.msg) || (error && error.message) || ""));
+  const ok = d.itens.filter(x => x.ok).length, ruins = d.itens.filter(x => !x.ok);
+  msg(`${ok} nota(s) emitida(s)` + (ruins.length ? ` · ${ruins.length} com problema: ` + ruins.map(x => x.msg).join(" · ").slice(0, 300) : ""));
+  // o ML leva alguns segundos para receber a nota do Bling e liberar a etiqueta
+  setTimeout(() => supa.functions.invoke("envios", { body: { acao: "sync" } }).then(sepCarregar), 20000);
+}
 // ligação com o Mercado Livre (função "envios"): Flex/Agência/Coleta/Full e prazos
 async function sepMlStatus() {
   const el = document.getElementById("sepMl"); if (!el || !supa) return;
@@ -3065,6 +3103,12 @@ function sepDesenhar() {
     return `<span class="sep-links">${mk}<a href="https://www.bling.com.br/vendas.php#edit/${p.id}" target="_blank" rel="noopener">abrir no Bling ↗</a></span>`; };
   const enviado = p => (p.nf_id > 0) || !!p.rastreio; // nota emitida ou rastreio no Bling: provavelmente já saiu
   const sinais = p => (p.nf_id > 0 ? `<span class="chip" title="o Bling tem nota fiscal emitida para este pedido">NF emitida</span>` : "") + (p.rastreio ? `<span class="chip" title="código de rastreio no Bling">rastreio ${escH(String(p.rastreio).slice(0, 26))}</span>` : "");
+  // NF e etiqueta (NF só para o perfil completo; etiqueta para quem separa)
+  const adm = !document.body.classList.contains("perfil-sep");
+  const precisaNf = p => p.ml_substatus === "invoice_pending" || (!/mercado/i.test(p.canal || "") && !(p.nf_id > 0));
+  const temEtiqueta = p => /^(ready_to_print|printed)$/.test(p.ml_substatus || "") || (/shopee/i.test(p.canal || "") && p.nf_id > 0);
+  const botoesEnvio = p => (adm && precisaNf(p) ? `<button class="sec sep-mini" data-nf="${p.id}" title="gera e transmite a NF-e deste pedido pelo Bling">Emitir NF</button>` : "") +
+    (temEtiqueta(p) ? `<button class="sec sep-mini" data-etq="${p.id}" title="manda a etiqueta direto para a Zebra (Browser Print)">${p.ml_substatus === "printed" ? "Reimprimir etiqueta" : "Imprimir etiqueta"}</button>` : "");
   // ===== abas e cartões por forma de envio (como no painel do Mercado Livre) =====
   const LG = { flex: "Flex", agencia: "Agência", coleta: "Coleta", full: "Full", shopee_direta: "Shopee · Entrega Direta", shopee_xpress: "Shopee Xpress", shopee_retirada: "Shopee · Retirada", outro: "Outros envios", ml: "Mercado Livre", shopee: "Shopee" };
   const LGORD = ["flex", "agencia", "coleta", "shopee_direta", "shopee_xpress", "shopee_retirada", "ml", "shopee", "outro", "full"];
@@ -3101,10 +3145,12 @@ function sepDesenhar() {
         ${nEnv ? `<button class="sec" id="sepSelEnv" title="pedidos com nota fiscal emitida ou código de rastreio no Bling">Marcar os com NF ou rastreio (${nEnv})</button>` : ""}
         <button class="sec" id="sepSelTodos">Marcar todos</button><button class="sec" id="sepSelLimpa">Desmarcar</button>
         <span style="flex:1"></span>
+        ${adm ? `<button class="sec" id="sepLoteNf" ${SEP.sel.size ? "" : "disabled"}>Emitir NF (${SEP.sel.size})</button>` : ""}
+        <button class="sec" id="sepLoteEtq" ${SEP.sel.size ? "" : "disabled"}>Imprimir etiquetas (${SEP.sel.size})</button>
         <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
         <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div></div>`;
     const btSep = p => card(p, cancML(p) ? `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt sec" data-canc="${p.id}">Cancelada no Mercado Livre — tirar da lista</button></div>`
-      : `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
+      : `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button>${botoesEnvio(p)}<a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
     const grupos = []; // canceladas, atrasados, hoje, cada dia seguinte, sem data
     for (const p of vis) { const e = envio(p), k = cancML(p) ? "canc" : !e ? "sem" : e < hojeSP ? "atras" : e; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, l: [] }); g.l.push(p); }
     const ordem = g => g.k === "canc" ? "0" : g.k === "atras" ? "1" : g.k === "sem" ? "z" : "2" + g.k; grupos.sort((a, b) => ordem(a).localeCompare(ordem(b)));
@@ -3113,11 +3159,15 @@ function sepDesenhar() {
       : `<div class="painel"><b style="color:var(--ok)">${SEP.aba === "hoje" ? "Nada para enviar hoje." : "Nada para os próximos dias."}</b> <span class="orig">Quando entrar um pedido, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   }
   if (SEP.aba === "sep") h += aguard.length ? `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta, agência ou Flex), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem daqui sozinhos quando o ML registra o envio." : ""}</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
-    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> <b>${escH(p.cliente || "")}</b> ${atraso(p)} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><button data-desp="${p.id}">Despachei</button></div></div>`).join("")
+    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> <b>${escH(p.cliente || "")}</b> ${atraso(p)} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><div class="linha" style="gap:8px">${botoesEnvio(p)}<button data-desp="${p.id}">Despachei</button></div></div></div>`).join("")
     : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
   if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
     : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;
   el.innerHTML = h;
+  for (const b of el.querySelectorAll("[data-nf]")) b.onclick = () => sepEmitirNf([Number(b.dataset.nf)]);
+  for (const b of el.querySelectorAll("[data-etq]")) b.onclick = () => sepEtiquetas([Number(b.dataset.etq)]);
+  if (document.getElementById("sepLoteNf")) document.getElementById("sepLoteNf").onclick = () => sepEmitirNf([...SEP.sel].filter(id => { const p = SEP.lista.find(x => x.id === id); return p && precisaNf(p); }));
+  if (document.getElementById("sepLoteEtq")) document.getElementById("sepLoteEtq").onclick = () => sepEtiquetas([...SEP.sel].filter(id => { const p = SEP.lista.find(x => x.id === id); return p && temEtiqueta(p); }));
   for (const b of el.querySelectorAll("[data-aba]")) b.onclick = () => { SEP.aba = b.dataset.aba; SEP.lg = null; SEP.sel.clear(); sepDesenhar(); };
   for (const b of el.querySelectorAll("[data-lg]")) b.onclick = () => { SEP.lg = SEP.lg === b.dataset.lg ? null : b.dataset.lg; SEP.sel.clear(); sepDesenhar(); };
   if (document.getElementById("sepLgTodos")) document.getElementById("sepLgTodos").onclick = ev => { ev.preventDefault(); SEP.lg = null; sepDesenhar(); };

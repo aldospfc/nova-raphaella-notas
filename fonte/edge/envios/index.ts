@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { unzipSync, strFromU8 } from "https://esm.sh/fflate@0.8.2";
 
 // Envios dos pedidos online (tela Separação).
 // - Mercado Livre (API oficial, OAuth do aplicativo do Aldo): forma de envio (Flex, Agência, Coleta, Full), situação do envio
@@ -8,6 +9,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // - sync (pg_cron de 3 em 3 min, ou botão): atualiza os pedidos pendentes da tela. Pedido que o ML diz que já saiu (enviado/entregue)
 //   vira "despachado" sozinho (a função "bling" passa para Atendido no Bling, regra do Aldo). Cancelado no ML fica marcado "Cancelada. Não enviar".
 // v1 (22/11/2026).
+// v2 (22/11/2026): nfe — gera a NF-e do pedido no Bling e transmite (o Bling manda a nota ao ML); etiqueta — etiqueta do ML em ZPL
+//     (impressora Zebra pelo Browser Print) ou PDF; Shopee pelo Bling (logísticas/etiquetas).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -58,6 +61,60 @@ async function blingPedido(id: number): Promise<any> {
   if (!a.access_token || new Date(a.expires_at).getTime() < Date.now() + 60000) return null;
   const r = await fetch(`https://api.bling.com.br/Api/v3/pedidos/vendas/${id}`, { headers: { Authorization: "Bearer " + a.access_token, Accept: "application/json" } });
   if (!r.ok) return null; return ((await r.json().catch(() => ({}))) || {}).data || null;
+}
+
+async function blingTok(): Promise<string> {
+  const a = ((await rest("bling_auth?id=eq.1&select=access_token,expires_at")) || [])[0] || {};
+  if (!a.access_token || new Date(a.expires_at).getTime() < Date.now() + 60000) throw new Error("o acesso ao Bling está sendo renovado — tente de novo em 1 minuto");
+  return a.access_token;
+}
+async function bling(caminho: string, init: RequestInit = {}): Promise<any> {
+  const t = await blingTok();
+  let r = await fetch("https://api.bling.com.br/Api/v3" + caminho, { ...init, headers: { Authorization: "Bearer " + t, Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } });
+  if (r.status === 429) { await espera(1200); r = await fetch("https://api.bling.com.br/Api/v3" + caminho, { ...init, headers: { Authorization: "Bearer " + t, Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } }); }
+  const txt = await r.text(); let j: any = null; try { j = JSON.parse(txt); } catch { j = { texto: txt }; }
+  if (!r.ok) { const f = (j?.error?.fields || []).map((x: any) => x.msg).filter(Boolean).join("; "); throw new Error(`Bling ${r.status}: ${f || j?.error?.description || j?.error?.message || JSON.stringify(j).slice(0, 200)}`); }
+  return j;
+}
+const NFE_SIT: Record<number, string> = { 1: "pendente", 2: "cancelada", 3: "aguardando recibo", 4: "rejeitada", 5: "autorizada", 6: "emitida (DANFE)", 7: "registrada", 8: "aguardando protocolo", 9: "denegada", 10: "consultando situação", 11: "bloqueada" };
+// gera (se faltar) e transmite a NF-e do pedido pelo Bling
+async function emitirNfe(id: number): Promise<{ ok: boolean; msg: string; nf?: number }> {
+  const ped = (await bling(`/pedidos/vendas/${id}`)).data || {}; await espera(350);
+  let nf = Number(ped?.notaFiscal?.id) || 0;
+  if (nf) { const n = (await bling(`/nfe/${nf}`)).data || {}; await espera(350); const st = Number(n.situacao);
+    if ([5, 6, 7].includes(st)) return { ok: true, msg: "já tinha NF autorizada (nº " + (n.numero || "?") + ")", nf };
+    if (st === 2 || st === 9) nf = 0; }
+  if (!nf) { const g = await bling(`/pedidos/vendas/${id}/gerar-nfe`, { method: "POST", body: "{}" }); nf = Number(g?.data?.id) || 0; await espera(400); if (!nf) throw new Error("o Bling não devolveu a nota gerada"); }
+  await bling(`/nfe/${nf}/enviar`, { method: "POST", body: "{}" }); await espera(1500);
+  const n = (await bling(`/nfe/${nf}`)).data || {}; const st = Number(n.situacao);
+  await rest(`pedidos_online?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ nf_id: nf }) });
+  return { ok: [5, 6, 7, 3, 8, 10].includes(st), msg: (NFE_SIT[st] || "situação " + st) + (n.numero ? " · NF nº " + n.numero : ""), nf };
+}
+// etiqueta: ML (ZPL ou PDF) pelos envios; Shopee pelo Bling
+async function etiquetas(ids: number[], formato: string) {
+  const ps: any[] = ids.length ? (await rest(`pedidos_online?select=id,loja_bling,ml_envio,numero_loja,cliente&id=in.(${ids.join(",")})`)) || [] : [];
+  const mlEnv = ps.filter(p => Number(p.loja_bling) === LOJA_ML && p.ml_envio).map(p => p.ml_envio);
+  const out: { zpl: string[]; pdf: string[]; erros: string[] } = { zpl: [], pdf: [], erros: [] };
+  if (mlEnv.length) {
+    const t = await tokenMl();
+    const r = await fetch(`${ML}/shipment_labels?shipment_ids=${mlEnv.join(",")}&response_type=${formato === "pdf" ? "pdf" : "zpl2"}`, { headers: { Authorization: "Bearer " + t } });
+    const b = new Uint8Array(await r.arrayBuffer());
+    if (!r.ok) out.erros.push("Mercado Livre: " + new TextDecoder().decode(b).slice(0, 250));
+    else if (formato === "pdf") { let bin = ""; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000)); out.pdf.push(btoa(bin)); }
+    else if (b[0] === 0x50 && b[1] === 0x4b) { const z = unzipSync(b); for (const [nome, c] of Object.entries(z)) if (/\.(txt|zpl)$/i.test(nome) || !/\./.test(nome)) out.zpl.push(strFromU8(c)); }
+    else out.zpl.push(new TextDecoder().decode(b));
+  }
+  for (const p of ps.filter(p => Number(p.loja_bling) !== LOJA_ML)) {
+    try {
+      const j = await bling(`/logisticas/etiquetas?formato=${formato === "pdf" ? "PDF" : "ZPL"}&idsVendas[]=${p.id}`); await espera(350);
+      for (const e of (j?.data || [])) { if (!e?.link) continue; const r = await fetch(e.link); if (!r.ok) continue;
+        if (formato === "pdf") { const b = new Uint8Array(await r.arrayBuffer()); let bin = ""; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000)); out.pdf.push(btoa(bin)); }
+        else out.zpl.push(await r.text()); }
+      if (!(j?.data || []).length) out.erros.push(`${p.cliente || p.numero_loja}: o Bling não devolveu etiqueta (a Shopee já liberou o envio?)`);
+    } catch (e) { out.erros.push(`${p.cliente || p.numero_loja}: ${String((e as Error).message).slice(0, 160)}`); }
+  }
+  for (const p of ps.filter(p => Number(p.loja_bling) === LOJA_ML && !p.ml_envio)) out.erros.push(`${p.cliente || p.numero_loja}: envio do ML ainda não identificado`);
+  return out;
 }
 
 const TIPO: Record<string, string> = { self_service: "flex", drop_off: "agencia", xd_drop_off: "agencia", cross_docking: "coleta", fulfillment: "full" };
@@ -161,7 +218,7 @@ Deno.serve(async (req: Request) => {
     const corpo = await req.json().catch(() => ({}));
     const acao = String(corpo?.acao || "");
     // status: quem pode separar vê; ligar: só perfil completo
-    const fn = acao === "status" ? "pode_separar" : "permitido";
+    const fn = acao === "status" || acao === "etiqueta" ? "pode_separar" : "permitido";
     const p = await fetch(URL_SB + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: ANON, Authorization: auth, "Content-Type": "application/json" }, body: "{}" });
     if (!p.ok || (await p.json()) !== true) return resp({ ok: false, erro: "sem_permissao", msg: "Entre no sistema de novo." }, 403);
     let email = ""; try { email = JSON.parse(atob(auth.replace(/^Bearer\s+/i, "").split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).email || ""; } catch { /* */ }
@@ -175,6 +232,15 @@ Deno.serve(async (req: Request) => {
       const estado = crypto.randomUUID().replace(/-/g, "");
       await gravarMl({ estado, estado_em: new Date().toISOString(), estado_por: email });
       return resp({ ok: true, url: `${ML_AUTH}?response_type=code&client_id=${encodeURIComponent(c.id)}&redirect_uri=${encodeURIComponent(REDIRECT)}&state=${estado}` });
+    }
+    if (acao === "nfe") {
+      const ids: number[] = (corpo?.ids || []).map(Number).filter(Boolean).slice(0, 20); const res: any[] = [];
+      for (const id of ids) { try { res.push({ id, ...(await emitirNfe(id)) }); } catch (e) { res.push({ id, ok: false, msg: String((e as Error).message).slice(0, 300) }); } }
+      return resp({ ok: true, itens: res });
+    }
+    if (acao === "etiqueta") {
+      const ids: number[] = (corpo?.ids || []).map(Number).filter(Boolean).slice(0, 50);
+      return resp({ ok: true, ...(await etiquetas(ids, String(corpo?.formato || "zpl"))) });
     }
     if (acao === "sync") {
       const r = await sincronizar();

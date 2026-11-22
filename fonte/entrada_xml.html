@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="116">
+<meta name="versao" content="117">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5200,10 +5200,23 @@ function etZpl(it, c) {
   if (promo) {
     z.push(`^FO${xp},12^A0N,26,22^FDDE R$ ${etPreco(it.de)}^FS`, `^FO${xp},24^GB${Math.min(280, 14 * ("DE R$ " + etPreco(it.de)).length)},3,3^FS`, `^FO${xp},66^A0N,24,22^FDPOR^FS`);
     if (it.ate) z.push(`^FO${xp + 70},70^A0N,20,18^FDATE ${it.ate}^FS`);
-  } else z.push(`^FO${xp},${H - 150}^A0N,28,24^FDR$^FS`);
-  z.push(`^FO${xp},${promo ? 92 : 64}^A0N,${promo ? 120 : 140},${promo ? 92 : 104}^FD${inteiro}^FS`);
-  const largInt = inteiro.length * (promo ? 64 : 72) + 6;
-  z.push(`^FO${Math.min(W - 64, xp + largInt)},${promo ? 98 : 72}^A0N,${promo ? 54 : 62},${promo ? 42 : 48}^FD,${cent}^FS`);
+  }
+  const sob = it.sob ? etAscii(it.sob).toUpperCase().slice(0, 8) : "";
+  if (sob && promo) {
+    // DE/POR com unidade: preço um pouco menor e a unidade logo abaixo dos centavos
+    z.push(`^FO${xp},92^A0N,100,76^FD${inteiro}^FS`);
+    const li = inteiro.length * 54 + 6;
+    z.push(`^FO${Math.min(W - 64, xp + li)},96^A0N,46,36^FD,${cent}^FS`, `^FO${Math.min(W - 90, xp + li)},148^A0N,30,26^FD${sob}^FS`);
+  } else if (sob) {
+    // preço normal com unidade embaixo (R$ pequeno à esquerda)
+    z.push(`^FO${xp},40^A0N,26,22^FDR$^FS`, `^FO${xp + 34},30^A0N,116,86^FD${inteiro}^FS`);
+    z.push(`^FO${Math.min(W - 60, xp + 34 + inteiro.length * 62 + 6)},38^A0N,52,40^FD,${cent}^FS`, `^FO${xp + 34},156^A0N,40,34^FD${sob}^FS`);
+  } else {
+    if (!promo) z.push(`^FO${xp},${H - 150}^A0N,28,24^FDR$^FS`);
+    z.push(`^FO${xp},${promo ? 92 : 64}^A0N,${promo ? 120 : 140},${promo ? 92 : 104}^FD${inteiro}^FS`);
+    const largInt = inteiro.length * (promo ? 64 : 72) + 6;
+    z.push(`^FO${Math.min(W - 64, xp + largInt)},${promo ? 98 : 72}^A0N,${promo ? 54 : 62},${promo ? 42 : 48}^FD,${cent}^FS`);
+  }
   z.push(`^FO${W - 150},${H - 22}^A0N,16,14^FD${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}${it.cod ? " " + etAscii(it.cod).slice(0, 8) : ""}^FS`);
   z.push("^XZ");
   return z.join("\n");
@@ -5213,7 +5226,7 @@ function etPreview(it) {
   return `<div style="width:315px;height:90px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">
     <div style="position:absolute;left:6px;top:4px;width:205px;font-size:10px;font-weight:bold;line-height:1.15;max-height:26px;overflow:hidden">${escH(etAscii(it.desc).toUpperCase())}</div>
     <div style="position:absolute;left:6px;bottom:4px;font-size:8px;letter-spacing:1px">▌▍▌▌▍▍▌▍▌▌▍▌▍<br>${escH(it.ean || "")}</div>
-    <div style="position:absolute;left:215px;top:${promo ? 2 : 14}px;width:98px">${promo ? `<div style="font-size:9px;text-decoration:line-through">DE R$ ${etPreco(it.de)}</div><div style="font-size:8px">POR</div>` : `<div style="font-size:9px">R$</div>`}<span style="font-size:${promo ? 34 : 40}px;font-weight:bold;line-height:1">${i}</span><span style="font-size:${promo ? 16 : 19}px;font-weight:bold;vertical-align:top">,${c}</span></div></div>`;
+    <div style="position:absolute;left:215px;top:${promo ? 2 : 14}px;width:98px">${promo ? `<div style="font-size:9px;text-decoration:line-through">DE R$ ${etPreco(it.de)}</div><div style="font-size:8px">POR</div>` : `<div style="font-size:9px">R$</div>`}<span style="font-size:${promo ? 34 : 40}px;font-weight:bold;line-height:1">${i}</span><span style="font-size:${promo ? 16 : 19}px;font-weight:bold;vertical-align:top">,${c}</span>${it.sob ? `<div style="font-size:${promo ? 9 : 11}px;font-weight:bold;line-height:1">${escH(etAscii(it.sob).toUpperCase())}</div>` : ""}</div></div>`;
 }
 const ET_MODELOS = [
   ["gondola", "Gôndola 105×30 (preço / DE-POR)"],
@@ -5222,6 +5235,7 @@ const ET_MODELOS = [
   ["casa", "Gôndola 105×30 · código da casa (nome + código)"],
   ["adesivo", "Adesivo de produto 40×25 · 2 colunas"]];
 const ET_UNIDADES = ["metro", "kg", "100 g", "litro", "cm", "pacote"];
+const ET_SOB = ["", "un.", "pct.", "cx.", "par", "dz.", "kit", "kg", "m"];
 function etBarras(ean, x, y, h, by) {
   if (ean.length === 13 && gtinValido(ean)) return `^FO${x},${y}^BY${by},2.5,${h}^BEN,${h},Y,N^FD${ean.slice(0, 12)}^FS`;
   if (ean) return `^FO${x},${y}^BY${ean.length > 13 ? 1 : by},2.5,${h}^BCN,${h},Y,N,N^FD${ean}^FS`;
@@ -5303,7 +5317,7 @@ async function etAdicionarEans(lista, loja) {
   loja = loja || ET.loja; const eans = [...new Set(lista.map(x => String(x.ean || "")).filter(Boolean))]; if (!eans.length || !supa) return 0;
   const m = new Map(); for (let i = 0; i < eans.length; i += 150) { const r = await supa.from("produtos").select("ean,descricao,preco_venda,codigo_interno").eq("loja_id", loja).in("ean", eans.slice(i, i + 150)); for (const p of r.data || []) m.set(p.ean, p); }
   let n = 0;
-  for (const x of lista) { const p = m.get(String(x.ean)); if (!p) continue; const ja = ET.itens.find(i => i.ean === p.ean); if (ja) { if (x.qtd) ja.qtd = x.qtd; continue; } ET.itens.push({ ean: p.ean, desc: (x.desc && String(x.desc).trim()) || p.descricao, descOrig: p.descricao, cod: p.codigo_interno || "", preco: x.preco != null ? x.preco : r2(Number(p.preco_venda) || 0), de: x.de || null, ate: x.ate || null, qtd: x.qtd || 1, cq: x.cq || null, cp: x.cp || null, un: x.un || null }); n++; }
+  for (const x of lista) { const p = m.get(String(x.ean)); if (!p) continue; const ja = ET.itens.find(i => i.ean === p.ean); if (ja) { if (x.qtd) ja.qtd = x.qtd; continue; } ET.itens.push({ ean: p.ean, desc: (x.desc && String(x.desc).trim()) || p.descricao, descOrig: p.descricao, cod: p.codigo_interno || "", preco: x.preco != null ? x.preco : r2(Number(p.preco_venda) || 0), de: x.de || null, ate: x.ate || null, qtd: x.qtd || 1, cq: x.cq || null, cp: x.cp || null, un: x.un || null, sob: x.sob || null }); n++; }
   return n;
 }
 function etDesenhar() {
@@ -5319,10 +5333,10 @@ function etDesenhar() {
       <button class="sec" id="etPromo" title="itens em promoção ativa nesta loja (etiqueta DE/POR)">promoções ativas</button>
       ${ET.itens.length ? `<a href="#" id="etLimpar" style="color:#b42318;font-size:12px;margin-left:8px">limpar lista</a>` : ""}</div>
     <div id="etRes" style="margin-top:4px"></div>
-    ${ET.itens.length ? `<div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th>${md === "casa" ? "" : `<th class="n">${md === "combo" ? "Preço avulso" : md === "medida" ? "Preço da unidade" : "Preço"}</th>`}${md === "gondola" ? `<th class="n">De (promo)</th>` : ""}${md === "combo" ? `<th class="n">Leve (qtd)</th><th class="n">Por R$</th>` : ""}${md === "medida" ? `<th>Unidade</th>` : ""}<th class="n">Qtd ${md === "adesivo" ? "adesivos" : "etiquetas"}</th><th>Prévia</th><th></th></tr></thead><tbody>
+    ${ET.itens.length ? `<div style="overflow:auto;margin-top:8px"><table><thead><tr><th>Produto</th>${md === "casa" ? "" : `<th class="n">${md === "combo" ? "Preço avulso" : md === "medida" ? "Preço da unidade" : "Preço"}</th>`}${md === "gondola" ? `<th class="n">De (promo)</th><th>Abaixo do preço<br><select id="etSobTodos" title="aplicar a todos" style="font-size:11px"><option value="">todos…</option>${ET_SOB.map(u => `<option value="${u || "-"}">${u || "(nada)"}</option>`).join("")}</select></th>` : ""}${md === "combo" ? `<th class="n">Leve (qtd)</th><th class="n">Por R$</th>` : ""}${md === "medida" ? `<th>Unidade</th>` : ""}<th class="n">Qtd ${md === "adesivo" ? "adesivos" : "etiquetas"}</th><th>Prévia</th><th></th></tr></thead><tbody>
       ${ET.itens.map((i, n) => `<tr data-n="${n}"><td><input type="text" data-k="desc" value="${orA(i.desc)}" maxlength="80" title="nome só para a etiqueta; o cadastro não muda" style="width:280px;max-width:100%">${i.descOrig && i.desc !== i.descOrig ? `<div class="orig" style="font-size:10px">no cadastro: ${escH(i.descOrig)} · <a href="#" data-orig>voltar ao do cadastro</a></div>` : ""}<div class="orig mono" style="font-size:10px">${escH(i.ean)}</div></td>
         ${md === "casa" ? "" : `<td class="n"><input type="text" inputmode="decimal" data-k="preco" value="${br(i.preco)}" style="width:76px;text-align:right"></td>`}
-        ${md === "gondola" ? `<td class="n"><input type="text" inputmode="decimal" data-k="de" value="${i.de ? br(i.de) : ""}" placeholder="—" style="width:76px;text-align:right" title="preencha só para etiqueta de promoção (DE/POR)"></td>` : ""}
+        ${md === "gondola" ? `<td class="n"><input type="text" inputmode="decimal" data-k="de" value="${i.de ? br(i.de) : ""}" placeholder="—" style="width:76px;text-align:right" title="preencha só para etiqueta de promoção (DE/POR)"></td><td><select data-k="sob">${ET_SOB.map(u => `<option value="${u}" ${(i.sob || "") === u ? "selected" : ""}>${u || "—"}</option>`).join("")}</select></td>` : ""}
         ${md === "combo" ? `<td class="n"><input type="number" data-k="cq" min="2" step="1" value="${i.cq || ""}" placeholder="ex.: 6" style="width:60px;text-align:right"></td><td class="n"><input type="text" inputmode="decimal" data-k="cp" value="${i.cp ? br(i.cp) : ""}" placeholder="ex.: 10,00" style="width:76px;text-align:right"></td>` : ""}
         ${md === "medida" ? `<td><select data-k="un">${ET_UNIDADES.map(u => `<option ${(i.un || "metro") === u ? "selected" : ""}>${u}</option>`).join("")}</select></td>` : ""}
         <td class="n"><input type="number" data-k="qtd" min="0" step="1" value="${i.qtd}" style="width:60px;text-align:right"></td><td>${etPreviewModelo(i, md)}</td><td><a href="#" data-rm style="color:#b42318">✕</a></td></tr>`).join("")}</tbody></table></div>
@@ -5338,7 +5352,8 @@ function etDesenhar() {
       <label class="c" title="0 a 30; padrão 15">Escuro<input type="number" step="1" min="0" max="30" data-c="escuro" value="${c.escuro}" style="width:60px"></label>
       <button class="sec" id="etListar">Ver impressoras do PC da Loja ${ET.loja}</button><button class="sec" id="etTeste">Imprimir 1 de teste</button></div></details>`;
   const g = id => el.querySelector("#" + id);
-  g("etLoja").addEventListener("change", ev => { ET.loja = Number(ev.target.value); const eans = ET.itens.map(i => ({ ean: i.ean, qtd: i.qtd, de: i.de, cq: i.cq, cp: i.cp, un: i.un, desc: i.descOrig && i.desc !== i.descOrig ? i.desc : null })); ET.itens = []; etAdicionarEans(eans).then(etDesenhar); });
+  g("etLoja").addEventListener("change", ev => { ET.loja = Number(ev.target.value); const eans = ET.itens.map(i => ({ ean: i.ean, qtd: i.qtd, de: i.de, cq: i.cq, cp: i.cp, un: i.un, sob: i.sob, desc: i.descOrig && i.desc !== i.descOrig ? i.desc : null })); ET.itens = []; etAdicionarEans(eans).then(etDesenhar); });
+  if (g("etSobTodos")) g("etSobTodos").addEventListener("change", ev => { const v = ev.target.value; if (!v) return; for (const it of ET.itens) it.sob = v === "-" ? null : v; etDesenhar(); });
   g("etModelo").addEventListener("change", ev => { ET.modelo = ev.target.value; try { localStorage.setItem("etModelo", ET.modelo); } catch (e) {} etDesenhar(); });
   g("etBuscarB").addEventListener("click", () => etBuscar(g("etQ").value.trim())); g("etQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); etBuscar(g("etQ").value.trim(), true); } });
   g("etCam").addEventListener("click", () => lerCamera(cd => etBuscar(cd, true)));
@@ -5347,7 +5362,7 @@ function etDesenhar() {
   g("etPromo").addEventListener("click", async () => { const r = await supa.from("promocoes").select("ean,preco_normal,preco_promo,fim").eq("loja_id", ET.loja).eq("status", "ativa"); const l = (r.data || []).map(p => ({ ean: p.ean, qtd: 1, de: Number(p.preco_normal), preco: Number(p.preco_promo), ate: orData(p.fim).slice(0, 5) })); const n = await etAdicionarEans(l); msg(`${n} item(ns) em promoção adicionados.`); etDesenhar(); });
   if (g("etLimpar")) g("etLimpar").addEventListener("click", ev => { ev.preventDefault(); ET.itens = []; etDesenhar(); });
   for (const tr of el.querySelectorAll("tr[data-n]")) { const it = ET.itens[Number(tr.dataset.n)];
-    for (const i of tr.querySelectorAll("[data-k]")) i.addEventListener("change", () => { const k = i.dataset.k; it[k] = k === "desc" ? (i.value.replace(/\s+/g, " ").trim() || it.descOrig || it[k]) : k === "un" ? i.value : (k === "qtd" || k === "cq") ? Math.max(0, parseInt(i.value, 10) || 0) : (pnum(i.value) > 0 ? r2(pnum(i.value)) : (k === "de" || k === "cp" ? null : it[k])); etDesenhar(); });
+    for (const i of tr.querySelectorAll("[data-k]")) i.addEventListener("change", () => { const k = i.dataset.k; it[k] = k === "sob" ? (i.value || null) : k === "desc" ? (i.value.replace(/\s+/g, " ").trim() || it.descOrig || it[k]) : k === "un" ? i.value : (k === "qtd" || k === "cq") ? Math.max(0, parseInt(i.value, 10) || 0) : (pnum(i.value) > 0 ? r2(pnum(i.value)) : (k === "de" || k === "cp" ? null : it[k])); etDesenhar(); });
     const vo = tr.querySelector("[data-orig]"); if (vo) vo.addEventListener("click", ev => { ev.preventDefault(); it.desc = it.descOrig; etDesenhar(); });
     tr.querySelector("[data-rm]").addEventListener("click", ev => { ev.preventDefault(); ET.itens.splice(Number(tr.dataset.n), 1); etDesenhar(); }); }
   if (g("etImprimir")) g("etImprimir").addEventListener("click", () => etEnviar(ET.itens.filter(i => i.qtd > 0)));

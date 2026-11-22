@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="95">
+<meta name="versao" content="96">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -239,6 +239,10 @@
   .sep-ped.novo { border-color: #e08a00; box-shadow: 0 0 0 2px #ffe2b3; }
   .sep-links { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
   .sep-links a { color: var(--azul, #1b2d4b); white-space: nowrap; }
+  .sep-gtit { margin: 14px 2px 6px; font-size: 15px; }
+  .sep-grupo > summary { padding: 2px 0; }
+  .sep-grupo[open] > summary { margin-bottom: 10px; }
+  a.chip { text-decoration: none; cursor: pointer; }
   .sep-sel { width: 20px; height: 20px; margin: 0; cursor: pointer; }
   .sep-ped.marcado { border-color: var(--azul, #1b2d4b); box-shadow: 0 0 0 2px #1b2d4b22; }
   .sep-barra { position: sticky; top: 0; z-index: 5; background: #fff; }
@@ -2990,7 +2994,8 @@ async function sepCarregar() {
 function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
   // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
-  const prazo = p => p.data_prevista || p.data || String(p.criado_em || "").slice(0, 10);
+  const envio = p => p.envio_em || p.data_prevista || null; // data em que o pacote precisa sair (à mão ou "data prevista" do Bling)
+  const prazo = p => envio(p) || "9999-" + (p.data || ""); // sem data vai para o fim
   const naTela = p => p.situacao_id !== 12 && !p.despachado_em; // "Atendido" no Bling (nota emitida) não quer dizer que o pacote saiu
   const pend = L.filter(p => !p.separado_em && !p.ignorado_em && naTela(p)).sort((a, b) => prazo(a).localeCompare(prazo(b)) || String(a.criado_em).localeCompare(String(b.criado_em))), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
     aguard = L.filter(p => p.separado_em && !p.despachado_em && !p.ignorado_em && p.situacao_id !== 12), feitos = L.filter(p => p.despachado_em || (p.separado_em && p.situacao_id === 12 && p.devolvido_em)).reverse();
@@ -3003,11 +3008,17 @@ function sepDesenhar() {
   const dias = (a, b) => Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 864e5);
   const quando = p => {
     const v = p.data ? (p.data === hojeSP ? "venda de hoje" : "venda " + dm(p.data)) : ha(p.criado_em);
-    const pz = p.data_prevista ? (p.data_prevista < hojeSP ? "" : p.data_prevista === hojeSP ? " · enviar hoje" : " · enviar até " + dm(p.data_prevista)) : "";
-    return v + pz;
+    return v;
   };
-  const atraso = p => { const ref = p.data_prevista || (p.data && dias(p.data, hojeSP) >= 3 ? p.data : null); if (!ref || ref >= hojeSP) return "";
-    const n = dias(ref, hojeSP); return `<span class="chip falta" title="${p.data_prevista ? "prazo de envio era " + dm(p.data_prevista) : "venda de " + n + " dias atrás"}">atrasado${n > 0 ? " · " + n + " dia" + (n > 1 ? "s" : "") : ""}</span>`; };
+  const SEM = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"], dsem = d => SEM[new Date(d + "T12:00:00Z").getUTCDay()];
+  const amanha = new Date(agora - 3 * 3600e3 + 864e5).toISOString().slice(0, 10);
+  const nomeDia = d => d === hojeSP ? "hoje" : d === amanha ? "amanhã" : dsem(d) + " " + dm(d);
+  // etiqueta com a data de envio (clicável para informar/trocar a data à mão)
+  const atraso = p => { const e = envio(p);
+    if (!e) return `<a href="#" class="chip" data-envio="${p.id}" title="o Bling não informa a data de envio deste pedido — veja no Mercado Livre/Shopee e informe aqui">sem data de envio — informar</a>`;
+    const n = dias(e, hojeSP), cls = e < hojeSP ? "chip falta" : e === hojeSP ? "chip falta" : "chip";
+    const txt = e < hojeSP ? `enviar era ${dm(e)} · atrasado ${n} dia${n > 1 ? "s" : ""}` : "enviar " + nomeDia(e);
+    return `<a href="#" class="${cls}" data-envio="${p.id}" data-envio-d="${e}" title="${p.envio_em ? "data informada à mão" : "data prevista no Bling"} — clique para trocar">${txt}</a>`; };
   // links: página do pedido no marketplace e no Bling (a Shopee não aceita link direto pelo número: abre "Meus pedidos" e copia o número)
   const links = p => { const nl = String(p.numero_loja || ""), ml = /mercado/i.test(p.canal || ""), sh = /shopee/i.test(p.canal || "");
     const mk = ml && nl ? `<a href="https://www.mercadolivre.com.br/vendas/${encodeURIComponent(nl)}/detalhe" target="_blank" rel="noopener">abrir no Mercado Livre ↗</a>`
@@ -3028,7 +3039,15 @@ function sepDesenhar() {
       <span style="flex:1"></span>
       <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
       <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div></div>`;
-  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— do mais antigo para o mais novo</span></div>` + pend.map(p => card(p, `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true)).join("")
+  const btSep = p => card(p, `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button><a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
+  const grupos = []; // atrasados, hoje, amanhã, depois (um grupo por dia), sem data
+  for (const p of pend) { const e = envio(p), k = !e ? "sem" : e < hojeSP ? "atras" : e; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, l: [] }); g.l.push(p); }
+  const ordem = g => g.k === "atras" ? "0" : g.k === "sem" ? "z" : "1" + g.k; grupos.sort((a, b) => ordem(a).localeCompare(ordem(b)));
+  const titG = g => g.k === "atras" ? `<b style="color:#b42318">Atrasados — já deviam ter saído (${g.l.length})</b>` : g.k === "sem" ? `<b>Sem data de envio no Bling (${g.l.length})</b> <span class="orig">— veja a data no Mercado Livre/Shopee e informe no pedido</span>` : `<b>Enviar ${nomeDia(g.k)}${g.k === hojeSP || g.k === amanha ? " (" + dsem(g.k) + " " + dm(g.k) + ")" : ""} — ${g.l.length}</b>`;
+  const longe = g => g.k !== "atras" && g.k !== "sem" && g.k > amanha; // mais de 1 dia à frente: não precisa separar ainda
+  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— por data de envio; os de daqui a 2 dias ou mais ficam fechados</span></div>` + grupos.map(g => longe(g)
+      ? `<details class="painel sep-grupo"><summary style="cursor:pointer">${titG(g)} <span class="orig">— ainda não precisa separar</span></summary>${g.l.map(btSep).join("")}</details>`
+      : `<div class="sep-gtit">${titG(g)}</div>` + g.l.map(btSep).join("")).join("")
     : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   const dh = d => escH(new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
   if (aguard.length) h += `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta ou postagem), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
@@ -3041,6 +3060,13 @@ function sepDesenhar() {
   for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
   for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };
   for (const b of el.querySelectorAll("[data-desp]")) b.onclick = () => { b.disabled = true; acao(b.dataset.desp, "despachar"); };
+  for (const a of el.querySelectorAll("[data-envio]")) a.onclick = async ev => { ev.preventDefault();
+    const atual = a.dataset.envioD ? a.dataset.envioD.split("-").reverse().join("/") : "";
+    const r = prompt("Data em que este pacote precisa ser enviado (dd/mm):\n(veja no Mercado Livre/Shopee; deixe em branco para voltar à data do Bling)", atual.slice(0, 5)); if (r === null) return;
+    let d = null; const m = r.trim().match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+    if (r.trim() && !m) return msg("Data inválida — use dd/mm");
+    if (m) { const ano = m[3] ? (m[3].length === 2 ? "20" + m[3] : m[3]) : hojeSP.slice(0, 4); d = `${ano}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`; }
+    const { error } = await supa.rpc("pedido_data_envio", { p_id: Number(a.dataset.envio), p_data: d }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
   for (const a of el.querySelectorAll("[data-copia]")) a.addEventListener("click", () => { try { navigator.clipboard.writeText(a.dataset.copia); msg("Número " + a.dataset.copia + " copiado — cole na busca de Meus Pedidos da Shopee"); } catch (e) {} });
   for (const b of el.querySelectorAll("[data-canc]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Este pedido foi cancelado no Mercado Livre/Shopee?\n\nEle só sai desta tela. Lembre de cancelar também no Bling para soltar a reserva do estoque.")) acao(b.dataset.canc, "ignorar"); };
   for (const b of el.querySelectorAll("[data-sel]")) b.onchange = () => { const id = Number(b.dataset.sel); b.checked ? SEP.sel.add(id) : SEP.sel.delete(id); sepDesenhar(); };

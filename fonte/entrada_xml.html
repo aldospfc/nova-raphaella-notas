@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="87">
+<meta name="versao" content="88">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -232,6 +232,19 @@
   .sales-num { color: var(--azul); font-size: 32px; font-weight: 800; line-height: 1.35; margin-top: 10px; font-variant-numeric: tabular-nums; }
   .sparkline { width: 120px; height: 40px; color: var(--loja1); flex-shrink: 0; } .l2 .sparkline { color: var(--loja2); }
   .sparkline path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .sparkline circle { fill: currentColor; }
+  body.perfil-sep nav#abas .aba:not([data-v="separacao"]), body.perfil-sep nav#abas .nav-label, body.perfil-sep #barraMob .aba:not([data-v="separacao"]), body.perfil-sep #alertas, body.perfil-sep #bMenu { display: none !important; }
+  #barraMob .so-sep { display: none; } body.perfil-sep #barraMob .so-sep { display: flex; }
+  .nav-badge { margin-left: auto; background: #e08a00; color: #fff; border-radius: 10px; padding: 0 7px; font-size: 11px; line-height: 18px; }
+  .sep-ped { border: 1px solid var(--borda); border-radius: 10px; background: #fff; padding: 12px 14px; margin-bottom: 10px; }
+  .sep-ped.novo { border-color: #e08a00; box-shadow: 0 0 0 2px #ffe2b3; }
+  .sep-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sep-canal { font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #eef1f4; color: #293343; }
+  .sep-canal.ml { background: #fff159; color: #2d3277; } .sep-canal.sh { background: #ee4d2d; color: #fff; }
+  .sep-it { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px dashed var(--borda); }
+  .sep-it img, .sep-it .semfoto { width: 56px; height: 56px; object-fit: contain; border-radius: 6px; background: #f5f7f9; flex: none; }
+  .sep-qtd { font-size: 22px; font-weight: 800; color: var(--azul); min-width: 44px; text-align: right; flex: none; }
+  .sep-comp { margin: 4px 0 0 0; padding-left: 14px; font-size: 13px; color: #3b4658; }
+  .sep-bt { width: 100%; margin-top: 10px; font-size: 16px; padding: 12px; }
   .sparkline path.hoje { stroke-dasharray: 3 3; stroke: #e08a00; } .sparkline path.ref { stroke: #b8c0cc; stroke-width: 1.6; }
   .mini-gs { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; } .mini-g { display: flex; flex-direction: column; align-items: flex-end; } .mini-g span { font-size: 10px; color: #8a94a6; line-height: 1.1; } .sparkline circle.hoje { fill: #fff; stroke: #e08a00; stroke-width: 2; }
   .sales-comp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--borda); padding-top: 12px; margin-top: 14px; }
@@ -341,6 +354,7 @@
   <div class="nav-groups">
    <div class="nav-label">Dia a dia</div>
    <button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span><i class="nav-count" id="nc_hoje"></i></button>
+   <button class="aba" data-v="separacao" title="Separação"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Separação</span><b id="sepBadge" class="nav-badge" style="display:none"></b></button>
    <button class="aba ativa" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span><i class="nav-count" id="nc_entrada"></i></button>
    <button class="aba" data-v="notas" title="Notas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span>Notas</span><i class="nav-count" id="nc_notas"></i></button>
    <button class="aba" data-v="fornec" title="Fornecedores"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span>Fornecedores</span><i class="nav-count" id="nc_fornec"></i></button>
@@ -361,7 +375,7 @@
   <div class="sidebar-bottom">Duas lojas. Uma gestão.</div>
 </nav>
 <div id="veu"></div>
-<nav id="barraMob" aria-label="Atalhos"><button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span></button><button class="aba" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span></button><button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span></button><button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span></button><button id="bMenuMob" title="todas as abas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Menu</span></button></nav>
+<nav id="barraMob" aria-label="Atalhos"><button class="aba so-sep" data-v="separacao" title="Separação"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Separação</span></button><button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span></button><button class="aba" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span></button><button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span></button><button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span></button><button id="bMenuMob" title="todas as abas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Menu</span></button></nav>
 <main id="principal" style="display:none">
  <div id="vEntrada">
   <div class="painel ent-topo" id="entTopo">
@@ -472,6 +486,11 @@
    <div id="prMsg" class="orig" style="margin-top:4px">Busca nas duas lojas. O cadastro mostrado aqui é a cópia da nuvem, atualizada a cada 5 minutos.</div></div>
   <div id="prEd" style="display:none"></div>
   <div class="painel" style="overflow:auto"><table><thead><tr><th>Produto</th><th class="n">Loja 1</th><th class="n">Loja 2</th></tr></thead><tbody id="prRes"></tbody></table></div>
+ </div>
+ <div id="vSeparacao" style="display:none">
+  <div class="painel"><div class="linha" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b style="font-size:16px">Pedidos online para separar</b><div class="orig" id="sepInfo" style="margin:2px 0 0">Pedidos do Mercado Livre e da Shopee que entram no Bling. Separe o produto da prateleira e toque em <b>Separei</b>.</div></div>
+   <div class="linha" style="gap:8px"><label class="c" style="display:flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="sepSom" checked> som ao chegar pedido</label><button class="sec" id="sepAtu">Atualizar</button></div></div></div>
+  <div id="sepLista"></div>
  </div>
  <div id="vVendas" style="display:none">
   <div class="painel linha" style="gap:8px;flex-wrap:wrap"><b>Vendas</b>
@@ -1583,15 +1602,17 @@ async function salvarMeta(chave, patch) {
 }
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 // cada aba vira uma entrada no histórico do navegador (#hoje, #notas…): o botão Voltar volta para a aba anterior em vez de sair do site
-const ABAS_V = ["hoje", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
+const ABAS_V = ["hoje", "separacao", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
 window.addEventListener("popstate", e => { const v = (e.state && e.state.v) || location.hash.slice(1) || "entrada"; if (ABAS_V.includes(v) && v !== vista) mostrar(v, true); });
 function mostrar(v, semHist) {
   if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
+  if (document.body.classList.contains("perfil-sep")) v = "separacao"; // funcionário da separação só vê esta tela
   vista = v;
-  for (const [id, nome] of [["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vSeparacao", "separacao"], ["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   { const b = document.querySelector('nav#abas .aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
   document.body.classList.remove("menu-aberto");
+  if (v === "separacao") { sepCarregar(); return; }
   redesenharTudo();
   if (v === "vendas") vdCarregar();
   if (v === "orcamentos") orDesenharLista();
@@ -2856,6 +2877,11 @@ async function entrarNoSistema(sessao) {
   mostrarLogin(false);
   window.__email = sessao.user.email;
   const u = document.getElementById("usuario"); u.innerHTML = ""; u.append(sessao.user.email); const a = document.createElement("a"); a.textContent = "sair"; a.onclick = async () => { await supa.auth.signOut(); location.reload(); }; u.appendChild(a);
+  if (r.data.perfil === "separacao") { // funcionário: só a tela de separação, sem cadastro, vendas, notas…
+    document.body.classList.add("perfil-sep"); sepIniciar(); mostrar("separacao", true);
+    try { history.replaceState({ v: "separacao" }, "", "#separacao"); } catch (e) {} return;
+  }
+  sepIniciar();
   if (r.data.admin) { const b = document.createElement("a"); b.textContent = "incluir usuário"; b.onclick = incluirUsuario; u.appendChild(b); }
   document.getElementById("lCad").style.display = "none";
   document.getElementById("soLocal").style.display = "none";
@@ -2871,9 +2897,9 @@ async function entrarNoSistema(sessao) {
 }
 function incluirUsuario() {
   const b = document.getElementById("busca"); b.style.display = "block";
-  b.innerHTML = `<b>Incluir usuário</b><br><label class="c" style="margin-top:6px">E-mail<input type="email" id="nuEmail" style="width:100%"></label><label class="c" style="margin-top:6px">Nome<input type="text" id="nuNome" style="width:100%"></label><div class="linha" style="margin-top:8px;gap:8px"><button id="nuOk">Incluir</button><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div><div id="nuMsg" class="orig" style="margin-top:6px">A pessoa cria a conta na tela de entrada com esse e-mail.</div>`;
+  b.innerHTML = `<b>Incluir usuário</b><br><label class="c" style="margin-top:6px">E-mail<input type="email" id="nuEmail" style="width:100%"></label><label class="c" style="margin-top:6px">Nome<input type="text" id="nuNome" style="width:100%"></label><label class="c" style="margin-top:6px">Acesso<select id="nuPerfil" style="width:100%"><option value="completo">Completo (tudo)</option><option value="separacao">Só separação de pedidos online (funcionário)</option></select></label><div class="orig" style="margin-top:4px">A pessoa cria a conta em "Criar conta" com este e-mail e uma senha dela.</div><div class="linha" style="margin-top:8px;gap:8px"><button id="nuOk">Incluir</button><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div><div id="nuMsg" class="orig" style="margin-top:6px">A pessoa cria a conta na tela de entrada com esse e-mail.</div>`;
   b.querySelector("#bx").onclick = () => b.style.display = "none";
-  b.querySelector("#nuOk").onclick = async () => { const r = await supa.rpc("incluir_usuario", { p_email: b.querySelector("#nuEmail").value.trim(), p_nome: b.querySelector("#nuNome").value.trim() }); b.querySelector("#nuMsg").textContent = r.error ? "Erro: " + r.error.message : "Incluído."; };
+  b.querySelector("#nuOk").onclick = async () => { const r = await supa.rpc("incluir_usuario", { p_email: b.querySelector("#nuEmail").value.trim(), p_nome: b.querySelector("#nuNome").value.trim(), p_perfil: b.querySelector("#nuPerfil").value }); b.querySelector("#nuMsg").textContent = r.error ? "Erro: " + r.error.message : "Incluído."; };
 }
 // Ao vivo: cada cupom que o PC da loja sobe (a cada 30 s) avisa a página, que atualiza Hoje e Vendas sem recarregar
 let vivoT = null, vivoCanal = null;
@@ -2893,6 +2919,57 @@ function vivoAtualizar() {
     if (modo === "dia" && !filtro) { if ((document.getElementById("vdDia").value || hoje) === hoje && !VD.cpBusca) vdCarregar(); }
     else if (modo !== "dia" ? (document.getElementById("vdAte").value || "") >= hoje : (document.getElementById("vdDia").value || hoje) === hoje) vdPeriodo();
   }
+}
+// ===== Separação de pedidos online (Mercado Livre, Shopee… via Bling; a nuvem busca de 2 em 2 min) =====
+const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true };
+function sepIniciar() {
+  if (!supa || SEP.canal) return;
+  SEP.canal = supa.channel("pedidos-online").on("postgres_changes", { event: "*", schema: "public", table: "pedidos_online" }, ev => {
+    if (ev.eventType === "INSERT") { sepAviso(ev.new); }
+    clearTimeout(SEP.t); SEP.t = setTimeout(() => { if (vista === "separacao") sepCarregar(); else if (vista === "hoje") hjCarregar(); sepContar(); }, 800);
+  }).subscribe();
+  sepContar(); setInterval(sepContar, 120000);
+  document.getElementById("sepAtu").onclick = () => sepCarregar();
+  try { document.getElementById("sepSom").checked = localStorage.getItem("sepSom") !== "0"; } catch (e) {}
+  document.getElementById("sepSom").onchange = ev => { try { localStorage.setItem("sepSom", ev.target.checked ? "1" : "0"); } catch (e) {} };
+}
+function sepBip() {
+  try { if (!document.getElementById("sepSom").checked) return; const C = window.AudioContext || window.webkitAudioContext; const c = new C();
+    [[880, 0], [1175, .18], [1568, .36]].forEach(([f, t]) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; o.type = "sine"; g.gain.setValueAtTime(.0001, c.currentTime + t); g.gain.exponentialRampToValueAtTime(.3, c.currentTime + t + .02); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + t + .16); o.connect(g).connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + .18); });
+  } catch (e) {}
+}
+function sepAviso(p) { sepBip(); msg(`Pedido novo (${p.canal || "online"}): ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + i.descricao).join(", ").slice(0, 140)} — separar`); }
+async function sepContar() {
+  if (!supa) return; const { count } = await supa.from("pedidos_online").select("id", { count: "exact", head: true }).is("separado_em", null).neq("situacao_id", 12);
+  const b = document.getElementById("sepBadge"); if (b) { b.textContent = count || ""; b.style.display = count ? "" : "none"; } SEP.pend = count || 0;
+}
+async function sepCarregar() {
+  const el = document.getElementById("sepLista"); if (!supa) return;
+  if (!SEP.lista.length) el.innerHTML = `<div class="painel orig">Carregando pedidos…</div>`;
+  const de = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data, error } = await supa.from("pedidos_online").select("*").gte("criado_em", de).order("criado_em", { ascending: true }).limit(400);
+  if (error) { el.innerHTML = `<div class="painel">Não consegui ler os pedidos: ${escH(error.message)}</div>`; return; }
+  SEP.lista = data || []; sepDesenhar(); sepContar();
+}
+function sepDesenhar() {
+  const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
+  const pend = L.filter(p => !p.separado_em && p.situacao_id !== 12), devolver = L.filter(p => p.separado_em && p.situacao_id === 12 && !p.devolvido_em), feitos = L.filter(p => p.separado_em && !(p.situacao_id === 12 && !p.devolvido_em)).reverse();
+  const ha = d => { const m = Math.round((agora - new Date(d)) / 60000); return m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60) + " min" : ""}` : `há ${Math.floor(m / 1440)} dia(s)`; };
+  const canal = p => `<span class="sep-canal ${/mercado/i.test(p.canal) ? "ml" : /shopee/i.test(p.canal) ? "sh" : ""}">${escH(p.canal || "Online")}</span>`;
+  const foto = u => u ? `<img src="${escH(u)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=semfoto></span>'">` : `<span class="semfoto"></span>`;
+  const item = it => `<div class="sep-it"><div class="sep-qtd">${br(it.quantidade, it.quantidade % 1 ? 2 : 0)}×</div>${foto(it.imagem)}<div style="flex:1;min-width:0"><b>${escH(it.descricao || "")}</b><div class="orig" style="margin:2px 0 0;font-size:12px">${escH([it.codigo ? "cód. " + it.codigo : "", it.gtin ? "EAN " + it.gtin : "", it.localizacao ? "local: " + it.localizacao : ""].filter(Boolean).join(" · "))}</div>${(it.componentes || []).length ? `<div class="sep-comp"><b>Kit — separar:</b>${it.componentes.map(c => `<div>${br((c.quantidade || 1) * (it.quantidade || 1), 0)}× ${escH(c.nome || c.codigo || "")}${c.gtin ? ` <span class="orig">EAN ${escH(c.gtin)}</span>` : ""}${c.localizacao ? ` <span class="orig">· local: ${escH(c.localizacao)}</span>` : ""}</div>`).join("")}</div>` : ""}</div></div>`;
+  const card = (p, bt) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}"><div class="sep-cab">${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${ha(p.criado_em)}</span>${p.situacao_id === 12 ? `<span class="chip falta">cancelado</span>` : ""}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
+  let h = "";
+  if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
+  h += pend.length ? `<div class="painel" style="margin-top:4px"><b>Para separar: ${pend.length}</b> <span class="orig">— do mais antigo para o mais novo</span></div>` + pend.map(p => card(p, `<button class="sep-bt" data-sep="${p.id}">Separei</button>`)).join("")
+    : `<div class="painel"><b style="color:var(--ok)">Nenhum pedido para separar agora.</b> <span class="orig">Quando entrar um, ele aparece aqui sozinho${document.getElementById("sepSom").checked ? " com um aviso sonoro" : ""}.</span></div>`;
+  if (feitos.length) h += `<div class="painel"><details><summary style="cursor:pointer"><b>Separados nos últimos 7 dias (${feitos.length})</b></summary>` + feitos.map(p => `<div class="linha" style="justify-content:space-between;border-top:1px solid var(--borda);padding:6px 0;gap:8px"><div>${canal(p)} ${escH(p.cliente || "")} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${escH(new Date(p.separado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}${p.separado_por ? " por " + escH(p.separado_por) : ""}${p.devolvido_em ? " · cancelado e devolvido à prateleira" : ""}</div></div>${p.devolvido_em ? "" : `<a href="#" data-desf="${p.id}" style="font-size:12px">desfazer</a>`}</div>`).join("") + `</details></div>`;
+  el.innerHTML = h;
+  for (const p of L) SEP.vistos.add(p.id); SEP.primeira = false;
+  const acao = async (id, a) => { const { error } = await supa.rpc("pedido_separar", { p_id: Number(id), p_acao: a }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
+  for (const b of el.querySelectorAll("[data-sep]")) b.onclick = () => { b.disabled = true; acao(b.dataset.sep, "separar"); };
+  for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
+  for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };
 }
 function mostrarLogin(sim) {
   document.body.classList.toggle("logado", !sim);
@@ -3564,6 +3641,8 @@ async function hjCarregar() {
       supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em, resultado").in("status", ["erro", "pendente", "aplicando"]).is("dispensado_em", null).not("tipo", "in", "(teste,diagnostico)").gte("criado_em", de2).order("id", { ascending: false }).limit(60),
       supa.rpc("bling_saude")]);
     HJ.sis = { fila: rf.data || [], bling: rb.data || null };
+    { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, situacao_id, devolvido_em").gte("criado_em", new Date(Date.now() - 7 * 864e5).toISOString()).limit(400);
+      const L = rp.data || []; HJ.ped = { pend: L.filter(p => !p.separado_em && p.situacao_id !== 12), dev: L.filter(p => p.separado_em && p.situacao_id === 12 && !p.devolvido_em) }; }
   } catch (e) { console.warn("hoje", e); }
   HJ.carregando = false; hjDesenhar();
   clearTimeout(HJ.t); if (vista === "hoje") HJ.t = setTimeout(() => { if (vista === "hoje") hjCarregar(); }, 120000);
@@ -3676,6 +3755,10 @@ function hjDesenhar() {
     <div class="sec-title"><h2>O que precisa de atenção</h2><span class="sec-linha"></span></div>
     <div class="tasks-grid">
       ${hjSistema(tcard, row)}
+      ${(() => { const P = HJ.ped || { pend: [], dev: [] }, ico = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/></svg>`, ant = P.pend.length ? Math.round((Date.now() - Math.min(...P.pend.map(p => new Date(p.criado_em)))) / 60000) : 0;
+        return tcard("Separação", ico, P.pend.length ? `${P.pend.length} para separar` : "em dia", "separacao",
+          (P.pend.length ? row(ant > 60 ? "erro" : "av", `<strong>${P.pend.length}</strong> pedido${P.pend.length > 1 ? "s" : ""} online para separar (o mais antigo há ${ant >= 120 ? Math.floor(ant / 60) + " h" : ant + " min"})`, "") : row("vazio", "Nenhum pedido online esperando separação", `<span class="badge ok">ok</span>`)) +
+          (P.dev.length ? row("erro", `<strong>${P.dev.length}</strong> cancelado${P.dev.length > 1 ? "s" : ""} depois de separar: devolver à prateleira`, "") : "")); })()}
       ${tcard("Boletos", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg>`, `${bol.length} em aberto`, "boletos",
         (bv.length ? row("erro", `<strong>${bv.length}</strong> vencido${bv.length > 1 ? "s" : ""}`, `<strong>${orBrl(soma(bv))}</strong>`) : "") +
         (bh.length ? row("av", `<strong>${bh.length}</strong> vence${bh.length > 1 ? "m" : ""} hoje`, `<strong>${orBrl(soma(bh))}</strong>`) : "") +

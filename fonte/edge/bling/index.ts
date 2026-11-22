@@ -18,6 +18,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 //     (operação E, custo pelo fornecedor da nota); controle em estoque_unificado_nota (uma linha por pedido da fila; refaz só o que deu erro, até 5 vezes).
 //     acertar: quando Bling e Gestão ficam diferentes, o Aldo escolhe o lado certo; o outro passa a ter o mesmo saldo
 //     (para="bling": balanço no Bling com o saldo do Gestão; para="gestao": sincroniza antes e grava no Gestão o saldo do Bling).
+// v6 (22/11/2026): pedidos — de 2 em 2 min (pg_cron) traz os pedidos de venda novos do Bling (Mercado Livre, Shopee…) para a tabela
+//     pedidos_online, com itens, foto, localização e componentes de kit, para a loja separar (tela Separação). Só entram pedidos a partir de
+//     bling_auth.pedidos_desde (os antigos "Em aberto" não). A situação é atualizada a cada busca (cancelado depois de separado → devolver).
+//     bling(): uma nova tentativa quando o Bling responde 429 (limite de 3 chamadas por segundo).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +72,9 @@ async function token(): Promise<string> {
 }
 export async function bling(caminho: string, init: RequestInit = {}): Promise<any> {
   const t = await token();
-  const r = await fetch(API + caminho, { ...init, headers: { Authorization: "Bearer " + t, Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } });
+  const chama = () => fetch(API + caminho, { ...init, headers: { Authorization: "Bearer " + t, Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } });
+  let r = await chama();
+  if (r.status === 429) { await new Promise(ok => setTimeout(ok, 1200)); r = await chama(); }
   const txt = await r.text(); let j: any = null; try { j = JSON.parse(txt); } catch { j = { texto: txt }; }
   if (!r.ok) throw new Error(`Bling ${r.status}: ${JSON.stringify(j?.error || j).slice(0, 400)}`);
   return j;
@@ -259,6 +265,61 @@ async function sincronizar(por: string) {
   await rest("rpc/estu_marcar_diferencas", { method: "POST", body: "{}" }).catch(() => {}); // para o aviso "diferente há mais de 20 min" da tela Hoje
   return rel;
 }
+// ===== pedidos online para separar =====
+const CANAIS: Record<string, string> = { "203783765": "Mercado Livre", "204785926": "Shopee", "204765926": "Shopee" };
+const SITU: Record<number, string> = { 6: "Em aberto", 9: "Atendido", 12: "Cancelado", 15: "Em andamento", 18: "Venda agenciada", 21: "Em digitação", 24: "Verificado" };
+const imgDe = (p: any) => { const m = p?.midia?.imagens; const l = (m?.internas || [])[0]?.link || (m?.externas || [])[0]?.link || p?.imagemURL || ""; return String(l || ""); };
+// dados do produto para a separação (nome, código, EAN, foto, localização, componentes do kit); guarda por 7 dias
+async function produtoInfo(id: number, nivel = 0): Promise<any> {
+  if (!id) return null;
+  const c = ((await rest(`produto_bling_cache?select=dados,em&id=eq.${id}`)) || [])[0];
+  if (c && Date.now() - new Date(c.em).getTime() < 7 * 864e5) return c.dados;
+  const p = (await bling(`/produtos/${id}`)).data || {}; await espera(340);
+  const d: any = { id, nome: p.nome || "", codigo: p.codigo || "", gtin: p.gtin || "", formato: p.formato || "S", imagem: imgDe(p), localizacao: p.estoque?.localizacao || "" };
+  if (p.formato === "E" && nivel === 0) {
+    d.componentes = [];
+    for (const k of (p.estrutura?.componentes || []).slice(0, 20)) {
+      const sub = await produtoInfo(Number(k.produto?.id), 1).catch(() => null);
+      d.componentes.push({ id: k.produto?.id, quantidade: Number(k.quantidade) || 1, nome: sub?.nome || "", codigo: sub?.codigo || "", gtin: sub?.gtin || "", imagem: sub?.imagem || "", localizacao: sub?.localizacao || "" });
+    }
+  }
+  await rest("produto_bling_cache?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id, dados: d, em: new Date().toISOString() }) });
+  return d;
+}
+async function buscarPedidos() {
+  const a = await lerAuth(); if (!a.pedidos_desde) return { novos: 0, atualizados: 0 };
+  const desdeDia = new Date(new Date(a.pedidos_desde).getTime() - 3 * 3600e3).toISOString().slice(0, 10); // dia em São Paulo
+  const ini = new Date(Date.now() - 3 * 3600e3 - 3 * 864e5).toISOString().slice(0, 10), dIni = ini > desdeDia ? ini : desdeDia;
+  const lista: any[] = [];
+  for (let pg = 1; pg <= 3; pg++) { const r = await bling(`/pedidos/vendas?dataInicial=${dIni}&limite=100&pagina=${pg}`); const d = r.data || []; lista.push(...d); await espera(340); if (d.length < 100) break; }
+  if (!lista.length) return { novos: 0, atualizados: 0 };
+  const ja: any[] = (await rest(`pedidos_online?select=id,situacao_id&id=in.(${lista.map(o => o.id).join(",")})`)) || [];
+  const mj = new Map<number, number>(ja.map(x => [Number(x.id), Number(x.situacao_id)]));
+  let novos = 0, atualizados = 0;
+  for (const o of lista) {
+    const sid = Number(o.situacao?.id);
+    if (mj.has(Number(o.id))) {
+      if (mj.get(Number(o.id)) !== sid) { await rest(`pedidos_online?id=eq.${o.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ situacao_id: sid, situacao: SITU[sid] || String(sid), atualizado_em: new Date().toISOString() }) }); atualizados++; }
+      continue;
+    }
+    if (sid === 12 || sid === 9 || String(o.data || "") < desdeDia) continue; // cancelado/atendido antes de chegar aqui, ou anterior ao início
+    const det = (await bling(`/pedidos/vendas/${o.id}`)).data || {}; await espera(340);
+    const itens: any[] = [];
+    for (const it of (det.itens || [])) {
+      const pi = await produtoInfo(Number(it.produto?.id)).catch(() => null);
+      itens.push({ produto_id: it.produto?.id || null, codigo: it.codigo || pi?.codigo || "", descricao: it.descricao || pi?.nome || "", quantidade: Number(it.quantidade) || 0, valor: Number(it.valor) || 0,
+        gtin: pi?.gtin || "", imagem: pi?.imagem || "", localizacao: pi?.localizacao || "", formato: pi?.formato || "S", componentes: pi?.componentes || [] });
+    }
+    const loja = String(o.loja?.id || det.loja?.id || "");
+    await rest("pedidos_online?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({
+      id: o.id, numero: o.numero, numero_loja: o.numeroLoja || det.numeroLoja || null, loja_bling: loja ? Number(loja) : null, canal: CANAIS[loja] || (loja ? "Canal " + loja : "Bling"),
+      data: o.data, total: Number(o.total) || 0, cliente: String(o.contato?.nome || det.contato?.nome || "").replace(/\s*\([^)]*\)\s*$/, "").slice(0, 80),
+      situacao_id: sid, situacao: SITU[sid] || String(sid), itens }) });
+    novos++;
+  }
+  return { novos, atualizados };
+}
+
 const origemBling = (o: any) => { const n = Number(o); return n === 1 ? 2 : n === 6 ? 7 : (Number.isFinite(n) ? n : 0); }; // compra no mercado interno: 1→2, 6→7
 
 function pagina(titulo: string, texto: string, ok: boolean) {
@@ -289,11 +350,16 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== "POST") return resp({ ok: false, erro: "metodo" }, 405);
 
-  // chamada do pg_cron (estu_sincronizar_cron): segredo próprio guardado só no banco
+  // chamada do pg_cron (estu_sincronizar_cron / pedidos_buscar_cron): segredo próprio guardado só no banco
   const tokCron = req.headers.get("x-cron-token");
   if (tokCron) {
     const a = await lerAuth();
     if (!a.cron_token || tokCron !== a.cron_token) return resp({ ok: false, erro: "sem_permissao" }, 403);
+    const corpoCron = await req.clone().json().catch(() => ({}));
+    if (corpoCron?.acao === "pedidos") {
+      try { const r = await buscarPedidos(); await gravarAuth({ pedidos_em: new Date().toISOString(), pedidos_msg: `${r.novos} novo(s), ${r.atualizados} atualizado(s)` }); return resp({ ok: true, ...r }); }
+      catch (e) { await gravarAuth({ pedidos_em: new Date().toISOString(), pedidos_msg: "falhou: " + String((e as Error).message).slice(0, 200) }); return resp({ ok: false, msg: String((e as Error).message) }); }
+    }
     if (!(await travar())) return resp({ ok: true, pulou: "outra operação em andamento" });
     try {
       const rel = await sincronizar("automático");

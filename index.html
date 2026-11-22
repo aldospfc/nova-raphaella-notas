@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="119">
+<meta name="versao" content="120">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5192,15 +5192,22 @@ const etCfg = () => ({ ...ET_PADRAO, ...(ET.cfg || {}) });
 const etAscii = s => semAcento(String(s || "")).replace(/[^\x20-\x7e]/g, " ").replace(/[\^~\\]/g, " ").replace(/\s+/g, " ").trim();
 const etPreco = v => (Number(v) || 0).toFixed(2).replace(".", ",");
 // Nome do produto: usa a maior letra que couber, quebrando em até 3 linhas no espaço acima do código de barras
-function etNomeZpl(txt, x, y, w, hMax) {
+function etNomeAjuste(txt, w, hMax) {
   const t = etAscii(txt).toUpperCase().slice(0, 120);
   const quebra = (pl) => { const ls = []; let a = ""; for (let p of t.split(" ")) { while (p.length > pl) { if (a) { ls.push(a); a = ""; } ls.push(p.slice(0, pl)); p = p.slice(pl); } if (!a) a = p; else if (a.length + 1 + p.length <= pl) a += " " + p; else { ls.push(a); a = p; } } if (a) ls.push(a); return ls; };
   for (const h of [44, 40, 36, 32, 30]) {
     const maxL = Math.max(1, Math.min(3, Math.floor((hMax + 2) / (h + 2)))), ls = quebra(Math.max(4, Math.floor(w / (h * 0.58))));
     // nunca menor que a letra antiga (30); se nem assim couber, corta o que passar de 3 linhas
-    if (ls.length <= maxL || h === 30) return `^FO${x},${y}^A0N,${h},${Math.round(h * 0.86)}^FB${w},${maxL},2,L,0^FD${ls.slice(0, maxL).join(" ")}^FS`;
+    if (ls.length <= maxL || h === 30) return { h, maxL, texto: ls.slice(0, maxL).join(" ") };
   }
 }
+function etNomeZpl(txt, x, y, w, hMax) { const a = etNomeAjuste(txt, w, hMax); return `^FO${x},${y}^A0N,${a.h},${Math.round(a.h * 0.86)}^FB${w},${a.maxL},2,L,0^FD${a.texto}^FS`; }
+// Prévia em escala (315 px = 105 mm = 840 pontos → 0,375 px por ponto)
+const ET_K = 0.375;
+function etNomePrev(txt, w, hMax) { const a = etNomeAjuste(txt, w, hMax), lh = (a.h + 2) * ET_K;
+  return `<div style="position:absolute;left:${(16 * ET_K).toFixed(1)}px;top:${(10 * ET_K).toFixed(1)}px;width:${(w * ET_K).toFixed(1)}px;font-size:${(a.h * ET_K).toFixed(1)}px;font-weight:bold;line-height:${lh.toFixed(1)}px;max-height:${(lh * a.maxL).toFixed(1)}px;overflow:hidden">${escH(a.texto)}</div>`; }
+function etBarrasPrev(ean, x, y, h, by) { const largura = ((ean.length === 13 ? 95 : 11 * Math.ceil(ean.length / 2) + 35) * by + 20) * ET_K;
+  return `<div style="position:absolute;left:${(x * ET_K).toFixed(1)}px;top:${(y * ET_K).toFixed(1)}px;width:${largura.toFixed(1)}px"><div style="height:${(h * ET_K).toFixed(1)}px;background:repeating-linear-gradient(90deg,#000 0 2px,#fff 2px 3px,#000 3px 4px,#fff 4px 6px,#000 6px 9px,#fff 9px 10px,#000 10px 11px,#fff 11px 13px)"></div><div style="font-size:${(9 * by * ET_K).toFixed(1)}px;letter-spacing:1.5px;text-align:center;line-height:1.15">${escH(ean)}</div></div>`; }
 function etZpl(it, c) {
   const dpm = 8, W = Math.round(c.larg * dpm), H = Math.round(c.alt * dpm), dx = Math.round((Number(c.dx) || 0) * dpm), dy = Math.round((Number(c.dy) || 0) * dpm);
   const desc = etAscii(it.desc).toUpperCase().slice(0, 64), ean = String(it.ean || "").replace(/\D/g, ""), promo = it.de > 0 && it.de > it.preco;
@@ -5237,8 +5244,8 @@ function etZpl(it, c) {
 function etPreview(it) {
   const promo = it.de > 0 && it.de > it.preco, [i, c] = etPreco(it.preco).split(",");
   return `<div style="width:315px;height:90px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">
-    <div style="position:absolute;left:6px;top:4px;width:205px;font-size:12px;font-weight:bold;line-height:1.1;max-height:40px;overflow:hidden">${escH(etAscii(it.desc).toUpperCase())}</div>
-    <div style="position:absolute;left:6px;bottom:4px;font-size:8px;letter-spacing:1px">▌▍▌▌▍▍▌▍▌▌▍▌▍<br>${escH(it.ean || "")}</div>
+    ${etNomePrev(it.desc, 510, 240 - 122 - 16)}
+    ${it.ean ? etBarrasPrev(String(it.ean).replace(/\D/g, ""), 16, 240 - 122, 72, String(it.ean).length > 13 ? 2 : 3) : ""}
     <div style="position:absolute;left:215px;top:${promo ? 2 : 14}px;width:98px">${promo ? `<div style="font-size:9px;text-decoration:line-through">DE R$ ${etPreco(it.de)}</div><div style="font-size:8px">POR</div>` : `<div style="font-size:9px">R$</div>`}<span style="font-size:${promo ? 34 : 40}px;font-weight:bold;line-height:1">${i}</span><span style="font-size:${promo ? 16 : 19}px;font-weight:bold;vertical-align:top">,${c}</span>${it.sob ? `<div style="font-size:${promo ? 9 : 11}px;font-weight:bold;line-height:1">${escH(etAscii(it.sob).toUpperCase())}</div>` : ""}</div></div>`;
 }
 const ET_MODELOS = [
@@ -5314,10 +5321,8 @@ function etPreviewModelo(it, modelo) {
     <div style="position:absolute;left:18px;bottom:4px;font-size:8px;letter-spacing:1px;text-align:center">▌▍▌▌▍▍▌▍▌▌▍▌▍<br>${escH(it.ean || "")}</div></div>`;
     return `<div style="display:flex;gap:4px;padding:3px;background:#e9e4d8;border-radius:5px;flex:none" title="rolo de 2 colunas: 2 adesivos = 1 linha cheia">${um}${Math.floor(it.qtd || 0) >= 2 ? um : `<div style="width:160px;height:100px;border:1px dashed #bbb;border-radius:4px;flex:none"></div>`}</div>`; }
   const caixa = inner => `<div style="width:315px;height:90px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">${inner}</div>`;
-  if (modelo === "casa") return caixa(`<div style="position:absolute;left:6px;top:4px;width:300px;font-size:12px;font-weight:bold;line-height:1.15;max-height:30px;overflow:hidden">${nome}</div>
-    <div style="position:absolute;left:14px;bottom:4px;font-size:12px;letter-spacing:2px">▌▍▌▌▍▍▌▍▌▌▍▌▍▌▍▌<br><span style="font-size:9px">${escH(it.ean || "")}</span></div>`);
-  const esq = `<div style="position:absolute;left:6px;top:4px;width:205px;font-size:12px;font-weight:bold;line-height:1.1;max-height:40px;overflow:hidden">${nome}</div>
-    <div style="position:absolute;left:6px;bottom:4px;font-size:8px;letter-spacing:1px">▌▍▌▌▍▍▌▍▌▌▍▌▍<br>${escH(it.ean || "")}</div>`;
+  if (modelo === "casa") return caixa(`${etNomePrev(it.desc, 808, 240 - 140 - 16)}${it.ean ? etBarrasPrev(String(it.ean).replace(/\D/g, ""), 40, 240 - 140, 90, 3) : ""}`);
+  const esq = `${etNomePrev(it.desc, 510, 240 - 122 - 16)}${it.ean ? etBarrasPrev(String(it.ean).replace(/\D/g, ""), 16, 240 - 122, 72, String(it.ean).length > 13 ? 2 : 3) : ""}`;
   if (modelo === "combo") { const n = Math.max(2, Math.floor(it.cq || 0)), t = Number(it.cp) || 0, [i, c] = etPreco(t).split(",");
     return caixa(esq + `<div style="position:absolute;left:215px;top:2px;width:98px;line-height:1.05"><div style="font-size:10px;font-weight:bold">${n} UNID. POR</div><span style="font-size:9px">R$</span><span style="font-size:30px;font-weight:bold">${i}</span><span style="font-size:14px;font-weight:bold;vertical-align:top">,${c}</span>
       <div style="font-size:8px">SAI R$ ${etPreco(t / n)} CADA</div>${Number(it.preco) > 0 ? `<div style="font-size:7px">AVULSO R$ ${etPreco(it.preco)}</div>` : ""}</div>`); }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="101">
+<meta name="versao" content="102">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -255,6 +255,9 @@
   .sep-cl { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: #4a5565; padding: 3px 0; }
   .sep-cl b { min-width: 20px; text-align: center; border-radius: 10px; padding: 0 6px; }
   .sep-cl b.r { background: #fde3e3; color: #b42318; }
+  .sep-cl b.g { background: #e2f4ea; color: #1b7248; }
+  .sep-clk { cursor: pointer; border-radius: 6px; margin: 0 -6px; padding: 3px 6px; }
+  .sep-clk:hover, .sep-clk.on { background: #eef3fb; color: #1b3d73; }
   .sep-mini { padding: 6px 10px; font-size: 13px; }
   .sep-lgchip { background: #eef3fb; color: #1b3d73; }
   .sep-grupo > summary { padding: 2px 0; }
@@ -3125,7 +3128,11 @@ function sepDesenhar() {
   const cancML = p => p.ml_status === "cancelled";
   const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span><span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span>${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}${p.ml_substatus && ML_SUB[p.ml_substatus] ? `<span class="chip${p.ml_substatus === "invoice_pending" ? " falta" : ""}">${escH(ML_SUB[p.ml_substatus])}</span>` : ""}${sinais(p)}${links(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
   let h = "";
-  const pendT = pend.filter(p => lg(p) !== "full"); // Full sai do centro do ML: a loja não separa
+  const pendT = pend.filter(p => lg(p) !== "full");
+  const sub = p => cancML(p) ? "canc" : (envio(p) && envio(p) < hojeSP) ? "atras" : p.ml_substatus === "invoice_pending" ? "nf" : p.ml_substatus === "ready_to_print" ? "imprimir"
+    : /^(printed|ready_for_pickup|ready_for_dropoff)$/.test(p.ml_substatus || "") ? "pronto" : p.ml_substatus === "buffered" ? "aguarda" : !envio(p) ? "semdata" : "outros";
+  const SUBS = [["canc", "Canceladas. Não enviar", "r"], ["atras", "Atrasadas. Enviar", "r"], ["nf", "NF-e para emitir", "r"], ["imprimir", "Etiqueta para imprimir", ""], ["pronto", "Prontas para enviar", "g"],
+    ["aguarda", "Etiqueta ainda não liberada", ""], ["semdata", "Sem data de envio", ""], ["outros", SEP.aba === "hoje" ? "Enviar hoje" : "Para enviar", ""]]; // Full sai do centro do ML: a loja não separa
   const daAba = a => pendT.filter(p => { const e = envio(p); return a === "hoje" ? (cancML(p) || !e || e <= hojeSP) : (!cancML(p) && e && e > hojeSP); });
   const abas = [["hoje", "Envios de hoje", daAba("hoje").length], ["prox", "Próximos dias", daAba("prox").length], ["sep", "Separados", aguard.length], ["desp", "Despachados", feitos.length]];
   if (!SEP.aba) SEP.aba = "hoje";
@@ -3141,15 +3148,16 @@ function sepDesenhar() {
     if (SEP.lg && !cards[SEP.lg]) SEP.lg = null;
     h += ks.length ? `<div class="sep-cards">${ks.map(k => { const l = cards[k];
       if (k === "full") return `<div class="sep-card cinza"><div class="sep-ctop">EM ANDAMENTO <span class="sep-n">${l.length}</span></div><div class="sep-ctit">Full</div><div class="sep-cl"><span>No centro de distribuição — não separar</span><b>${l.length}</b></div></div>`;
-      const c = l.filter(cancML).length, at = l.filter(p => !cancML(p) && envio(p) && envio(p) < hojeSP).length, sd = l.filter(p => !cancML(p) && !envio(p)).length, ok = l.length - c - at - sd;
       const lim = l.filter(p => !cancML(p) && p.envio_limite).map(p => p.envio_limite).sort()[0];
+      const linhas = SUBS.map(([sk, txt, cls]) => { const n = l.filter(p => sub(p) === sk).length; if (!n) return "";
+        return `<div class="sep-cl sep-clk${SEP.lg === k && SEP.sub === sk ? " on" : ""}" data-lg="${k}" data-sub="${sk}" title="ver só estes"><span>${txt}</span><b class="${cls}">${n}</b></div>`; }).join("");
       return `<div class="sep-card${SEP.lg === k ? " on" : ""}" data-lg="${k}" title="clique para ver só ${escH(LG[k])}"><div class="sep-ctop">${SEP.aba === "hoje" ? "PARA ENVIAR" : "PRÓXIMOS DIAS"} <span class="sep-n">${l.length}</span></div><div class="sep-ctit">${escH(LG[k])}</div>
-        ${c ? `<div class="sep-cl"><span>Canceladas. Não enviar</span><b class="r">${c}</b></div>` : ""}${at ? `<div class="sep-cl"><span>Atrasadas. Enviar</span><b class="r">${at}</b></div>` : ""}${sd ? `<div class="sep-cl"><span>Sem data de envio</span><b>${sd}</b></div>` : ""}${ok ? `<div class="sep-cl"><span>${SEP.aba === "hoje" ? "Enviar hoje" : "Enviar nos próximos dias"}</span><b>${ok}</b></div>` : ""}
-        ${lim ? `<div class="sep-cl"><span>Primeiro prazo</span><b>${escH(nomeDia(diaSP(lim)))}${horaSP(lim) ? " " + escH(horaSP(lim)) : ""}</b></div>` : ""}</div>`; }).join("")}</div>` : "";
-    const vis = lista.filter(p => !SEP.lg || lg(p) === SEP.lg);
+        ${linhas}${lim ? `<div class="sep-cl"><span>Primeiro prazo</span><b>${escH(nomeDia(diaSP(lim)))}${horaSP(lim) ? " " + escH(horaSP(lim)) : ""}</b></div>` : ""}</div>`; }).join("")}</div>` : "";
+    if (SEP.sub && !lista.some(p => sub(p) === SEP.sub && (!SEP.lg || lg(p) === SEP.lg))) SEP.sub = null;
+    const vis = lista.filter(p => (!SEP.lg || lg(p) === SEP.lg) && (!SEP.sub || sub(p) === SEP.sub));
     for (const id of [...SEP.sel]) if (!vis.some(p => p.id === id)) SEP.sel.delete(id);
     const nEnv = vis.filter(enviado).length;
-    if (vis.length > 1) h += `<div class="painel sep-barra"><b>Conferir em lote</b> <span class="orig">— marque as caixinhas e escolha o que fazer${SEP.lg ? " · mostrando só " + escH(LG[SEP.lg]) + ' (<a href="#" id="sepLgTodos">ver todos</a>)' : ""}</span>
+    if (vis.length > 1) h += `<div class="painel sep-barra"><b>Conferir em lote</b> <span class="orig">— marque as caixinhas e escolha o que fazer${SEP.lg || SEP.sub ? " · mostrando só " + escH([SEP.lg ? LG[SEP.lg] : "", SEP.sub ? (SUBS.find(x => x[0] === SEP.sub) || [])[1] : ""].filter(Boolean).join(" · ")) + ' (<a href="#" id="sepLgTodos">ver todos</a>)' : ""}</span>
       <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px">
         ${nEnv ? `<button class="sec" id="sepSelEnv" title="pedidos com nota fiscal emitida ou código de rastreio no Bling">Marcar os com NF ou rastreio (${nEnv})</button>` : ""}
         <button class="sec" id="sepSelTodos">Marcar todos</button><button class="sec" id="sepSelLimpa">Desmarcar</button>
@@ -3180,9 +3188,12 @@ function sepDesenhar() {
   for (const b of el.querySelectorAll("[data-etq]")) b.onclick = () => sepEtiquetas([Number(b.dataset.etq)]);
   if (document.getElementById("sepLoteNf")) document.getElementById("sepLoteNf").onclick = () => sepEmitirNf([...SEP.sel].filter(id => { const p = SEP.lista.find(x => x.id === id); return p && precisaNf(p); }));
   if (document.getElementById("sepLoteEtq")) document.getElementById("sepLoteEtq").onclick = () => sepEtiquetas([...SEP.sel].filter(id => { const p = SEP.lista.find(x => x.id === id); return p && temEtiqueta(p); }));
-  for (const b of el.querySelectorAll("[data-aba]")) b.onclick = () => { SEP.aba = b.dataset.aba; SEP.lg = null; SEP.sel.clear(); sepDesenhar(); };
-  for (const b of el.querySelectorAll("[data-lg]")) b.onclick = () => { SEP.lg = SEP.lg === b.dataset.lg ? null : b.dataset.lg; SEP.sel.clear(); sepDesenhar(); };
-  if (document.getElementById("sepLgTodos")) document.getElementById("sepLgTodos").onclick = ev => { ev.preventDefault(); SEP.lg = null; sepDesenhar(); };
+  for (const b of el.querySelectorAll("[data-aba]")) b.onclick = () => { SEP.aba = b.dataset.aba; SEP.lg = null; SEP.sub = null; SEP.sel.clear(); sepDesenhar(); };
+  for (const b of el.querySelectorAll("[data-lg]")) b.onclick = ev => { ev.stopPropagation();
+    if (b.dataset.sub) { const igual = SEP.lg === b.dataset.lg && SEP.sub === b.dataset.sub; SEP.lg = igual ? null : b.dataset.lg; SEP.sub = igual ? null : b.dataset.sub; }
+    else { SEP.lg = SEP.lg === b.dataset.lg && !SEP.sub ? null : b.dataset.lg; SEP.sub = null; }
+    SEP.sel.clear(); sepDesenhar(); };
+  if (document.getElementById("sepLgTodos")) document.getElementById("sepLgTodos").onclick = ev => { ev.preventDefault(); SEP.lg = null; SEP.sub = null; sepDesenhar(); };
   for (const p of L) SEP.vistos.add(p.id); SEP.primeira = false;
   const acao = async (id, a) => { const { error } = await supa.rpc("pedido_separar", { p_id: Number(id), p_acao: a }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
   for (const b of el.querySelectorAll("[data-sep]")) b.onclick = () => { b.disabled = true; acao(b.dataset.sep, "separar"); };

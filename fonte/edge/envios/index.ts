@@ -12,6 +12,7 @@ import { unzipSync, strFromU8 } from "https://esm.sh/fflate@0.8.2";
 // v2 (22/11/2026): nfe — gera a NF-e do pedido no Bling e transmite (o Bling manda a nota ao ML); etiqueta — etiqueta do ML em ZPL
 //     (impressora Zebra pelo Browser Print) ou PDF; Shopee pelo Bling (logísticas/etiquetas).
 // v3 (22/11/2026): nfe acha a nota gerada pelo próprio pedido quando o Bling não devolve o id.
+// v4 (22/11/2026): sync com ids confere só esses pedidos (rápido, usado logo depois de emitir NF ou imprimir etiqueta).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -135,11 +136,12 @@ async function envioDoPedido(num: string): Promise<number | null> {
   return null;
 }
 
-async function sincronizar() {
+async function sincronizar(ids: number[] = []) {
   const a = await lerMl(), mlOk = !!a.refresh_token && !!credenciais();
   // pendentes da tela + despachados de 2 dias para cá (para pegar mudanças tardias)
   const desde = new Date(Date.now() - 2 * 864e5).toISOString();
-  const ps: any[] = (await rest(`pedidos_online?select=id,canal,loja_bling,numero_loja,frete,logistica,ml_envio,ml_status,despachado_em,ignorado_em,situacao_id&or=(despachado_em.is.null,despachado_em.gte.${encodeURIComponent(desde)})&ignorado_em=is.null&order=data.asc&limit=150`)) || [];
+  const filtro = ids.length ? `id=in.(${ids.join(",")})` : `or=(despachado_em.is.null,despachado_em.gte.${encodeURIComponent(desde)})&ignorado_em=is.null`;
+  const ps: any[] = (await rest(`pedidos_online?select=id,canal,loja_bling,numero_loja,frete,logistica,ml_envio,ml_status,despachado_em,ignorado_em,situacao_id&${filtro}&order=data.asc&limit=150`)) || [];
   const rel = { pedidos: ps.length, ml: 0, frete: 0, enviados: 0, cancelados: 0, erros: [] as string[] };
   for (const p of ps) {
     const alt: Record<string, unknown> = {};
@@ -226,7 +228,7 @@ Deno.serve(async (req: Request) => {
     const corpo = await req.json().catch(() => ({}));
     const acao = String(corpo?.acao || "");
     // status: quem pode separar vê; ligar: só perfil completo
-    const fn = acao === "status" || acao === "etiqueta" ? "pode_separar" : "permitido";
+    const fn = acao === "status" || acao === "etiqueta" || (acao === "sync" && (corpo?.ids || []).length) ? "pode_separar" : "permitido";
     const p = await fetch(URL_SB + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: ANON, Authorization: auth, "Content-Type": "application/json" }, body: "{}" });
     if (!p.ok || (await p.json()) !== true) return resp({ ok: false, erro: "sem_permissao", msg: "Entre no sistema de novo." }, 403);
     let email = ""; try { email = JSON.parse(atob(auth.replace(/^Bearer\s+/i, "").split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).email || ""; } catch { /* */ }
@@ -251,6 +253,8 @@ Deno.serve(async (req: Request) => {
       return resp({ ok: true, ...(await etiquetas(ids, String(corpo?.formato || "zpl"))) });
     }
     if (acao === "sync") {
+      const so: number[] = (corpo?.ids || []).map(Number).filter(Boolean).slice(0, 30);
+      if (so.length) return resp({ ok: true, ...(await sincronizar(so)) }); // conferência rápida de poucos pedidos
       const r = await sincronizar();
       await gravarMl({ sync_em: new Date().toISOString(), sync_msg: `${r.pedidos} pedido(s); ML ${r.ml}; ${r.enviados} já enviado(s); ${r.cancelados} cancelado(s)` + (r.erros.length ? `; ${r.erros.length} erro(s)` : "") });
       return resp({ ok: true, ...r });

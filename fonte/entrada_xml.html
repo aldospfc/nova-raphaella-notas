@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Entrada de notas — Nova Raphaella</title>
-<meta name="versao" content="103">
+<meta name="versao" content="104">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3002,7 +3002,7 @@ async function sepEtiquetas(ids) {
       }
     }
   } else msg("Nenhuma etiqueta disponível: " + (erros.join(" · ") || "o ML ainda não liberou"));
-  setTimeout(() => supa.functions.invoke("envios", { body: { acao: "sync" } }).then(sepCarregar), 4000);
+  sepVigiar(ids, "etq");
 }
 async function sepEmitirNf(ids) {
   if (!ids.length || !confirm(`Emitir NF-e de ${ids.length} pedido(s) pelo Bling?\n\nO Bling gera a nota a partir do pedido e transmite à SEFAZ (igual a emitir lá). Depois o Bling manda a nota para o Mercado Livre e a etiqueta é liberada.`)) return;
@@ -3012,8 +3012,21 @@ async function sepEmitirNf(ids) {
   const ok = d.itens.filter(x => x.ok).length, ruins = d.itens.filter(x => !x.ok);
   msg(`${ok} nota(s) emitida(s)` + (ruins.length ? ` · ${ruins.length} com problema: ` + ruins.map(x => x.msg).join(" · ").slice(0, 300) : ""));
   // o ML leva alguns segundos para receber a nota do Bling e liberar a etiqueta
-  // confere de novo em 20 s, 1 min e 2 min (o ML às vezes demora para receber a nota)
-  for (const t of [20000, 60000, 120000]) setTimeout(() => supa.functions.invoke("envios", { body: { acao: "sync" } }).then(sepCarregar), t);
+  sepVigiar(d.itens.filter(x => x.ok).map(x => x.id), "nf");
+}
+// confere no ML só esses pedidos a cada 10 s (até 3 min) e para quando a situação muda
+function sepVigiar(ids, motivo) {
+  if (!ids.length) return;
+  const antes = {}; for (const id of ids) antes[id] = (SEP.lista.find(p => p.id === id) || {}).ml_substatus || "";
+  let n = 0;
+  const t = setInterval(async () => {
+    n++;
+    await supa.functions.invoke("envios", { body: { acao: "sync", ids } }).catch(() => {});
+    const { data } = await supa.from("pedidos_online").select("id, ml_substatus").in("id", ids);
+    const mudou = (data || []).filter(p => p.ml_substatus !== antes[p.id] && !(motivo === "nf" && p.ml_substatus === "invoice_pending"));
+    if (mudou.length === ids.length || n >= 18) { clearInterval(t); sepCarregar(); }
+    else if (mudou.length) sepCarregar();
+  }, 10000);
 }
 // ligação com o Mercado Livre (função "envios"): Flex/Agência/Coleta/Full e prazos
 async function sepMlStatus() {

@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="124">
+<meta name="versao" content="125">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -400,6 +400,18 @@
   .sep-rod { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eef0f3; display: flex; }
   .sep-rod .sep-links { margin-left: 0; gap: 8px; flex-wrap: wrap; } .sep-rod .sep-links a { padding: 5px 12px; border-radius: 16px; background: #f2f4f7; text-decoration: none; font-weight: 700; font-size: 12px; }
   .sep-dica { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: #eef8f2; border: 1px solid #cde9d8; border-radius: 12px; padding: 10px 14px; margin: 4px 0 12px; }
+  .sep-ped.sep-min { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; border-left-width: 4px; border-radius: 12px; }
+  .sep-min > img, .sep-min > .semfoto { width: 46px; height: 46px; border-radius: 8px; object-fit: contain; background: #f5f7f9; border: 1px solid var(--borda); flex: none; display: inline-block; }
+  .sep-min-t { flex: 1; min-width: 0; } .sep-min-1 { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sep-min-2 { font-size: 12px; color: #5b6576; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 3px; }
+  .sep-min-2 .chip, .sep-min-2 .sep-canal { font-size: 10.5px; padding: 1px 6px; }
+  .sep-bt.sep-min-bt { width: auto; margin: 0; padding: 10px 12px; font-size: 13.5px; flex: none; border-radius: 10px; }
+  .sep-min-3 { font-size: 12px; color: #5b6576; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .sep-chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; }
+  .sep-chipc { flex: none; background: #fff; color: #1b2d4b; border: 1px solid var(--borda); border-radius: 18px; padding: 7px 12px; font-weight: 700; font-size: 13px; box-shadow: none; }
+  .sep-chipc b { background: #eef1f4; border-radius: 10px; padding: 0 7px; margin-left: 4px; } .sep-chipc.on { border-color: #2968c8; background: #eef3fb; }
+  .sep-lotemin { padding: 8px 12px; } .sep-lotemin > summary { cursor: pointer; font-size: 14px; } .sep-lotemin[open] > summary { margin-bottom: 4px; }
+  .sep-recolhe { margin-left: auto; font-size: 12px; color: #5b6576; align-self: center; }
   .sep-dica > div > b:first-child { color: #1b7248; font-size: 15px; display: block; } .sep-dica span { font-size: 12.5px; color: #3d5546; display: block; }
   .sparkline path.hoje { stroke-dasharray: 3 3; stroke: #e08a00; } .sparkline path.ref { stroke: #b8c0cc; stroke-width: 1.6; }
   .mini-gs { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; } .mini-g { display: flex; flex-direction: column; align-items: flex-end; } .mini-g span { font-size: 10px; color: #8a94a6; line-height: 1.1; } .sparkline circle.hoje { fill: #fff; stroke: #e08a00; stroke-width: 2; }
@@ -653,7 +665,7 @@
  </div>
  <div id="vSeparacao" style="display:none">
   <div class="painel sep-topo"><div class="t"><b>Pedidos online</b><div id="sepMl" class="sep-status">Mercado Livre e Shopee que entram no Bling</div></div>
-   <button class="sec sep-ico" id="sepAtu" title="atualizar a lista">⟳</button><button class="sec sep-ico" id="sepSomBt" title="som do aviso de pedido novo">🔔</button>
+   <button class="sec sep-ico" id="sepVisBt" title="trocar a exibição: compacta / detalhada">☰</button><button class="sec sep-ico" id="sepAtu" title="atualizar a lista">⟳</button><button class="sec sep-ico" id="sepSomBt" title="som do aviso de pedido novo">🔔</button>
    <div class="sep-som" id="sepSomBox" hidden>
     <select id="sepSomTipo" title="som do aviso"><option value="sino">Som: sino</option><option value="campainha">Som: campainha (dim-dom)</option><option value="caixa">Som: caixa registradora</option><option value="alarme">Som: alarme</option><option value="apito">Som: apito curto</option><option value="nenhum">Sem som</option></select>
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="volume">vol. <input type="range" id="sepVol" min="0" max="100" step="5" value="80" style="width:110px"></label>
@@ -3363,7 +3375,7 @@ function vivoAtualizar() {
   }
 }
 // ===== Separação de pedidos online (Mercado Livre, Shopee… via Bling; a nuvem busca de 2 em 2 min) =====
-const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true, sel: new Set() };
+const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true, sel: new Set(), abertos: new Set(), compacto: (() => { try { return localStorage.getItem("sepCompacto") === "1"; } catch (e) { return false; } })() };
 function sepIniciar() {
   if (!supa || SEP.canal) return;
   SEP.canal = supa.channel("pedidos-online").on("postgres_changes", { event: "*", schema: "public", table: "pedidos_online" }, ev => {
@@ -3373,6 +3385,8 @@ function sepIniciar() {
   sepContar(); setInterval(sepContar, 120000);
   document.getElementById("sepAtu").onclick = () => sepCarregar();
   document.getElementById("sepSomBt").onclick = () => { const b = document.getElementById("sepSomBox"); b.hidden = !b.hidden; };
+  const vis = document.getElementById("sepVisBt"), visTxt = () => { vis.textContent = SEP.compacto ? "▦" : "☰"; vis.title = SEP.compacto ? "mostrar detalhado (fotos e todos os botões)" : "mostrar compacto (uma linha por pedido)"; };
+  visTxt(); vis.onclick = () => { SEP.compacto = !SEP.compacto; SEP.abertos.clear(); try { localStorage.setItem("sepCompacto", SEP.compacto ? "1" : "0"); } catch (e) {} visTxt(); sepDesenhar(); };
   sepSomIniciar(); sepMlStatus();
   document.addEventListener("keydown", ev => { if (ev.key === "Escape") document.getElementById("sepZoom")?.classList.remove("on"); });
 }
@@ -3560,12 +3574,17 @@ function sepDesenhar() {
   const LGORD = ["flex", "agencia", "coleta", "shopee_direta", "shopee_xpress", "shopee_retirada", "ml", "shopee", "outro", "full"];
   const lg = p => p.logistica || (/mercado/i.test(p.canal || "") ? "ml" : /shopee/i.test(p.canal || "") ? "shopee" : "outro");
   const cancML = p => p.ml_status === "cancelled";
-  const card = (p, bt, sel) => { const tags = (p.ml_substatus && ML_SUB[p.ml_substatus] ? `<span class="chip${p.ml_substatus === "invoice_pending" ? " falta" : ""}">${escH(ML_SUB[p.ml_substatus])}</span>` : "") + sinais(p);
+  const cardMin = (p, bt, sel) => { const its = p.itens || [], i0 = its[0] || {}, bp = (String(bt).match(/<button class="sep-bt[^"]*" data-(?:sep|desp|dev)="\d+">[^<]*<\/button>/) || [""])[0];
+    return `<div class="sep-ped sep-min ${/mercado/i.test(p.canal || "") ? "c-ml" : /shopee/i.test(p.canal || "") ? "c-sh" : ""}${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}" data-abre="${p.id}" title="toque para ver os detalhes">
+      ${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${foto(i0.imagem)}
+      <div class="sep-min-t"><div class="sep-min-1"><b>${br(i0.quantidade || 1, (i0.quantidade || 1) % 1 ? 2 : 0)}×</b> ${escH(i0.descricao || "")}${its.length > 1 ? ` <span class="sep-n">+${its.length - 1}</span>` : ""}</div>
+      <div class="sep-min-2">${canal(p)}${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}</div><div class="sep-min-3">${escH(p.cliente || "")} · ${escH(LG[lg(p)] || "")}</div></div>${bp.replace('class="sep-bt', 'class="sep-bt sep-min-bt')}</div>`; };
+  const card = (p, bt, sel) => { if (SEP.compacto && !SEP.abertos.has(p.id)) return cardMin(p, bt, sel); const tags = (p.ml_substatus && ML_SUB[p.ml_substatus] ? `<span class="chip${p.ml_substatus === "invoice_pending" ? " falta" : ""}">${escH(ML_SUB[p.ml_substatus])}</span>` : "") + sinais(p);
     return `<div class="sep-ped ${/mercado/i.test(p.canal || "") ? "c-ml" : /shopee/i.test(p.canal || "") ? "c-sh" : ""}${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}">
     <div class="sep-cab2"><div class="sep-cab-l">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span></div>
       <div class="sep-cab-r">${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}</div></div>
     <div class="sep-cli"><b>${escH(p.cliente || "")}</b><span class="orig">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span></div>
-    ${tags ? `<div class="sep-tags">${tags}</div>` : ""}${(p.itens || []).map(item).join("")}${bt}<div class="sep-rod">${links(p)}</div></div>`; };
+    ${tags ? `<div class="sep-tags">${tags}</div>` : ""}${(p.itens || []).map(item).join("")}${bt}<div class="sep-rod">${links(p)}${SEP.compacto ? `<a href="#" class="sep-recolhe" data-fecha="${p.id}">recolher ▴</a>` : ""}</div></div>`; };
   let h = "";
   const pendT = pend.filter(p => lg(p) !== "full");
   const sub = p => cancML(p) ? "canc" : (envio(p) && envio(p) < hojeSP) ? "atras" : p.ml_substatus === "invoice_pending" ? "nf" : p.ml_substatus === "ready_to_print" ? "imprimir"
@@ -3585,7 +3604,7 @@ function sepDesenhar() {
     if (SEP.aba === "hoje" && fulls.length) cards.full = fulls;
     const ks = LGORD.filter(k => cards[k]);
     if (SEP.lg && !cards[SEP.lg]) SEP.lg = null;
-    h += ks.length ? `<div class="sep-cards">${ks.map(k => { const l = cards[k];
+    h += ks.length && SEP.compacto ? `<div class="sep-chips">${ks.map(k => `<button class="sep-chipc${SEP.lg === k ? " on" : ""}" data-lg="${k}" title="${k === "full" ? "no centro de distribuição — não separar" : "ver só " + escH(LG[k])}">${escH(LG[k])} <b>${cards[k].length}</b></button>`).join("")}</div>` : ks.length ? `<div class="sep-cards">${ks.map(k => { const l = cards[k];
       if (k === "full") return `<div class="sep-card cinza"><div class="sep-ctop">EM ANDAMENTO <span class="sep-n">${l.length}</span></div><div class="sep-ctit">Full</div><div class="sep-cl"><span>No centro de distribuição — não separar</span><b>${l.length}</b></div></div>`;
       const lim = l.filter(p => !cancML(p) && p.envio_limite).map(p => p.envio_limite).sort()[0];
       const linhas = SUBS.map(([sk, txt, cls]) => { const n = l.filter(p => sub(p) === sk).length; if (!n) return "";
@@ -3596,7 +3615,7 @@ function sepDesenhar() {
     const vis = lista.filter(p => (!SEP.lg || lg(p) === SEP.lg) && (!SEP.sub || sub(p) === SEP.sub));
     for (const id of [...SEP.sel]) if (!vis.some(p => p.id === id)) SEP.sel.delete(id);
     const nEnv = vis.filter(enviado).length;
-    if (vis.length > 1) h += `<div class="painel sep-barra"><b>Conferir em lote</b> <span class="orig">— marque as caixinhas e escolha o que fazer${SEP.lg || SEP.sub ? " · mostrando só " + escH([SEP.lg ? LG[SEP.lg] : "", SEP.sub ? (SUBS.find(x => x[0] === SEP.sub) || [])[1] : ""].filter(Boolean).join(" · ")) + ' (<a href="#" id="sepLgTodos">ver todos</a>)' : ""}</span>
+    if (vis.length > 1) h += `${SEP.compacto ? `<details class="painel sep-barra sep-lotemin"${SEP.sel.size ? " open" : ""}><summary><b>Conferir em lote</b>${SEP.sel.size ? ` · ${SEP.sel.size} marcado(s)` : ""}</summary>` : `<div class="painel sep-barra"><b>Conferir em lote</b>`} <span class="orig">— marque as caixinhas e escolha o que fazer${SEP.lg || SEP.sub ? " · mostrando só " + escH([SEP.lg ? LG[SEP.lg] : "", SEP.sub ? (SUBS.find(x => x[0] === SEP.sub) || [])[1] : ""].filter(Boolean).join(" · ")) + ' (<a href="#" id="sepLgTodos">ver todos</a>)' : ""}</span>
       <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px">
         ${nEnv ? `<button class="sec" id="sepSelEnv" title="pedidos com nota fiscal emitida ou código de rastreio no Bling">Marcar os com NF ou rastreio (${nEnv})</button>` : ""}
         <button class="sec" id="sepSelTodos">Marcar todos</button><button class="sec" id="sepSelLimpa">Desmarcar</button>
@@ -3604,7 +3623,7 @@ function sepDesenhar() {
         ${adm ? `<button class="sec" id="sepLoteNf" ${SEP.sel.size ? "" : "disabled"}>Emitir NF (${SEP.sel.size})</button>` : ""}
         <button class="sec" id="sepLoteEtq" ${SEP.sel.size ? "" : "disabled"}>Imprimir etiquetas (${SEP.sel.size})</button>
         <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
-        <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div></div>`;
+        <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div>${SEP.compacto ? "</details>" : "</div>"}`;
     const btSep = p => card(p, cancML(p) ? `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt sec" data-canc="${p.id}">Cancelada no Mercado Livre — tirar da lista</button></div>`
       : `<div class="sep-acoes"><button class="sep-bt" data-sep="${p.id}">✓ Separei</button>${botoesEnvio(p)}</div><div class="sep-mais"><a href="#" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a> · <a href="#" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
     const grupos = []; // canceladas, atrasados, hoje, cada dia seguinte, sem data
@@ -3635,6 +3654,8 @@ function sepDesenhar() {
   if (document.getElementById("sepLgTodos")) document.getElementById("sepLgTodos").onclick = ev => { ev.preventDefault(); SEP.lg = null; SEP.sub = null; sepDesenhar(); };
   for (const p of L) SEP.vistos.add(p.id); SEP.primeira = false;
   const acao = async (id, a) => { const { error } = await supa.rpc("pedido_separar", { p_id: Number(id), p_acao: a }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
+  for (const r of el.querySelectorAll("[data-abre]")) r.onclick = ev => { if (ev.target.closest("button, input, a, select")) return; SEP.abertos.add(Number(r.dataset.abre)); sepDesenhar(); };
+  for (const a of el.querySelectorAll("[data-fecha]")) a.onclick = ev => { ev.preventDefault(); SEP.abertos.delete(Number(a.dataset.fecha)); sepDesenhar(); };
   for (const b of el.querySelectorAll("[data-sep]")) b.onclick = () => { b.disabled = true; acao(b.dataset.sep, "separar"); };
   for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
   for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };

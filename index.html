@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="123">
+<meta name="versao" content="124">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -376,6 +376,31 @@
   .sep-qtd { font-size: 22px; font-weight: 800; color: var(--azul); min-width: 44px; text-align: right; flex: none; }
   .sep-comp { margin: 4px 0 0 0; padding-left: 14px; font-size: 13px; color: #3b4658; }
   .sep-bt { width: 100%; margin-top: 10px; font-size: 16px; padding: 12px; }
+  /* redesenho v124 */
+  .sep-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .sep-topo .t { flex: 1; min-width: 0; } .sep-topo .t > b { font-size: 18px; }
+  .sep-status { font-size: 12px; color: #5b6576; margin-top: 2px; line-height: 1.35; } .sep-status a { color: var(--azul, #1b2d4b); }
+  .sep-ok { color: #1b9e55; font-size: 11px; vertical-align: 1px; }
+  .sep-ico { width: 44px; height: 44px; padding: 0; font-size: 20px; border-radius: 12px; flex: none; line-height: 1; }
+  .sep-som { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; width: 100%; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--borda); }
+  .sep-som[hidden] { display: none; }
+  .sep-abas { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; }
+  .sep-aba { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  @media (max-width: 600px) { .sep-abas { grid-template-columns: 1fr 1fr; display: grid; width: 100%; box-sizing: border-box; } .sep-aba { padding: 9px 12px; } }
+  .sep-ped { border-radius: 14px; padding: 14px 14px 10px; box-shadow: 0 1px 4px rgba(16, 24, 40, .06); border-left: 5px solid #c9ced6; }
+  .sep-ped.c-ml { border-left-color: #ffe600; } .sep-ped.c-sh { border-left-color: #ee4d2d; }
+  .sep-cab2 { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  .sep-cab-l { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .sep-cab-r .chip { font-weight: 800; font-size: 12.5px; }
+  .sep-cli { margin: 10px 0 4px; } .sep-cli b { display: block; font-size: 18px; line-height: 1.2; } .sep-cli .orig { font-size: 12px; margin: 2px 0 0; display: block; }
+  .sep-tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .sep-acoes { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .sep-acoes > button { flex: 1 1 140px; margin: 0; padding: 13px 10px; font-size: 15px; border-radius: 10px; font-weight: 700; }
+  .sep-mais { margin-top: 8px; font-size: 12px; text-align: center; color: #5b6576; } .sep-mais a { color: #5b6576; }
+  .sep-sepinfo { margin-top: 10px; font-size: 12.5px; color: #1b7248; } .sep-sepinfo a { color: #5b6576; }
+  .sep-rod { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eef0f3; display: flex; }
+  .sep-rod .sep-links { margin-left: 0; gap: 8px; flex-wrap: wrap; } .sep-rod .sep-links a { padding: 5px 12px; border-radius: 16px; background: #f2f4f7; text-decoration: none; font-weight: 700; font-size: 12px; }
+  .sep-dica { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: #eef8f2; border: 1px solid #cde9d8; border-radius: 12px; padding: 10px 14px; margin: 4px 0 12px; }
+  .sep-dica > div > b:first-child { color: #1b7248; font-size: 15px; display: block; } .sep-dica span { font-size: 12.5px; color: #3d5546; display: block; }
   .sparkline path.hoje { stroke-dasharray: 3 3; stroke: #e08a00; } .sparkline path.ref { stroke: #b8c0cc; stroke-width: 1.6; }
   .mini-gs { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; } .mini-g { display: flex; flex-direction: column; align-items: flex-end; } .mini-g span { font-size: 10px; color: #8a94a6; line-height: 1.1; } .sparkline circle.hoje { fill: #fff; stroke: #e08a00; stroke-width: 2; }
   .sales-comp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--borda); padding-top: 12px; margin-top: 14px; }
@@ -627,13 +652,13 @@
   <div class="painel" style="overflow:auto"><table><thead><tr><th>Produto</th><th class="n">Loja 1</th><th class="n">Loja 2</th></tr></thead><tbody id="prRes"></tbody></table></div>
  </div>
  <div id="vSeparacao" style="display:none">
-  <div class="painel"><div class="linha" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b style="font-size:16px">Pedidos online para separar</b><div class="orig" id="sepInfo" style="margin:2px 0 0">Pedidos do Mercado Livre e da Shopee que entram no Bling. Separe o produto da prateleira e toque em <b>Separei</b>.</div></div>
-   <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center">
+  <div class="painel sep-topo"><div class="t"><b>Pedidos online</b><div id="sepMl" class="sep-status">Mercado Livre e Shopee que entram no Bling</div></div>
+   <button class="sec sep-ico" id="sepAtu" title="atualizar a lista">⟳</button><button class="sec sep-ico" id="sepSomBt" title="som do aviso de pedido novo">🔔</button>
+   <div class="sep-som" id="sepSomBox" hidden>
     <select id="sepSomTipo" title="som do aviso"><option value="sino">Som: sino</option><option value="campainha">Som: campainha (dim-dom)</option><option value="caixa">Som: caixa registradora</option><option value="alarme">Som: alarme</option><option value="apito">Som: apito curto</option><option value="nenhum">Sem som</option></select>
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="volume">vol. <input type="range" id="sepVol" min="0" max="100" step="5" value="80" style="width:110px"></label>
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="toca de novo a cada minuto enquanto houver pedido para separar"><input type="checkbox" id="sepRep"> repetir até separar</label>
-    <button class="sec" id="sepTeste">Testar som</button><button class="sec" id="sepAtu">Atualizar</button><input type="checkbox" id="sepSom" checked hidden></div></div></div>
-  <div id="sepMl" class="orig" style="margin:-4px 2px 8px"></div>
+    <button class="sec" id="sepTeste">Testar som</button><input type="checkbox" id="sepSom" checked hidden></div></div>
   <div id="sepZoom" title="toque para fechar"><div style="display:flex;flex-direction:column;align-items:center"><img alt=""><p class="sep-zt"></p></div></div>
   <div id="sepLista"></div>
  </div>
@@ -3347,6 +3372,7 @@ function sepIniciar() {
   }).subscribe();
   sepContar(); setInterval(sepContar, 120000);
   document.getElementById("sepAtu").onclick = () => sepCarregar();
+  document.getElementById("sepSomBt").onclick = () => { const b = document.getElementById("sepSomBox"); b.hidden = !b.hidden; };
   sepSomIniciar(); sepMlStatus();
   document.addEventListener("keydown", ev => { if (ev.key === "Escape") document.getElementById("sepZoom")?.classList.remove("on"); });
 }
@@ -3428,7 +3454,7 @@ async function sepMlStatus() {
   const { data } = await supa.functions.invoke("envios", { body: { acao: "status" } }).catch(() => ({ data: null }));
   if (!data || !data.ok) { el.innerHTML = ""; return; }
   SEP.ml = !!data.ligado; const adm = !document.body.classList.contains("perfil-sep");
-  if (data.ligado) el.innerHTML = `Mercado Livre ligado${data.apelido ? " (" + escH(data.apelido) + ")" : ""} — formas de envio e prazos atualizados a cada 3 min${data.sync_em ? " · última vez " + escH(new Date(data.sync_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })) : ""}${data.ultimo_erro ? ` · <span style="color:#b42318">${escH(String(data.ultimo_erro).slice(0, 120))}</span>` : ""}${adm ? ' · <a href="#" id="sepMlSync">atualizar agora</a>' : ""}`;
+  if (data.ligado) el.innerHTML = `<span class="sep-ok">●</span> Mercado Livre ligado${data.apelido ? " (" + escH(data.apelido) + ")" : ""} · atualiza a cada 3 min${data.sync_em ? " · última vez " + escH(new Date(data.sync_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })) : ""}${data.ultimo_erro ? ` · <span style="color:#b42318">${escH(String(data.ultimo_erro).slice(0, 120))}</span>` : ""}${adm ? ' · <a href="#" id="sepMlSync">atualizar agora</a>' : ""}`;
   else if (!adm) el.innerHTML = "";
   else if (!data.segredos) el.innerHTML = `Mercado Livre ainda não ligado: falta cadastrar no Supabase os segredos <b>ML_CLIENT_ID</b> e <b>ML_CLIENT_SECRET</b> do aplicativo do ML.`;
   else el.innerHTML = `<button id="sepMlLigar">Ligar ao Mercado Livre</button> <span>para ver Flex, Agência, Coleta, Full e os horários de envio</span>`;
@@ -3534,7 +3560,12 @@ function sepDesenhar() {
   const LGORD = ["flex", "agencia", "coleta", "shopee_direta", "shopee_xpress", "shopee_retirada", "ml", "shopee", "outro", "full"];
   const lg = p => p.logistica || (/mercado/i.test(p.canal || "") ? "ml" : /shopee/i.test(p.canal || "") ? "shopee" : "outro");
   const cancML = p => p.ml_status === "cancelled";
-  const card = (p, bt, sel) => `<div class="sep-ped${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}"><div class="sep-cab">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<b>${escH(p.cliente || "")}</b><span class="orig" style="margin:0">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span><span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span>${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}${p.ml_substatus && ML_SUB[p.ml_substatus] ? `<span class="chip${p.ml_substatus === "invoice_pending" ? " falta" : ""}">${escH(ML_SUB[p.ml_substatus])}</span>` : ""}${sinais(p)}${links(p)}</div>${(p.itens || []).map(item).join("")}${bt}</div>`;
+  const card = (p, bt, sel) => { const tags = (p.ml_substatus && ML_SUB[p.ml_substatus] ? `<span class="chip${p.ml_substatus === "invoice_pending" ? " falta" : ""}">${escH(ML_SUB[p.ml_substatus])}</span>` : "") + sinais(p);
+    return `<div class="sep-ped ${/mercado/i.test(p.canal || "") ? "c-ml" : /shopee/i.test(p.canal || "") ? "c-sh" : ""}${!SEP.vistos.has(p.id) && !SEP.primeira ? " novo" : ""}${sel && SEP.sel.has(p.id) ? " marcado" : ""}">
+    <div class="sep-cab2"><div class="sep-cab-l">${sel ? `<input type="checkbox" class="sep-sel" data-sel="${p.id}"${SEP.sel.has(p.id) ? " checked" : ""} title="marcar para ação em lote">` : ""}${canal(p)}<span class="chip sep-lgchip">${escH(LG[lg(p)] || "")}${p.frete && p.frete !== "—" && !/shopee/.test(lg(p)) ? " · " + escH(String(p.frete).replace(/\s*\(\d+\)$/, "")) : ""}</span></div>
+      <div class="sep-cab-r">${p.situacao_id === 12 || cancML(p) ? `<span class="chip falta">cancelado</span>` : atraso(p)}</div></div>
+    <div class="sep-cli"><b>${escH(p.cliente || "")}</b><span class="orig">pedido ${escH(p.numero_loja || String(p.numero || ""))} · ${quando(p)}</span></div>
+    ${tags ? `<div class="sep-tags">${tags}</div>` : ""}${(p.itens || []).map(item).join("")}${bt}<div class="sep-rod">${links(p)}</div></div>`; };
   let h = "";
   const pendT = pend.filter(p => lg(p) !== "full");
   const sub = p => cancML(p) ? "canc" : (envio(p) && envio(p) < hojeSP) ? "atras" : p.ml_substatus === "invoice_pending" ? "nf" : p.ml_substatus === "ready_to_print" ? "imprimir"
@@ -3575,7 +3606,7 @@ function sepDesenhar() {
         <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
         <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div></div>`;
     const btSep = p => card(p, cancML(p) ? `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt sec" data-canc="${p.id}">Cancelada no Mercado Livre — tirar da lista</button></div>`
-      : `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt" data-sep="${p.id}">Separei</button>${botoesEnvio(p)}<a href="#" class="orig" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a><a href="#" class="orig" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
+      : `<div class="sep-acoes"><button class="sep-bt" data-sep="${p.id}">✓ Separei</button>${botoesEnvio(p)}</div><div class="sep-mais"><a href="#" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a> · <a href="#" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
     const grupos = []; // canceladas, atrasados, hoje, cada dia seguinte, sem data
     for (const p of vis) { const e = envio(p), k = cancML(p) ? "canc" : !e ? "sem" : e < hojeSP ? "atras" : e; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, l: [] }); g.l.push(p); }
     const ordem = g => g.k === "canc" ? "0" : g.k === "atras" ? "1" : g.k === "sem" ? "z" : "2" + g.k; grupos.sort((a, b) => ordem(a).localeCompare(ordem(b)));
@@ -3583,8 +3614,8 @@ function sepDesenhar() {
     h += vis.length ? grupos.map(g => `<div class="sep-gtit">${titG(g)}</div>` + g.l.map(btSep).join("")).join("")
       : `<div class="painel"><b style="color:var(--ok)">${SEP.aba === "hoje" ? "Nada para enviar hoje." : "Nada para os próximos dias."}</b> <span class="orig">Quando entrar um pedido, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   }
-  if (SEP.aba === "sep") h += aguard.length ? `<div class="painel" style="margin-top:4px"><div class="linha" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>Separados — aguardando despacho: ${aguard.length}</b><div class="orig" style="margin:2px 0 0">Quando o pacote sair (coleta, agência ou Flex), toque em Despachei. O pedido vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem daqui sozinhos quando o ML registra o envio." : ""}</div></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div></div>` +
-    aguard.map(p => `<div class="sep-ped" style="padding:8px 12px"><div class="linha" style="justify-content:space-between;gap:8px"><div>${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> <b>${escH(p.cliente || "")}</b> ${atraso(p)} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(p.separado_por) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div></div><div class="linha" style="gap:8px">${botoesEnvio(p)}<button data-desp="${p.id}">Despachei</button></div></div></div>`).join("")
+  if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
+    aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
     : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
   if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
     : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;

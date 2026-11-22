@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="110">
+<meta name="versao" content="111">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -213,6 +213,57 @@
     .tab-dados .acoes-lin { margin-top: 6px; flex-wrap: wrap; } .tab-dados .acoes-lin a { padding: 5px 10px; font-size: 12px; }
     .fo-tab tr.det > td { padding: 10px 0 4px; }
     .rolagem { max-height: none; }
+    /* entrada de nota: cada item vira um cartão em várias linhas (estilo Gestão) */
+    #rolItens { overflow: visible; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
+    #tabItens, #tabItens thead, #tabItens tbody { display: block; background: transparent; }
+    #tabItens thead tr { display: block; }
+    #tabItens thead th { display: none; }
+    #tabItens thead th.rv { display: block; position: static; font-size: 0; padding: 0 2px 10px; background: transparent; border: 0; text-align: left; }
+    #tabItens thead th.rv label { font-size: 14px; font-weight: 700; color: var(--texto); display: inline-flex; align-items: center; gap: 8px; }
+    #tabItens thead th.rv input { width: 20px !important; height: 20px !important; }
+    #tb tr.it { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 6px; background: #fff; border: 1px solid var(--borda); border-left: 5px solid #94a3b8; border-radius: 10px; padding: 10px 12px 12px; margin: 0 0 12px; box-shadow: var(--sombra); }
+    #tb tr.it.pok { background: #f3f8fe; border-left-color: #3b82f6; }
+    #tb tr.it.falta { background: #fef5f5; border-left-color: #dc2626; }
+    #tb tr.it.duvida { background: #fffaf0; border-left-color: #f59e0b; }
+    #tb tr.it.rev { background: #e3eefb; border-left-color: #1d4ed8; }
+    #tb tr.it.so2 { border-left-color: #4b3fa3; }
+    body.soPend #tb tr.it.rev { display: none; }
+    #tb tr.it > td { display: block; border: 0; padding: 0; width: auto !important; min-width: 0; text-align: left; white-space: normal; }
+    #tb tr.it > td:not(.c2) { background: transparent !important; box-shadow: none !important; }
+    #tb tr.it > td[data-l]::before { content: attr(data-l); display: block; font-size: 10px; font-weight: 800; color: var(--cinza); text-transform: uppercase; letter-spacing: .02em; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #tb tr.it > td:nth-child(1) { grid-column: span 2; order: 1; align-self: center; }
+    #tb tr.it > td:nth-child(1) input { width: 24px; height: 24px; }
+    #tb tr.it > td:nth-child(2) { grid-column: span 4; order: 2; align-self: center; font-size: 16px; font-weight: 700; }
+    #tb tr.it > td:nth-child(2) a::after { content: " detalhes"; font-size: 12px; font-weight: 600; }
+    #tb tr.it > td:nth-child(3) { grid-column: span 6; order: 3; align-self: center; text-align: right; font-size: 13px; overflow-wrap: anywhere; }
+    #tb tr.it > td:nth-child(4) { grid-column: 1 / -1; order: 4; }
+    #tb tr.it > td:nth-child(5) { grid-column: span 3; order: 5; }
+    #tb tr.it > td:nth-child(6) { grid-column: span 3; order: 6; }
+    #tb tr.it > td:nth-child(7) { grid-column: span 3; order: 7; }
+    #tb tr.it > td:nth-child(13) { grid-column: span 3; order: 8; }
+    #tb tr.it > td:nth-child(8) { grid-column: span 3; order: 9; }
+    #tb tr.it > td:nth-child(9) { grid-column: span 3; order: 10; }
+    #tb tr.it > td:nth-child(11) { grid-column: span 3; order: 11; }
+    #tb tr.it > td:nth-child(12) { grid-column: span 3; order: 12; }
+    #tb tr.it > td:nth-child(10) { grid-column: 1 / -1; order: 13; }
+    #tb tr.it > td:nth-child(14) { grid-column: span 4; order: 14; font-weight: 800; font-size: 15px; }
+    #tb tr.it > td:nth-child(15) { grid-column: span 3; order: 15; }
+    #tb tr.it > td:nth-child(16) { grid-column: span 5; order: 16; }
+    #tb tr.it > td:nth-child(17) { grid-column: span 7; order: 17; }
+    #tb tr.it > td:nth-child(18) { grid-column: span 5; order: 18; }
+    #tb tr.it > td.c2 { display: none; border-radius: 8px; padding: 6px 8px; }
+    body.div2 #tb tr.it > td.c2 { display: block; }
+    body.semCod #tb tr.it > td.cc { display: none; }
+    body.semCod #tb tr.it > td:nth-child(2) { grid-column: span 10; }
+    #tb tr.it td input.desc { min-width: 0; width: 100%; font-size: 16px; padding: 7px 9px; }
+    #tb tr.it td input.p { width: 100% !important; padding: 6px 6px; }
+    #tb tr.it > td:nth-child(16) input.p { font-size: 19px; font-weight: 800; padding: 8px 10px; }
+    #tb tr.it > td:nth-child(17) input.p { width: 58px !important; }
+    #tb tr.it td input.ean { width: calc(100% - 96px); padding: 6px 8px; }
+    #tb tr.it td a.sug { display: inline-block; padding: 6px 4px; }
+    #tb [data-o=mg], #tb [data-o=mg2], #tb [data-o=l2] { max-width: none; margin-left: 0; }
+    #tb > tr[id^=d] { display: block; margin: -16px 0 12px; }
+    #tb > tr[id^=d] > td { display: block; padding: 12px !important; border: 1px solid var(--borda); border-top: 1px dashed var(--borda); border-radius: 0 0 10px 10px; overflow-x: auto; }
     .kpis { margin-left: 0; width: 100%; } .kpi { flex: 1; min-width: 0; padding: 6px 10px; } .kpi b { font-size: 16px; }
     #toast { left: 12px; right: 12px; bottom: 80px; max-width: none; }
   }
@@ -489,8 +540,8 @@
       <button id="bAddSem" class="sec">Produto novo (sem código)</button>
       <span class="orig">Produto que já existe no Gestão vem com descrição, custo, venda e estoque atuais. Produto novo: digite a descrição e o NCM no detalhe.</span>
     </div>
-    <div class="rolagem">
-      <table>
+    <div class="rolagem" id="rolItens">
+      <table id="tabItens">
         <thead><tr>
           <th class="rv" title="marque quando o item estiver com preço conferido / revisado; a linha inteira fica azul"><label style="cursor:pointer"><input type="checkbox" id="soPend" style="width:14px;height:14px"> só pendentes</label><br>OK</th><th>#</th><th class="cc" title="código ou referência do produto no fornecedor">Cód. / Ref.</th><th>Descrição para o cadastro (até 60)</th>
           <th class="n">Qtd nota</th><th class="n">Vlr nota</th><th class="n">IPI</th>
@@ -927,6 +978,7 @@ async function renomearFornecedor(chave, nome) {
   if (cab && cab.chave === chave) { cab.emit = nome; desenharCab(); }
   redesenharTudo();
 }
+const ROT_ITEM = ["", "", "", "", "Qtd nota", "Vlr nota", "IPI", "Divisor", "Qtd un.", "EAN da unidade", "% nota", "Fator DIFAL", "Custo item", "Custo un.", "Acrésc. %", "Venda (R$)", "Para a Loja 2 (emb. + un.)", "Venda Loja 2"];
 function desenhar() {
   agendarSugestoes(); conciliarEnvios();
   document.getElementById("app").style.display = "";
@@ -938,7 +990,7 @@ function desenhar() {
   desenharCab();
   const tb = document.getElementById("tb"); tb.innerHTML = "";
   for (const it of itens) {
-    const tr = document.createElement("tr"); tr.id = "l" + it.n;
+    const tr = document.createElement("tr"); tr.id = "l" + it.n; tr.classList.add("it");
     if (it.rev) tr.classList.add("rev");
     tr.innerHTML = `<td class="rv"><input type="checkbox" data-c="rev" title="preço conferido / item revisado"${it.rev ? " checked" : ""}></td><td><a data-d="1" title="categoria, família e estoque" style="cursor:pointer;color:#0b57d0;white-space:nowrap">${abertos.has(it.n) ? "▾" : "▸"} ${rot(it)}</a></td><td class="mono cc"><b>${it.cod || ""}</b></td>
       <td><input class="desc" type="text" maxlength="60" data-c="desc"><div class="orig" data-o="nm"></div><div class="orig">${it.xprod}${it.m ? ' <a data-x="1" title="tira este item da entrada (pede confirmação)" style="cursor:pointer;color:#b91c1c;float:right;margin-left:12px">remover item</a>' : ""}</div></td>
@@ -954,6 +1006,8 @@ function desenhar() {
       <td class="n c2" style="white-space:nowrap"><span data-o="l2in"><input class="p" type="number" min="0" step="1" data-c="l2e" style="width:46px" placeholder="emb" title="embalagens fechadas para a Loja 2"> + <input class="p" type="number" min="0" step="1" data-c="l2u" style="width:46px" placeholder="un" title="unidades avulsas para a Loja 2"></span><div data-o="e2in" style="display:none;margin-top:2px"><input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-c="ean2" style="width:118px" placeholder="cód. na Loja 2" title="o código deste item é interno da Loja 1; informe o código de barras deste produto no Gestão da Loja 2"><br><a href="#" data-g2 style="font-size:11px" title="cria um código da casa (faixa 040) para este produto na Loja 2, sem precisar abrir o Gestão de lá">gerar código para a Loja 2</a></div><div class="orig" data-o="l2"></div></td>
       <td class="n c2"><input class="p" type="text" inputmode="decimal" data-c="pv2" style="width:64px" placeholder="igual"><div class="orig" data-o="mg2"></div></td>`;
     tb.appendChild(tr);
+    // rótulos dos campos (aparecem só no celular, onde cada item vira um cartão em várias linhas)
+    tr.querySelectorAll(":scope > td").forEach((td, i) => { const l = ROT_ITEM[i]; if (l) td.dataset.l = l; });
     { const g2 = tr.querySelector("[data-g2]"); if (g2) g2.addEventListener("click", ev => { ev.preventDefault(); gerarLoja2(it); }); }
     for (const inp of tr.querySelectorAll("input")) {
       const c = inp.dataset.c; inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? "");

@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="127">
+<meta name="versao" content="128">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -339,6 +339,17 @@
   .sep-links { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
   .sep-links a { color: var(--azul, #1b2d4b); white-space: nowrap; }
   .sep-gtit { margin: 14px 2px 6px; font-size: 15px; }
+  /* Separação: itens somados */
+  .soma-esc { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; background: #fff; }
+  .soma-esc a { padding: 7px 12px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--cinza); text-decoration: none; } .soma-esc a.on { background: var(--azul); color: #fff; }
+  .soma-lista { padding: 4px 12px; }
+  .soma-lista .sep-it.soma-it:first-child { border-top: 0; }
+  .sep-it.soma-it { border-top: 1px solid var(--borda); align-items: flex-start; padding: 10px 0; }
+  .soma-it img, .soma-it .semfoto { width: 64px !important; height: 64px !important; }
+  .soma-ck { display: flex; align-items: center; padding-top: 6px; cursor: pointer; } .soma-ck input { width: 24px; height: 24px; margin: 0; }
+  .soma-q { min-width: 58px; text-align: center; font-size: 26px; font-weight: 800; line-height: 1; padding-top: 4px; color: #1b2d4b; } .soma-q small { display: block; font-size: 11px; font-weight: 700; color: var(--cinza); margin-top: 3px; }
+  .soma-peds { margin-top: 4px; font-size: 12.5px; } .soma-peds summary { cursor: pointer; color: #0b57d0; font-weight: 600; } .soma-peds > div { padding: 3px 0 0 4px; }
+  .soma-it.pego { opacity: .5; } .soma-it.pego b { text-decoration: line-through; } .soma-it.pego .soma-q { color: var(--ok); }
   .sep-abas { display: inline-flex; gap: 4px; background: #eceef1; border-radius: 22px; padding: 4px; margin: 4px 0 12px; flex-wrap: wrap; }
   .sep-aba { background: transparent; color: #4a5565; border: 0; border-radius: 18px; padding: 7px 14px; font-weight: 700; box-shadow: none; }
   .sep-aba.on { background: #fff; color: #111; box-shadow: 0 1px 3px #0002; }
@@ -3387,7 +3398,7 @@ function vivoAtualizar() {
   }
 }
 // ===== Separação de pedidos online (Mercado Livre, Shopee… via Bling; a nuvem busca de 2 em 2 min) =====
-const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true, sel: new Set(), abertos: new Set(), compacto: (() => { try { return localStorage.getItem("sepCompacto") === "1"; } catch (e) { return false; } })() };
+const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true, sel: new Set(), abertos: new Set(), somaProx: false, somaLg: null, somaR: [], somaAb: new Set(), pegos: null, compacto: (() => { try { return localStorage.getItem("sepCompacto") === "1"; } catch (e) { return false; } })() };
 function sepIniciar() {
   if (!supa || SEP.canal) return;
   SEP.canal = supa.channel("pedidos-online").on("postgres_changes", { event: "*", schema: "public", table: "pedidos_online" }, ev => {
@@ -3604,7 +3615,19 @@ function sepDesenhar() {
   const SUBS = [["canc", "Canceladas. Não enviar", "r"], ["atras", "Atrasadas. Enviar", "r"], ["nf", "NF-e para emitir", "r"], ["imprimir", "Etiqueta para imprimir", ""], ["pronto", "Prontas para enviar", "g"],
     ["aguarda", "Etiqueta ainda não liberada", ""], ["semdata", "Sem data de envio", ""], ["outros", SEP.aba === "hoje" ? "Enviar hoje" : "Para enviar", ""]]; // Full sai do centro do ML: a loja não separa
   const daAba = a => pendT.filter(p => { const e = envio(p); return a === "hoje" ? (cancML(p) || !e || e <= hojeSP) : (!cancML(p) && e && e > hojeSP); });
-  const abas = [["hoje", "Envios de hoje", daAba("hoje").length], ["prox", "Próximos dias", daAba("prox").length], ["sep", "Separados", aguard.length], ["desp", "Despachados", feitos.length]];
+  // ===== itens somados: o mesmo produto de pedidos diferentes vem somado (kit entra pelos itens que vão dentro) =====
+  const somaPeds = () => daAba("hoje").concat(SEP.somaProx ? daAba("prox") : []).filter(p => !cancML(p));
+  const somar = peds => { const m = new Map();
+    const add = (p, x, q, kit) => { const g = String(x.gtin || ""), k = g.length >= 8 ? "e" + g : x.codigo ? "c" + x.codigo : "d" + String(x.descricao || x.nome || "").trim().toUpperCase();
+      let r = m.get(k); if (!r) m.set(k, r = { k, desc: x.descricao || x.nome || "", codigo: x.codigo || "", gtin: g, local: x.localizacao || "", imagem: x.imagem || "", qtd: 0, peds: [] });
+      if (!r.imagem && x.imagem) r.imagem = x.imagem; if (!r.local && x.localizacao) r.local = x.localizacao;
+      r.qtd += q; const e = r.peds.find(y => y.p === p && y.kit === kit); if (e) e.q += q; else r.peds.push({ p, q, kit }); };
+    for (const p of peds) for (const it of p.itens || []) { const qi = Number(it.quantidade) || 1;
+      if ((it.componentes || []).length) for (const c of it.componentes) add(p, c, (Number(c.quantidade) || 1) * qi, it.descricao || "kit");
+      else add(p, it, qi, null); }
+    return [...m.values()].sort((x, y) => (x.local || "~").localeCompare(y.local || "~", "pt-BR", { numeric: true }) || x.desc.localeCompare(y.desc, "pt-BR")); };
+  if (!SEP.pegos) { SEP.pegos = new Set(); try { SEP.pegos = new Set(JSON.parse(localStorage.getItem("sepPegos:" + hojeSP) || "[]")); } catch (e) {} }
+  const abas = [["hoje", "Envios de hoje", daAba("hoje").length], ["prox", "Próximos dias", daAba("prox").length], ["soma", "Itens somados", somar(somaPeds()).length], ["sep", "Separados", aguard.length], ["desp", "Despachados", feitos.length]];
   if (SEP.foco && L.length) { const f = SEP.foco, p = L.find(x => x.id === f); SEP.foco = null;
     if (!p) setTimeout(() => msg("Esse pedido não está mais na lista da separação (despachado há mais de 7 dias, cancelado ou ainda não chegou do Bling)."), 50);
     else { SEP.aba = devolver.includes(p) ? SEP.aba : feitos.includes(p) ? "desp" : aguard.includes(p) ? "sep" : daAba("prox").includes(p) ? "prox" : "hoje"; SEP.lg = null; SEP.sub = null; SEP.abertos.add(f); SEP.focoAgora = f; } }
@@ -3647,6 +3670,22 @@ function sepDesenhar() {
     const titG = g => g.k === "canc" ? `<b style="color:#b42318">Canceladas no Mercado Livre — não enviar (${g.l.length})</b>` : g.k === "atras" ? `<b style="color:#b42318">Atrasados — já deviam ter saído (${g.l.length})</b>` : g.k === "sem" ? `<b>Sem data de envio (${g.l.length})</b> <span class="orig">— veja a data no Mercado Livre/Shopee e informe no pedido</span>` : `<b>Enviar ${nomeDia(g.k)}${g.k === hojeSP || g.k === amanha ? " (" + dsem(g.k) + " " + dm(g.k) + ")" : ""} — ${g.l.length}</b>`;
     h += vis.length ? grupos.map(g => `<div class="sep-gtit">${titG(g)}</div>` + g.l.map(btSep).join("")).join("")
       : `<div class="painel"><b style="color:var(--ok)">${SEP.aba === "hoje" ? "Nada para enviar hoje." : "Nada para os próximos dias."}</b> <span class="orig">Quando entrar um pedido, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
+  }
+  if (SEP.aba === "soma") {
+    const peds = somaPeds(), lgs = {}; for (const p of peds) lgs[lg(p)] = (lgs[lg(p)] || 0) + 1;
+    if (SEP.somaLg && !lgs[SEP.somaLg]) SEP.somaLg = null;
+    const vis = peds.filter(p => !SEP.somaLg || lg(p) === SEP.somaLg), R = somar(vis); SEP.somaR = R;
+    const un = R.reduce((t, r) => t + r.qtd, 0), nPeg = R.filter(r => SEP.pegos.has(r.k)).length, q = n => br(n, n % 1 ? 2 : 0);
+    h += `<div class="painel soma-topo"><b>${R.length} produto${R.length === 1 ? "" : "s"} · ${q(un)} unidade${un === 1 ? "" : "s"} · ${vis.length} pedido${vis.length === 1 ? "" : "s"}</b>
+      <div class="orig">Produto repetido vem somado; kit vem pelos itens de dentro. Marque ✓ o que já pegou — <span id="somaN">${nPeg} de ${R.length} pegos</span>${nPeg ? ' (<a href="#" id="somaLimpa">desmarcar</a>)' : ""}.</div>
+      <div class="linha" style="gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><span class="soma-esc"><a href="#" data-somaesc="hoje" class="${SEP.somaProx ? "" : "on"}">Envios de hoje</a><a href="#" data-somaesc="prox" class="${SEP.somaProx ? "on" : ""}">Hoje + próximos dias</a></span>
+      ${Object.keys(lgs).length > 1 ? LGORD.filter(k => lgs[k]).map(k => `<button class="sep-chipc${SEP.somaLg === k ? " on" : ""}" data-somalg="${k}" title="somar só os pedidos ${escH(LG[k])}">${escH(LG[k])} <b>${lgs[k]}</b></button>`).join("") : ""}</div></div>`;
+    h += R.length ? `<div class="painel soma-lista">` + R.map((r, i) => `<div class="sep-it soma-it${SEP.pegos.has(r.k) ? " pego" : ""}">
+      <label class="soma-ck" title="já peguei na prateleira"><input type="checkbox" data-pego="${i}"${SEP.pegos.has(r.k) ? " checked" : ""}></label>
+      <div class="soma-q">${q(r.qtd)}<small>un.</small></div>${foto(r.imagem)}
+      <div style="flex:1;min-width:0"><b>${escH(r.desc)}</b><div class="orig" style="margin:2px 0 0;font-size:12px">${escH([r.local ? "local: " + r.local : "", r.codigo ? "cód. " + r.codigo : "", r.gtin ? "EAN " + r.gtin : ""].filter(Boolean).join(" · "))}</div>
+      <details class="soma-peds" data-somad="${i}"${SEP.somaAb.has(r.k) ? " open" : ""}><summary>${r.peds.length === 1 ? "1 pedido" : r.peds.length + " pedidos"}</summary>${r.peds.map(e => `<div><b>${q(e.q)}×</b> ${escH(e.p.cliente || "")} <span class="orig">· ${escH(LG[lg(e.p)] || "")} · pedido ${escH(e.p.numero_loja || String(e.p.numero || ""))}${e.kit ? " · dentro do kit " + escH(e.kit) : ""}</span></div>`).join("")}</details></div></div>`).join("") + `</div>`
+      : `<div class="painel"><b style="color:var(--ok)">Nada para separar${SEP.somaProx ? "" : " hoje"}.</b></div>`;
   }
   if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
     aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
@@ -3699,6 +3738,13 @@ function sepDesenhar() {
   if (bt("sepLoteEnv")) bt("sepLoteEnv").onclick = () => lote("despachar", "Marcar {n} pedido(s) como JÁ ENVIADOS?\n\nEles saem da lista e viram \"Atendido\" no Bling em até 2 minutos (o Bling baixa o estoque deles agora).");
   if (bt("sepLoteCanc")) bt("sepLoteCanc").onclick = () => lote("ignorar", "Tirar {n} pedido(s) da lista como CANCELADOS?\n\nNada muda no Bling: cancele-os lá também para soltar a reserva do estoque.");
   for (const b of el.querySelectorAll("[data-jaenv]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Este pacote já foi enviado antes?\n\nEle sai da lista e vira \"Atendido\" no Bling (o Bling baixa o estoque agora).")) acao(b.dataset.jaenv, "despachar"); };
+  for (const a of el.querySelectorAll("[data-somaesc]")) a.onclick = ev => { ev.preventDefault(); SEP.somaProx = a.dataset.somaesc === "prox"; SEP.somaLg = null; sepDesenhar(); };
+  for (const b of el.querySelectorAll("[data-somalg]")) b.onclick = () => { SEP.somaLg = SEP.somaLg === b.dataset.somalg ? null : b.dataset.somalg; sepDesenhar(); };
+  const guardaPegos = () => { try { localStorage.setItem("sepPegos:" + hojeSP, JSON.stringify([...SEP.pegos])); } catch (e) {} };
+  for (const c of el.querySelectorAll("[data-pego]")) c.onchange = () => { const r = SEP.somaR[Number(c.dataset.pego)]; if (!r) return; c.checked ? SEP.pegos.add(r.k) : SEP.pegos.delete(r.k); guardaPegos();
+    c.closest(".soma-it").classList.toggle("pego", c.checked); const n = el.querySelector("#somaN"); if (n) n.textContent = `${SEP.somaR.filter(x => SEP.pegos.has(x.k)).length} de ${SEP.somaR.length} pegos`; };
+  for (const d of el.querySelectorAll("details[data-somad]")) d.ontoggle = () => { const r = SEP.somaR[Number(d.dataset.somad)]; if (r) d.open ? SEP.somaAb.add(r.k) : SEP.somaAb.delete(r.k); };
+  if (bt("somaLimpa")) bt("somaLimpa").onclick = ev => { ev.preventDefault(); for (const r of SEP.somaR) SEP.pegos.delete(r.k); guardaPegos(); sepDesenhar(); };
   { const t = el.querySelector("#sepTodos"); if (t) t.onclick = () => { if (confirm(`Marcar os ${aguard.length} pedidos separados como despachados? Eles viram "Atendido" no Bling.`)) { t.disabled = true; acao(0, "despachar_todos"); } }; }
 }
 function mostrarLogin(sim) {

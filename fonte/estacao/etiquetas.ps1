@@ -6,7 +6,7 @@
 #        so se ele nao responder usa a fila do Windows. Tira da fila do Windows as etiquetas de envio que ficaram travadas.
 # Nao mexe no Gestao, no caixa nem em vendas. E' mantida viva pela tarefa "Nova Raphaella Etiquetas" (a cada 5 min).
 $ErrorActionPreference = "Stop"
-$Versao = "1.3.0"
+$Versao = "1.3.1"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "etiquetas.log"
 $Vivo = Join-Path $Pasta "etiquetas.alive"
@@ -137,7 +137,7 @@ function Imprime($item) {
     $z = @($lista | Where-Object { $_ -match $ReZebra -and $_ -notmatch $ReElgin })[0]
     $ok = $true; $res = "IMPRESSORAS NESTE PC (" + $env:COMPUTERNAME + "):`r`n" + ($lista -join "`r`n") + "`r`n`r`nEscolhida para etiquetas de gondola: " + $alvo + "`r`nEscolhida para etiquetas de envio: " + $z + "`r`n`r`nSITUACAO NO WINDOWS:" + (Diagnostico)
   }
-  elseif (-not $alvo) { $res = "ERRO: nenhuma impressora " + $(if ($envio) { "Zebra (etiqueta de envio)" } else { "Elgin/L42" }) + " encontrada no " + $env:COMPUTERNAME + ". Impressoras instaladas:`r`n" + ($lista -join "`r`n") }
+  elseif (-not $alvo -and -not $envio) { $res = "ERRO: nenhuma impressora " + $(if ($envio) { "Zebra (etiqueta de envio)" } else { "Elgin/L42" }) + " encontrada no " + $env:COMPUTERNAME + ". Impressoras instaladas:`r`n" + ($lista -join "`r`n") }
   else {
     try {
       if ($envio) {

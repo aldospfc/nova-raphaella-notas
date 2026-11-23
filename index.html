@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="132">
+<meta name="versao" content="133">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -195,6 +195,8 @@
   #vistaItens { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin: 4px 2px 10px; font-size: 12px; color: var(--cinza); }
   .ivista { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; background: #fff; }
   .ivista a { padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--cinza); text-decoration: none; } .ivista a.on { background: var(--azul); color: #fff; }
+  .rec-bt { display: inline-flex; align-items: center; padding: 6px 12px; border: 1px solid #7cc49a; border-radius: 6px; background: #eef8f1; color: #1b7248; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .rec-bt.on { background: #1b7248; color: #fff; border-color: #1b7248; }
   .legcor { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
   .legcor i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.12); border-left-width: 4px; display: inline-block; }
   .legcor .lf { background: #fdeeee; border-left-color: #dc2626; } .legcor .lp { background: #eef5fd; border-left-color: #3b82f6; }
@@ -646,6 +648,7 @@
     <div id="recResumo" class="painel"></div>
     <div id="vistaItens">
       <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="tabela">Tabela</a><a data-iv="cartao">Cartões</a></span>
+      <a id="recBt" class="rec-bt" title="liga/desliga a marcação do que chegou em cada item (o mesmo que a opção Conferir recebimento lá em cima)">☐ Conferir recebimento</a>
       <span class="legcor"><i class="lf"></i>falta algo para ir ao Gestão</span>
       <span class="legcor"><i class="lp"></i>preço definido</span>
       <span class="legcor"><i class="lr"></i>revisado (OK marcado)</span>
@@ -5961,6 +5964,9 @@ document.getElementById("gDest").addEventListener("change", async ev => {
   e.addEventListener("change", () => { document.body.classList.toggle("semBol", !e.checked); try { localStorage.setItem("entradaxml:mostrarBol", e.checked ? "1" : "0"); } catch (x) {} const st = document.getElementById("bolSeta"); if (st) st.textContent = (e.checked ? "▾" : "▸") + " Boletos desta nota"; }); })();
 (() => { const e = document.getElementById("gRec"); let v = "0"; try { v = localStorage.getItem("entradaxml:confRec") ?? "0"; } catch (x) {}
   e.checked = v === "1"; document.body.classList.toggle("confRec", e.checked);
+  const bt = document.getElementById("recBt"), btTxt = () => { bt.textContent = (e.checked ? "☑" : "☐") + " Conferir recebimento"; bt.classList.toggle("on", e.checked); }; btTxt();
+  bt.addEventListener("click", () => { e.checked = !e.checked; e.dispatchEvent(new Event("change")); });
+  e.addEventListener("change", btTxt);
   e.addEventListener("change", () => { document.body.classList.toggle("confRec", e.checked); if (!e.checked) document.body.classList.remove("recPend"); try { localStorage.setItem("entradaxml:confRec", e.checked ? "1" : "0"); } catch (x) {} recResumo(); }); })();
 (() => { const e = document.getElementById("gCod"); let v = "1"; try { v = localStorage.getItem("entradaxml:mostrarCod") ?? "1"; } catch (x) {}
   e.checked = v !== "0"; document.body.classList.toggle("semCod", !e.checked);

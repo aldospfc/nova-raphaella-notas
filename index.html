@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="134">
+<meta name="versao" content="135">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5591,10 +5591,13 @@ function etZpl(it, c) {
     z.push(`^FO${xp},40^A0N,26,22^FDR$^FS`, `^FO${xp + 34},30^A0N,116,86^FD${inteiro}^FS`);
     z.push(`^FO${Math.min(W - 60, xp + 34 + inteiro.length * 62 + 6)},38^A0N,52,40^FD,${cent}^FS`, `^FO${xp + 34},156^A0N,40,34^FD${sob}^FS`);
   } else {
-    if (!promo) z.push(`^FO${xp},${H - 150}^A0N,28,24^FDR$^FS`);
-    z.push(`^FO${xp},${promo ? 92 : 64}^A0N,${promo ? 120 : 140},${promo ? 92 : 104}^FD${inteiro}^FS`);
-    const largInt = inteiro.length * (promo ? 64 : 72) + 6;
-    z.push(`^FO${Math.min(W - 64, xp + largInt)},${promo ? 98 : 72}^A0N,${promo ? 54 : 62},${promo ? 42 : 48}^FD,${cent}^FS`);
+    // R$ pequeno em cima do número (antes saía na altura do número e ficava por cima do 1º dígito); 3 ou mais dígitos: número menor para os centavos caberem
+    const nd = inteiro.length, fh = promo ? 120 : nd >= 4 ? 100 : nd === 3 ? 118 : 140, fw = promo ? 92 : nd >= 4 ? 70 : nd === 3 ? 84 : 104, dw = promo ? 64 : nd >= 4 ? 50 : nd === 3 ? 60 : 72;
+    const yN = promo ? 92 : 64 + (140 - fh);
+    if (!promo) z.push(`^FO${xp},26^A0N,30,26^FDR$^FS`);
+    z.push(`^FO${xp},${yN}^A0N,${fh},${fw}^FD${inteiro}^FS`);
+    const largInt = nd * dw + 6;
+    z.push(`^FO${Math.min(W - 84, xp + largInt)},${yN + (promo ? 6 : 8)}^A0N,${promo ? 54 : 62},${promo ? 42 : 48}^FD,${cent}^FS`);
   }
   z.push(`^FO${W - 150},${H - 22}^A0N,16,14^FD${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}${it.cod ? " " + etAscii(it.cod).slice(0, 8) : ""}^FS`);
   z.push("^XZ");

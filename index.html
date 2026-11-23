@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="129">
+<meta name="versao" content="130">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -119,6 +119,12 @@
   .custo { color: var(--verde); font-weight: 800; }
   .rolagem { overflow: auto; max-height: 72vh; border: 1px solid var(--borda); border-radius: 7px; background: #fff; box-shadow: var(--sombra); }
   .aviso { color: var(--alerta); }
+  .us-it { border-top: 1px solid var(--borda); padding: 9px 2px; } .us-it:first-child { border-top: 0; }
+  .us-l1 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .us-l2 { display: flex; gap: 4px 12px; flex-wrap: wrap; font-size: 12.5px; margin-top: 4px; align-items: center; }
+  .us-bts { margin-top: 5px; font-size: 13px; } .us-bts a { color: #0b57d0; cursor: pointer; }
+  .us-form { border: 1px solid #2968c8; background: #f5f8fd; border-radius: 8px; padding: 10px; margin: 6px 0 10px; display: flex; flex-direction: column; gap: 7px; }
+  .us-form label.c input:not([type=checkbox]), .us-form select { width: 100%; font-size: 15px; padding: 6px; }
+  .us-form .us-ck { display: flex; gap: 6px; align-items: flex-start; font-size: 13.5px; } .us-form .us-ck input { margin-top: 2px; }
   #busca { position: fixed; right: 16px; top: 60px; width: 460px; max-width: calc(100vw - 24px); max-height: 80vh; overflow: auto; background: #fff; border: 1px solid var(--borda); border-radius: 8px; box-shadow: 0 10px 30px rgba(27,45,75,.18); padding: 10px; display: none; z-index: 45; }
   #busca input[type=text], #busca input[type=email] { width: 100%; }
   #busca input[type=checkbox] { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; }
@@ -3360,7 +3366,7 @@ async function entrarNoSistema(sessao) {
     try { history.replaceState({ v: "separacao" }, "", "#separacao"); } catch (e) {} return;
   }
   sepIniciar();
-  if (r.data.admin) { const b = document.createElement("a"); b.textContent = "incluir usuário"; b.onclick = incluirUsuario; u.appendChild(b); }
+  if (r.data.admin) { const b = document.createElement("a"); b.textContent = "usuários"; b.title = "incluir, editar e remover quem acessa o sistema"; b.onclick = usuariosAbrir; u.appendChild(b); }
   travaVerificar(); setInterval(travaVerificar, 60000);
   document.getElementById("lCad").style.display = "none";
   document.getElementById("soLocal").style.display = "none";
@@ -3375,12 +3381,81 @@ async function entrarNoSistema(sessao) {
     if (ABAS_V.includes(hv)) { if (hv !== vista) mostrar(hv, true); } else if (window.innerWidth < 800) mostrar("hoje", true);
     try { history.replaceState({ v: vista }, "", "#" + vista); } catch (e) {} }
 }
-function incluirUsuario() {
-  const b = document.getElementById("busca"); b.style.display = "block";
-  b.innerHTML = `<b>Incluir usuário</b><br><label class="c" style="margin-top:6px">E-mail<input type="email" id="nuEmail" style="width:100%"></label><label class="c" style="margin-top:6px">Nome<input type="text" id="nuNome" style="width:100%"></label><label class="c" style="margin-top:6px">Acesso<select id="nuPerfil" style="width:100%"><option value="completo">Completo (tudo)</option><option value="separacao">Só separação de pedidos online (funcionário)</option></select></label><div class="orig" style="margin-top:4px">A pessoa cria a conta em "Criar conta" com este e-mail e uma senha dela.</div><div class="linha" style="margin-top:8px;gap:8px"><button id="nuOk">Incluir</button><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div><div id="nuMsg" class="orig" style="margin-top:6px">A pessoa cria a conta na tela de entrada com esse e-mail.</div>`;
-  b.querySelector("#bx").onclick = () => b.style.display = "none";
-  b.querySelector("#nuOk").onclick = async () => { const r = await supa.rpc("incluir_usuario", { p_email: b.querySelector("#nuEmail").value.trim(), p_nome: b.querySelector("#nuNome").value.trim(), p_perfil: b.querySelector("#nuPerfil").value }); b.querySelector("#nuMsg").textContent = r.error ? "Erro: " + r.error.message : "Incluído."; };
+// ===== Usuários (só administrador com a verificação em duas etapas): quem entra no sistema e com que acesso =====
+const US = { lista: [], edit: null };
+const usSenhaNova = () => { const c = "abcdefghjkmnpqrstuvwxyz23456789"; let t = ""; const r = crypto.getRandomValues(new Uint32Array(8)); for (const x of r) t += c[x % c.length]; return t.slice(0, 4) + "-" + t.slice(4); };
+async function usConta(acao, email, senha, extra) {
+  const { data, error } = await supa.functions.invoke("usuarios", { body: { acao, email, senha, ...(extra || {}) } });
+  if (error && !data) return { ok: false, msg: error.message }; return data || { ok: false, msg: "sem resposta" };
 }
+async function usuariosAbrir() {
+  const b = document.getElementById("busca"); b.style.display = "block"; US.edit = null;
+  b.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b style="font-size:16px">Usuários</b><span class="linha" style="gap:12px"><button id="usNovo">+ incluir</button><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></span></div><div id="usMsg" class="orig" style="margin:6px 0"></div><div id="usLista" class="orig">Carregando…</div>`;
+  b.querySelector("#bx").onclick = () => b.style.display = "none";
+  b.querySelector("#usNovo").onclick = () => { US.edit = "novo"; usuariosDesenhar(); };
+  await usuariosCarregar();
+}
+async function usuariosCarregar() {
+  const { data, error } = await supa.rpc("usuarios_listar");
+  const el = document.getElementById("usLista"); if (!el) return;
+  if (error) { el.textContent = "Não consegui ler os usuários: " + error.message; return; }
+  US.lista = data || []; el.classList.remove("orig"); usuariosDesenhar();
+}
+function usuariosDesenhar() {
+  const el = document.getElementById("usLista"); if (!el) return;
+  const dh = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  const ACESSO = { completo: "Completo (tudo)", separacao: "Só separação de pedidos online" };
+  const form = u => { const novo = !u; u = u || { email: "", nome: "", perfil: "separacao", exige_2fa: true, admin: false };
+    return `<div class="us-form"><b>${novo ? "Incluir usuário" : "Editar " + escH(u.nome || u.email)}</b>
+      ${novo ? `<label class="c">E-mail<input type="email" id="usEmail" autocomplete="off"></label>` : `<div class="orig">${escH(u.email)}</div>`}
+      <label class="c">Nome<input type="text" id="usNome" value="${escH(u.nome || "").replace(/"/g, "&quot;")}"></label>
+      <label class="c">Acesso<select id="usPerfil"${u.eu ? " disabled" : ""}><option value="completo"${u.perfil === "completo" ? " selected" : ""}>${ACESSO.completo}</option><option value="separacao"${u.perfil === "separacao" ? " selected" : ""}>${ACESSO.separacao}</option></select></label>
+      <div id="usSoCompleto"${u.perfil === "completo" ? "" : " hidden"}>
+        <label class="c us-ck"><input type="checkbox" id="usAdmin"${u.admin ? " checked" : ""}${u.eu ? " disabled" : ""}> Administrador <span class="orig">— pode mexer nos usuários e liberar preços segurados</span></label>
+        <label class="c us-ck"><input type="checkbox" id="usExige"${u.exige_2fa ? " checked" : ""}> Exigir a verificação em duas etapas <span class="orig">— pede o código do app autenticador ao entrar</span></label></div>
+      ${novo ? `<label class="c">Senha inicial <span class="orig">— a conta já fica pronta, sem e-mail de confirmação; passe a senha para a pessoa</span><span class="linha" style="gap:6px"><input type="text" id="usSenha" autocomplete="off" style="flex:1" placeholder="mínimo 8 caracteres"><button class="sec" id="usGerar" type="button">gerar</button></span></label>` : ""}
+      <div class="linha" style="gap:8px;margin-top:4px"><button id="usSalvar">${novo ? "Incluir" : "Salvar"}</button><button class="sec" id="usCanc">cancelar</button></div></div>`; };
+  let h = US.edit === "novo" ? form(null) : "";
+  h += US.lista.map((u, i) => US.edit === u.email ? form(u) : `<div class="us-it">
+    <div class="us-l1"><b>${escH(u.nome || u.email)}</b>${u.admin ? ' <span class="chip">administrador</span>' : ""}${u.eu ? ' <span class="chip">você</span>' : ""}</div>
+    <div class="orig">${escH(u.email)}</div>
+    <div class="us-l2"><span>${escH(ACESSO[u.perfil] || u.perfil)}</span>
+      ${u.tem_conta ? `<span>último acesso: ${u.ultimo_acesso ? escH(dh(u.ultimo_acesso)) : "nunca entrou"}</span>` : '<span class="chip falta" title="a pessoa ainda precisa tocar em Criar conta na tela de entrada">ainda não criou a conta</span>'}
+      ${u.perfil === "completo" ? (u.tem_2fa ? '<span style="color:var(--ok)">duas etapas ✓</span>' : u.exige_2fa ? '<span class="chip">vai cadastrar as duas etapas ao entrar</span>' : '<span class="chip falta">sem verificação em duas etapas</span>') : ""}</div>
+    <div class="us-bts"><a href="#" data-used="${i}">editar</a> · <a href="#" data-ussenha="${i}">${u.tem_conta ? "trocar senha" : "criar conta com senha"}</a>${u.tem_2fa && !u.eu ? ` · <a href="#" data-us2fa="${i}" title="para quem perdeu ou trocou de celular">zerar duas etapas</a>` : ""}${!u.eu ? ` · <a href="#" data-usrm="${i}" style="color:#b42318">remover acesso</a>` : ""}</div></div>`).join("");
+  el.innerHTML = h || "Nenhum usuário.";
+  const m = t => { const x = document.getElementById("usMsg"); if (x) x.textContent = t; };
+  for (const a of el.querySelectorAll("[data-used]")) a.onclick = ev => { ev.preventDefault(); US.edit = US.lista[Number(a.dataset.used)].email; usuariosDesenhar(); };
+  for (const a of el.querySelectorAll("[data-usrm]")) a.onclick = async ev => { ev.preventDefault(); const u = US.lista[Number(a.dataset.usrm)];
+    if (!confirm(`Remover o acesso de ${u.nome || u.email}?\n\nA pessoa deixa de entrar no sistema na hora (a conta dela continua existindo; se incluir de novo, ela volta a entrar com a mesma senha).`)) return;
+    const { error } = await supa.rpc("usuario_remover", { p_email: u.email }); m(error ? "Não deu: " + error.message : "Acesso removido."); usuariosCarregar(); };
+  for (const a of el.querySelectorAll("[data-us2fa]")) a.onclick = async ev => { ev.preventDefault(); const u = US.lista[Number(a.dataset.us2fa)];
+    if (!confirm(`Zerar a verificação em duas etapas de ${u.nome || u.email}?\n\nUse quando a pessoa perdeu ou trocou de celular. No próximo login ela cadastra o app autenticador de novo.`)) return;
+    const { error } = await supa.rpc("usuario_zerar_2fa", { p_email: u.email }); m(error ? "Não deu: " + error.message : "Verificação zerada — ela cadastra de novo no próximo login."); usuariosCarregar(); };
+  for (const a of el.querySelectorAll("[data-ussenha]")) a.onclick = async ev => { ev.preventDefault(); const u = US.lista[Number(a.dataset.ussenha)];
+    const nova = prompt(`${u.tem_conta ? "Nova senha" : "Senha para a conta"} de ${u.nome || u.email} (mínimo 8 caracteres).\nAnote e passe para a pessoa:`, usSenhaNova()); if (nova === null) return;
+    m("Gravando…"); const r = await usConta(u.tem_conta ? "senha" : "criar", u.email, nova.trim(), { salvar: false });
+    m(r.ok ? (u.tem_conta ? "Senha trocada. " : "Conta criada. ") + `${u.nome || u.email} já entra com o e-mail e a senha nova.` : "Não deu: " + r.msg); usuariosCarregar(); };
+  const f = el.querySelector(".us-form"); if (!f) return;
+  if (f.querySelector("#usGerar")) f.querySelector("#usGerar").onclick = () => { f.querySelector("#usSenha").value = usSenhaNova(); };
+  const perfil = f.querySelector("#usPerfil"), soC = f.querySelector("#usSoCompleto");
+  perfil.onchange = () => { soC.hidden = perfil.value !== "completo"; if (perfil.value !== "completo") f.querySelector("#usAdmin").checked = false; };
+  f.querySelector("#usCanc").onclick = () => { US.edit = null; usuariosDesenhar(); };
+  f.querySelector("#usSalvar").onclick = async () => { const novo = US.edit === "novo", u = novo ? null : US.lista.find(x => x.email === US.edit);
+    const email = novo ? f.querySelector("#usEmail").value.trim() : u.email;
+    if (novo && US.lista.some(x => x.email === email.toLowerCase())) return m("Esse e-mail já está na lista — use editar.");
+    const comp = perfil.value === "completo", senha = novo ? f.querySelector("#usSenha").value.trim() : "";
+    if (senha) { if (senha.length < 8) return m("A senha precisa ter pelo menos 8 caracteres.");
+      m("Criando a conta…"); const r = await usConta("criar", email, senha, { nome: f.querySelector("#usNome").value.trim(), perfil: perfil.value, exige_2fa: comp ? f.querySelector("#usExige").checked : true, admin: comp && f.querySelector("#usAdmin").checked });
+      if (!r.ok && !r.existe) return m("Não deu: " + r.msg);
+      m(r.ok ? `Pronto: ${email} já entra com essa senha. Passe para a pessoa (ela pode trocar depois).` : r.msg); US.edit = null; return usuariosCarregar(); }
+    const { error } = await supa.rpc("usuario_salvar", { p_email: email, p_nome: f.querySelector("#usNome").value.trim(), p_perfil: perfil.value,
+      p_exige_2fa: comp ? f.querySelector("#usExige").checked : true, p_admin: comp && f.querySelector("#usAdmin").checked });
+    if (error) return m("Não deu: " + error.message);
+    m(novo ? "Incluído. Agora a pessoa toca em \"Criar conta\" na tela de entrada com esse e-mail." : "Salvo."); US.edit = null; usuariosCarregar(); };
+  (f.querySelector("#usEmail") || f.querySelector("#usNome")).focus();
+}
+const incluirUsuario = () => { usuariosAbrir().then(() => { US.edit = "novo"; usuariosDesenhar(); }); };
 // Ao vivo: cada cupom que o PC da loja sobe (a cada 30 s) avisa a página, que atualiza Hoje e Vendas sem recarregar
 let vivoT = null, vivoCanal = null;
 function vivoIniciar() {

@@ -2,9 +2,11 @@
 # So imprime: pega na nuvem os pedidos de etiqueta da loja e manda o ZPL cru para a impressora local.
 # 1.1.0: etiquetas de envio (Mercado Livre/Shopee, tipo "etiqueta_envio") vao para a Zebra; gondola continua na Elgin.
 # 1.2.0: diagnostico da fila do Windows (porta, offline/pausada, documentos parados) no pedido "impressoras" e no resultado de cada impressao.
+# 1.3.0: etiqueta de envio vai pelo Zebra Browser Print (o mesmo caminho da pagina do Mercado Livre, que segura a Zebra na USB);
+#        so se ele nao responder usa a fila do Windows. Tira da fila do Windows as etiquetas de envio que ficaram travadas.
 # Nao mexe no Gestao, no caixa nem em vendas. E' mantida viva pela tarefa "Nova Raphaella Etiquetas" (a cada 5 min).
 $ErrorActionPreference = "Stop"
-$Versao = "1.2.0"
+$Versao = "1.3.0"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "etiquetas.log"
 $Vivo = Join-Path $Pasta "etiquetas.alive"
@@ -83,6 +85,28 @@ function SituacaoImpressora($nome) {
     return $t
   } catch { return "sem diagnostico: " + $_.Exception.Message }
 }
+# Zebra Browser Print (programa da Zebra neste PC, porta 9100): manda o ZPL direto para a impressora padrao dele
+function ViaBrowserPrint($zpl) {
+  $bp = "http://127.0.0.1:9100"
+  foreach ($origem in @("", "https://sistema.novaraphaella.com.br")) {
+    try {
+      $h = @{}; if ($origem) { $h["Origin"] = $origem }
+      $dev = Invoke-RestMethod -Uri ($bp + "/default?type=printer") -Headers $h -TimeoutSec 8
+      if ($dev -is [string]) { $dev = if ($dev.Trim()) { $dev | ConvertFrom-Json } else { $null } }
+      if (-not $dev -or -not $dev.name) { return @{ ok = $false; msg = "o Browser Print nao tem impressora padrao escolhida" } }
+      $corpo = @{ device = $dev; data = $zpl } | ConvertTo-Json -Compress -Depth 6
+      $null = Invoke-RestMethod -Uri ($bp + "/write") -Method Post -Headers $h -Body ([Text.Encoding]::UTF8.GetBytes($corpo)) -ContentType "text/plain;charset=UTF-8" -TimeoutSec 30
+      return @{ ok = $true; msg = [string]$dev.name }
+    } catch { $ultimo = $_.Exception.Message }
+  }
+  return @{ ok = $false; msg = "Browser Print nao respondeu (" + $ultimo + ")" }
+}
+# Etiquetas de envio desta estacao que travaram na fila do Windows (a Zebra presa pelo Browser Print): tira da fila para nao sairem repetidas depois
+function LimpaTravadas($nome) {
+  $n = 0
+  try { foreach ($j in @(Get-WmiObject Win32_PrintJob | Where-Object { $_.Name -like ($nome + ",*") -and [string]$_.Document -like "Etiqueta de envio*" })) { try { $j.Delete(); $n++ } catch {} } } catch {}
+  return $n
+}
 function Diagnostico {
   $t = ""
   foreach ($n in (ListaImpressoras | Where-Object { $_ -match $ReZebra -or $_ -match $ReElgin })) { $t += "`r`n* " + $n + ": " + (SituacaoImpressora $n) }
@@ -116,6 +140,17 @@ function Imprime($item) {
   elseif (-not $alvo) { $res = "ERRO: nenhuma impressora " + $(if ($envio) { "Zebra (etiqueta de envio)" } else { "Elgin/L42" }) + " encontrada no " + $env:COMPUTERNAME + ". Impressoras instaladas:`r`n" + ($lista -join "`r`n") }
   else {
     try {
+      if ($envio) {
+        # 1o caminho: Browser Print (o mesmo da pagina do Mercado Livre)
+        $lt = LimpaTravadas $alvo
+        $bp = ViaBrowserPrint (($corpo -join "`r`n"))
+        if ($bp.ok) {
+          $ok = $true; $res = "IMPRESSO em " + $bp.msg + " pelo Browser Print no " + $env:COMPUTERNAME + $(if ($lt) { " (" + $lt + " travada(s) tirada(s) da fila do Windows)" } else { "" })
+          $null = Rpc "estacao_concluir" @{ p_token = $cfg.token; p_id = $id; p_ok = $ok; p_resultado = $res }
+          Escreve ("Pedido " + $id + ": " + $res); return
+        }
+        Escreve ("Pedido " + $id + ": " + $bp.msg + "; tentando pela fila do Windows.")
+      }
       if (-not ("NrRawEst" -as [type])) { Add-Type -TypeDefinition $RawCs }
       # gondola: ZPL montado pelo site em Windows-1252; envio: ZPL do Mercado Livre/Shopee em UTF-8
       $cod = if ($envio) { New-Object System.Text.UTF8Encoding($false) } else { [Text.Encoding]::GetEncoding(1252) }

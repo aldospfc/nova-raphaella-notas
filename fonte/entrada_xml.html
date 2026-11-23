@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="130">
+<meta name="versao" content="131">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -179,6 +179,18 @@
   #mfa input.cod { font-size: 22px; letter-spacing: 6px; text-align: center; width: 100%; }
   .trava-it { border: 1px solid var(--borda); border-radius: 6px; padding: 8px; margin-top: 8px; }
   .trava-it .mot { font-size: 12px; color: #b42318; margin: 4px 0; white-space: pre-wrap; }
+  /* conferência do recebimento (só aparece com "Conferir recebimento" ligado) */
+  .rec, #recResumo { display: none; }
+  body.confRec .rec { display: flex; } body.confRec #recResumo { display: block; }
+  .rec { margin-top: 6px; padding: 5px 8px; border-radius: 6px; background: #f5f7f9; border: 1px solid var(--borda); font-size: 12.5px; align-items: center; gap: 6px; flex-wrap: wrap; white-space: normal; }
+  .rec input { width: 54px !important; min-width: 0 !important; font-size: 15px; padding: 4px 6px; text-align: right; }
+  .rec button { padding: 4px 10px; font-size: 12.5px; } .rec button.on { background: #b42318; color: #fff; border-color: #b42318; }
+  .rec .rst { font-weight: 700; color: var(--cinza); }
+  .rec.r-ok { background: #e8f6ee; border-color: #7cc49a; } .rec.r-ok .rst { color: #1b7248; }
+  .rec.r-parc { background: #fff6e5; border-color: #f5c26b; } .rec.r-parc .rst { color: #a15c00; }
+  .rec.r-falta { background: #fdeeee; border-color: #e8a1a1; } .rec.r-falta .rst { color: #b42318; }
+  .rec-n { font-size: 12.5px; font-weight: 700; border-radius: 10px; padding: 2px 9px; } .rec-n.ok { background: #e8f6ee; color: #1b7248; } .rec-n.parc { background: #fff6e5; color: #a15c00; } .rec-n.falta { background: #fdeeee; color: #b42318; } .rec-n.nao { background: #eef1f4; color: #4a5566; }
+  body.confRec.recPend #tb tr.recok { display: none !important; }
   /* seletor tabela/cartões e legenda de cores da entrada */
   #vistaItens { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin: 4px 2px 10px; font-size: 12px; color: var(--cinza); }
   .ivista { display: inline-flex; border: 1px solid var(--borda); border-radius: 6px; overflow: hidden; background: #fff; }
@@ -601,6 +613,7 @@
       <label class="c" id="lXml2" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="pedidos diferentes do mesmo fornecedor para as duas lojas: abra aqui a nota da Loja 2 e trabalhe as duas na mesma tela. Cada loja fica com a quantidade e o custo da sua própria nota.">Juntar a nota da Loja 2 <input type="file" id="fXml2" accept=".xml" style="max-width:190px"></label><span id="parInfo" class="orig"></span>
       <div class="quebra"></div>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a coluna com o código / referência do produto no fornecedor"><input type="checkbox" id="gCod" style="width:18px;height:18px" checked> Mostrar código / referência</label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#eef8f1;border-radius:6px" title="liga em cada item a marcação do que chegou (para notas que vêm bagunçadas: vá marcando conforme encontra os pacotes). Fica guardado neste aparelho; o que for marcado aparece nos dois PCs."><input type="checkbox" id="gRec" style="width:18px;height:18px"> Conferir recebimento</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
       <span class="legenda" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido · <a href="#" id="bAceitarSug" title="transforma a sugestão de todos os itens pendentes em preço definido, para eles poderem ir ao Gestão">aceitar preços sugeridos</a> · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
       <div class="quebra lin"></div>
@@ -630,6 +643,7 @@
       <button id="bAddSem" class="sec">Produto novo (sem código)</button>
       <span class="orig">Produto que já existe no Gestão vem com descrição, custo, venda e estoque atuais. Produto novo: digite a descrição e o NCM no detalhe.</span>
     </div>
+    <div id="recResumo" class="painel"></div>
     <div id="vistaItens">
       <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="tabela">Tabela</a><a data-iv="cartao">Cartões</a></span>
       <span class="legcor"><i class="lf"></i>falta algo para ir ao Gestão</span>
@@ -1077,6 +1091,35 @@ async function renomearFornecedor(chave, nome) {
   if (cab && cab.chave === chave) { cab.emit = nome; desenharCab(); }
   redesenharTudo();
 }
+// ---------- conferência do recebimento (opção "Conferir recebimento" no topo): o que chegou de cada item ----------
+function recSit(it) { const q = Number(it.qtd) || 0, r = it.rq;
+  if (r != null && q > 0 && r >= q) return "ok"; if (it.rf) return "falta"; if (r > 0) return "parc"; return "nao"; }
+function recAtualizar(it) {
+  const tr = document.getElementById("l" + it.n); if (!tr) return; const b = tr.querySelector("[data-rec]"); if (!b) return;
+  const q = Number(it.qtd) || 0, r = it.rq, f = n => br(n, n % 1 ? 2 : 0), sit = recSit(it), inp = b.querySelector("[data-r=q]");
+  if (inp !== document.activeElement) inp.value = r == null ? "" : String(r).replace(".", ",");
+  b.querySelector("[data-r=de]").textContent = `de ${f(q)} ${it.un || ""}`;
+  b.querySelector("[data-r=st]").textContent = sit === "ok" ? (r > q ? `chegou tudo (+${f(r - q)} a mais)` : "chegou tudo ✓") : sit === "falta" ? `faltou ${f(Math.max(0, q - (r || 0)))}` : sit === "parc" ? `faltam ${f(q - r)}` : "ainda não encontrado";
+  b.className = "rec r-" + sit; b.querySelector("[data-r=falta]").classList.toggle("on", !!it.rf);
+  tr.classList.toggle("recok", sit === "ok"); clearTimeout(recResumoT); recResumoT = setTimeout(recResumo, 60);
+}
+let recResumoT = null;
+function recResumo() {
+  const el = document.getElementById("recResumo"); if (!el) return;
+  const c = { ok: 0, parc: 0, falta: 0, nao: 0 }; for (const it of itens) c[recSit(it)]++;
+  const n = itens.length, feito = c.ok === n && n > 0;
+  el.innerHTML = `<div class="linha" style="gap:6px 14px;flex-wrap:wrap;align-items:center"><b>Conferência do recebimento</b>
+    <span class="rec-n ok">${c.ok} de ${n} chegaram completos</span>${c.parc ? `<span class="rec-n parc">${c.parc} incompleto${c.parc > 1 ? "s" : ""}</span>` : ""}${c.falta ? `<span class="rec-n falta">${c.falta} faltaram</span>` : ""}${c.nao ? `<span class="rec-n nao">${c.nao} ainda não encontrado${c.nao > 1 ? "s" : ""}</span>` : ""}${feito ? '<b style="color:var(--ok)">✓ tudo conferido</b>' : ""}</div>
+    <div class="linha" style="gap:8px 14px;flex-wrap:wrap;margin-top:6px;align-items:center"><label class="c" style="flex-direction:row;align-items:center;gap:6px;margin:0"><input type="checkbox" id="recSoFalta"${document.body.classList.contains("recPend") ? " checked" : ""}> mostrar só o que falta encontrar</label>
+    ${c.ok < n ? '<button class="sec" id="recCopiar" title="copia a lista do que não chegou (para cobrar o fornecedor)">copiar lista de faltas</button>' : ""}
+    <span class="orig" style="margin:0">Digite quanto já achou ou toque em <b>✓ tudo</b>; no fim, toque em <b>faltou</b> no que não veio.</span></div>`;
+  el.querySelector("#recSoFalta").onchange = ev => document.body.classList.toggle("recPend", ev.target.checked);
+  const bc = el.querySelector("#recCopiar"); if (bc) bc.onclick = () => {
+    const f = x => br(x, x % 1 ? 2 : 0), l = itens.filter(it => recSit(it) !== "ok").map(it => { const q = Number(it.qtd) || 0, r = it.rq || 0;
+      return `- falta ${f(q - r)} ${it.un || ""} de ${f(q)}: ${it.cod ? it.cod + " · " : ""}${it.xprod}${recSit(it) === "nao" ? " (não encontrado)" : ""}`; });
+    const t = `Faltas no recebimento — NF ${cab.nnf || ""}${cab.emit ? " · " + cab.emit : ""}\n` + l.join("\n");
+    try { navigator.clipboard.writeText(t); msg(`Lista de ${l.length} item(ns) copiada — cole no WhatsApp ou e-mail do fornecedor`); } catch (e) { prompt("Copie a lista:", t); } };
+}
 const ROT_ITEM = ["", "", "", "", "Qtd nota", "Vlr nota", "IPI", "Divisor", "Qtd un.", "EAN da unidade", "% nota", "Fator DIFAL", "Custo item", "Custo un.", "Acrésc. %", "Venda (R$)", "Para a Loja 2 (emb. + un.)", "Venda Loja 2"];
 function desenhar() {
   agendarSugestoes(); conciliarEnvios();
@@ -1092,7 +1135,7 @@ function desenhar() {
     const tr = document.createElement("tr"); tr.id = "l" + it.n; tr.classList.add("it");
     if (it.rev) tr.classList.add("rev");
     tr.innerHTML = `<td class="rv"><input type="checkbox" data-c="rev" title="preço conferido / item revisado"${it.rev ? " checked" : ""}></td><td><a data-d="1" title="categoria, família e estoque" style="cursor:pointer;color:#0b57d0;white-space:nowrap">${abertos.has(it.n) ? "▾" : "▸"} ${rot(it)}</a></td><td class="mono cc"><b>${it.cod || ""}</b></td>
-      <td><input class="desc" type="text" maxlength="60" data-c="desc"><div class="orig" data-o="nm"></div><div class="orig">${it.xprod}${it.m ? ' <a data-x="1" title="tira este item da entrada (pede confirmação)" style="cursor:pointer;color:#b91c1c;float:right;margin-left:12px">remover item</a>' : ""}</div></td>
+      <td><input class="desc" type="text" maxlength="60" data-c="desc"><div class="orig" data-o="nm"></div><div class="orig">${it.xprod}${it.m ? ' <a data-x="1" title="tira este item da entrada (pede confirmação)" style="cursor:pointer;color:#b91c1c;float:right;margin-left:12px">remover item</a>' : ""}</div><div class="rec" data-rec><span>Chegou</span><input type="text" inputmode="decimal" data-r="q" placeholder="0" title="quantas embalagens / unidades da nota já foram encontradas"><span data-r="de"></span><button type="button" class="sec" data-r="tudo" title="encontrei a quantidade toda">✓ tudo</button><button type="button" class="sec" data-r="falta" title="terminou a conferência e isto não veio (toque de novo para desmarcar)">faltou</button><span class="rst" data-r="st"></span></div></td>
       ${it.m ? `<td class="n"><input class="p" type="text" inputmode="decimal" data-c="qtd" placeholder="qtd"><div class="orig">custo un. <input class="p" type="text" inputmode="decimal" data-c="vun" style="width:60px"></div></td><td class="n" data-o="vprod"></td><td class="n">${it.vipi || it.vst ? br((it.vipi || 0) + (it.vst || 0)) : "-"}</td>`
         : `<td class="n">${br(it.qtd, 0)} ${it.un}<div class="orig">× ${br(it.vun)}</div></td><td class="n">${br(it.vprod)}</td><td class="n">${br(it.vipi)}</td>`}
       <td class="n"><input class="p" type="number" min="1" step="1" data-c="div"></td><td class="n" data-o="qtdUn"></td>
@@ -1107,6 +1150,11 @@ function desenhar() {
     tb.appendChild(tr);
     // rótulos dos campos (aparecem só no celular, onde cada item vira um cartão em várias linhas)
     tr.querySelectorAll(":scope > td").forEach((td, i) => { const l = ROT_ITEM[i]; if (l) td.dataset.l = l; });
+    { const b = tr.querySelector("[data-rec]"), inp = b.querySelector("[data-r=q]");
+      inp.addEventListener("change", () => { const v = inp.value.trim(); it.rq = v === "" ? null : Math.max(0, Number(v.replace(",", ".")) || 0); if (it.rq != null && it.rq >= (Number(it.qtd) || 0)) it.rf = 0; recAtualizar(it); guardar(it); });
+      b.querySelector("[data-r=tudo]").onclick = () => { it.rq = Number(it.qtd) || 0; it.rf = 0; recAtualizar(it); guardar(it); };
+      b.querySelector("[data-r=falta]").onclick = () => { it.rf = it.rf ? 0 : 1; recAtualizar(it); guardar(it); };
+      recAtualizar(it); }
     { const g2 = tr.querySelector("[data-g2]"); if (g2) g2.addEventListener("click", ev => { ev.preventDefault(); gerarLoja2(it); }); }
     for (const inp of tr.querySelectorAll("input")) {
       const c = inp.dataset.c; inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? "");
@@ -1144,6 +1192,7 @@ function desenhar() {
 function escH(t) { return String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
 function atualizarLinha(it) {
   const tr = document.getElementById("l" + it.n); if (!tr) return;
+  recAtualizar(it);
   const k = calc(it), o = n => tr.querySelector(`[data-o=${n}]`);
   o("qtdUn").textContent = br(k.qtdUn, 0);
   if (it.m) o("vprod").textContent = br(it.vprod);
@@ -1660,7 +1709,7 @@ function restaurar(s) {
 
 // ---------- trabalho compartilhado entre os PCs (página publicada) ----------
 const idItem = n => "i" + String(n).padStart(4, "0");
-const estadoItem = i => ({ bl: i.bl || null, ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean || "", aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc || "", pct: i.pct ?? null, mk: i.mk ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada });
+const estadoItem = i => ({ bl: i.bl || null, ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean || "", aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc || "", pct: i.pct ?? null, mk: i.mk ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada, rq: i.rq ?? null, rf: i.rf ? 1 : 0 });
 // fator dos boletos em meia nota: quanto o valor cheio (com os impostos da parte faturada) é maior que o valor da nota
 function fatorBoletos() {
   if (!cab || cab.manual || !itens.length) return 1;
@@ -1694,7 +1743,7 @@ function aplicarRemoto(g) {
   if (!it && cab.manual && g.m) { it = itemManual(g); Object.assign(it, { e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, an: g.an ? 1 : 0, div: g.div || 1, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, pct: g.pct ?? null, fd: g.fd || 1 }); itens.push(it); itens.sort((a, b) => a.n - b.n); clearTimeout(tDesenha); tDesenha = setTimeout(desenhar, 30); return; }
   if (!it || pend.has(it.n)) return;
   if (it.m) { it.xprod = g.xprod; it.qtd = g.qtd; it.vun = g.vun; it.vprod = r2(g.qtd * g.vun); it.vipi = g.vipi || 0; it.vst = g.vst || 0; }
-  Object.assign(it, { jg: g.jg ? 1 : 0, an: g.an ? 1 : 0, e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, div: g.div, ean: g.ean, aux: g.aux ?? null, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, ncm: g.ncm ?? it.ncm ?? "", cest: g.cest ?? it.cest ?? "", desc: g.desc, pct: g.pct, mk: g.mk, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null, fd: g.fd, tocado: g.tocado, descTocada: g.descTocada });
+  Object.assign(it, { jg: g.jg ? 1 : 0, an: g.an ? 1 : 0, e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, div: g.div, ean: g.ean, aux: g.aux ?? null, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, ncm: g.ncm ?? it.ncm ?? "", cest: g.cest ?? it.cest ?? "", desc: g.desc, pct: g.pct, mk: g.mk, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null, fd: g.fd, tocado: g.tocado, descTocada: g.descTocada, rq: g.rq ?? null, rf: g.rf ? 1 : 0 });
   const tr = document.getElementById("l" + it.n); if (!tr) return;
   for (const inp of tr.querySelectorAll("input")) if (inp !== document.activeElement) { const c = inp.dataset.c; if (c === "rev") { inp.checked = !!it.rev; continue; } inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? ""); }
   tr.classList.toggle("rev", !!it.rev);
@@ -5887,6 +5936,9 @@ document.getElementById("gDest").addEventListener("change", async ev => {
 (() => { const e = document.getElementById("gBol"); let v = "1"; try { v = localStorage.getItem("entradaxml:mostrarBol") ?? "1"; } catch (x) {}
   e.checked = v !== "0"; document.body.classList.toggle("semBol", !e.checked);
   e.addEventListener("change", () => { document.body.classList.toggle("semBol", !e.checked); try { localStorage.setItem("entradaxml:mostrarBol", e.checked ? "1" : "0"); } catch (x) {} const st = document.getElementById("bolSeta"); if (st) st.textContent = (e.checked ? "▾" : "▸") + " Boletos desta nota"; }); })();
+(() => { const e = document.getElementById("gRec"); let v = "0"; try { v = localStorage.getItem("entradaxml:confRec") ?? "0"; } catch (x) {}
+  e.checked = v === "1"; document.body.classList.toggle("confRec", e.checked);
+  e.addEventListener("change", () => { document.body.classList.toggle("confRec", e.checked); if (!e.checked) document.body.classList.remove("recPend"); try { localStorage.setItem("entradaxml:confRec", e.checked ? "1" : "0"); } catch (x) {} recResumo(); }); })();
 (() => { const e = document.getElementById("gCod"); let v = "1"; try { v = localStorage.getItem("entradaxml:mostrarCod") ?? "1"; } catch (x) {}
   e.checked = v !== "0"; document.body.classList.toggle("semCod", !e.checked);
   e.addEventListener("change", () => { document.body.classList.toggle("semCod", !e.checked); try { localStorage.setItem("entradaxml:mostrarCod", e.checked ? "1" : "0"); } catch (x) {} }); })();

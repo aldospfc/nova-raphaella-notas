@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="131">
+<meta name="versao" content="132">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1123,7 +1123,27 @@ function recResumo() {
     try { navigator.clipboard.writeText(t); msg(`Lista de ${l.length} item(ns) copiada — cole no WhatsApp ou e-mail do fornecedor`); } catch (e) { prompt("Copie a lista:", t); } };
 }
 const ROT_ITEM = ["", "", "", "", "Qtd nota", "Vlr nota", "IPI", "Divisor", "Qtd un.", "EAN da unidade", "% nota", "Fator DIFAL", "Custo item", "Custo un.", "Acrésc. %", "Venda (R$)", "Para a Loja 2 (emb. + un.)", "Venda Loja 2"];
+// ---------- NCM do cadastro do Gestão: entrada sem nota, romaneio e item à mão não trazem NCM; o produto que já existe pega o do Gestão ----------
+const NCMCAD = new Map(); let ncmCadT = null, ncmCadRodando = false;
+function ncmChave(it) { const e = it.aux || it.ean; if (!e || !cadIdx) return null; let k = chave13(e); if (!cadIdx.has(k) && cadAux && cadAux.has(k)) k = chave13(cadAux.get(k)); return cadIdx.has(k) ? k : null; }
+const ncmCadDe = it => { const k = ncmChave(it); return k ? NCMCAD.get(k) || "" : ""; };
+function ncmCadAgendar() { if (ncmCadRodando) return; clearTimeout(ncmCadT); ncmCadT = setTimeout(ncmCadBuscar, 500); }
+async function ncmCadBuscar() {
+  if (!supa || !db || !cadInfo || !itens.length) return;
+  const falta = new Map(); for (const it of itens) { const k = ncmChave(it); if (k && !NCMCAD.has(k)) { const p = cadInfo.get(k); if (p) falta.set(String(p[0]), k); } }
+  try { const raws = [...falta.keys()];
+    for (let i = 0; i < raws.length; i += 150) { const { data, error } = await supa.from("produtos").select("ean,ncm").eq("loja_id", 1).in("ean", raws.slice(i, i + 150)); if (error) return;
+      for (const r of data || []) NCMCAD.set(chave13(r.ean), String(r.ncm || "").replace(/\D/g, "").replace(/^0+$/, "")); }
+    for (const k of falta.values()) if (!NCMCAD.has(k)) NCMCAD.set(k, "");
+  } catch (e) { return; }
+  const novos = new Set(falta.values()); if (!novos.size) return;
+  ncmCadRodando = true;
+  try { for (const it of itens) { if (!novos.has(ncmChave(it))) continue; const n = ncmCadDe(it); if (!n) continue;
+      if (n.length === 8 && !(it.ncm && it.ncm.length >= 8)) { it.ncm = n; it.ncmCad = 1; const c = cestDe(n); if (c && !it.cest) { it.cest = c; it.cestAuto = true; } }
+      atualizarLinha(it); if (abertos.has(it.n)) desenharDetalhe(it); } } finally { ncmCadRodando = false; }
+}
 function desenhar() {
+  ncmCadAgendar();
   agendarSugestoes(); conciliarEnvios();
   document.getElementById("app").style.display = "";
   document.getElementById("pAdd").style.display = cab.manual ? "" : "none";
@@ -1194,7 +1214,7 @@ function desenhar() {
 function escH(t) { return String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
 function atualizarLinha(it) {
   const tr = document.getElementById("l" + it.n); if (!tr) return;
-  recAtualizar(it);
+  recAtualizar(it); { const kn = it.ean && ncmChave(it); if (kn && !NCMCAD.has(kn)) ncmCadAgendar(); }
   const k = calc(it), o = n => tr.querySelector(`[data-o=${n}]`);
   o("qtdUn").textContent = br(k.qtdUn, 0);
   if (it.m) o("vprod").textContent = br(it.vprod);
@@ -1257,6 +1277,7 @@ function atualizarLinha(it) {
   if (ehInterno(it.ean)) h += ` <span class="chip av" title="código interno antigo, da numeração da Loja 1; na Loja 2 esse número pode ser outro produto">código interno da Loja 1</span>`;
   if (ehDaCasa(it.ean)) h += ` <span class="chip ok" title="código da casa (faixa 040): o mesmo nas duas lojas">código da casa</span>`;
   if (it.ean && cad && !it.aux && !buscaEan(it.ean)) { if (!it.ncm || it.ncm.length < 8) h += ` <span class="chip falta" title="abra o item (▸) e informe o NCM">sem NCM</span>`; else if (!it.cest && !cestDe(it.ncm)) h += ` <span class="chip av" title="não achei CEST para este NCM no cadastro; se o produto tiver, informe no detalhe">CEST?</span>`; }
+  { const nc = ncmCadDe(it), nn = String(it.ncm || "").replace(/\D/g, ""); if (nc && nn.length === 8 && !it.ncmCad && nc !== nn) h += ` <span class="chip av" title="o NCM desta nota é diferente do que está no cadastro do Gestão (o Gestão não é alterado na entrada de produto que já existe; para mudar, use a aba Produtos)">NCM no Gestão: ${nc.replace(/(\d{4})(\d{2})(\d{2})/, "$1.$2.$3")}</span>`; }
   if (it.div > 1 && it.ean && chave13(it.ean) === chave13(it.eanNota)) h += ` <span class="chip av">é o EAN da caixa</span>`;
   const rep = it.ean && itens.some(x => x !== it && x.ean === it.ean); if (rep) h += ` <span class="chip av">mesmo código de outro item — soma no mesmo produto</span>`;
   if (duv) h += ` <span class="chip av">${duv}</span>`;
@@ -1366,7 +1387,7 @@ function desenharDetalhe(it) {
     <label class="c">Departamento<select data-k="cd">${opcoes(dep, c.d, "(não mexer)")}</select></label>
     <label class="c">Seção<select data-k="cs">${opcoes(ses, c.s, "(não mexer)")}</select></label>
     <label class="c">Família<select data-k="cf">${opcoes(listas.familias, c.f, "(sem família)")}</select></label>
-    <label class="c" title="NCM do produto (8 dígitos). Na nota fiscal já vem preenchido; na entrada sem nota, digite.">NCM<input type="text" inputmode="numeric" maxlength="8" data-ncm="1" value="${it.ncm || ""}" style="width:90px" placeholder="8 dígitos"></label>
+    <label class="c" title="NCM do produto (8 dígitos). Na nota fiscal já vem preenchido; na entrada sem nota, digite.">NCM<input type="text" inputmode="numeric" maxlength="8" data-ncm="1" value="${it.ncm || ""}" style="width:90px" placeholder="8 dígitos">${it.ncmCad ? '<span class="orig" style="margin:0">do cadastro do Gestão</span>' : ""}</label>
     <label class="c" title="CEST: preenchido automaticamente pelo NCM, conforme o cadastro do Gestão. Pode corrigir.">CEST<input type="text" inputmode="numeric" maxlength="7" data-cest="1" value="${it.cest || ""}" style="width:80px" placeholder="${cestDe(it.ncm) || "—"}"></label>
     <label class="c">Validade<input type="date" data-val="1" value="${it.val || ""}"></label>
     <button class="sec" data-copiar="1" title="escolha para quais outros itens copiar grupo, departamento, seção e família">Copiar categoria para outros itens…</button>
@@ -1384,7 +1405,7 @@ function desenharDetalhe(it) {
     it.tocado = true; desenharDetalhe(it); guardar(it);
   });
   const iNcm = td.querySelector("[data-ncm]"), iCest = td.querySelector("[data-cest]");
-  iNcm.addEventListener("input", () => { it.ncm = iNcm.value.replace(/\D/g, ""); it.tocado = true; const sug = cestDe(it.ncm); if (sug && (!it.cest || it.cestAuto)) { it.cest = sug; it.cestAuto = true; iCest.value = sug; } iCest.placeholder = sug || "—"; atualizarLinha(it); guardar(it); });
+  iNcm.addEventListener("input", () => { it.ncm = iNcm.value.replace(/\D/g, ""); it.ncmCad = 0; it.tocado = true; const sug = cestDe(it.ncm); if (sug && (!it.cest || it.cestAuto)) { it.cest = sug; it.cestAuto = true; iCest.value = sug; } iCest.placeholder = sug || "—"; atualizarLinha(it); guardar(it); });
   iCest.addEventListener("input", () => { it.cest = iCest.value.replace(/\D/g, ""); it.cestAuto = false; it.tocado = true; guardar(it); });
   const iec = td.querySelector("[data-ec]");
   if (iec) iec.addEventListener("change", ev => { const v = parseFloat(ev.target.value); it.ec = ev.target.value === "" || isNaN(v) || (p && v === p[2]) ? null : v; it.tocado = true; atualizarLinha(it); desenharDetalhe(it); guardar(it); });

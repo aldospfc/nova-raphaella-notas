@@ -1,9 +1,10 @@
 # Estacao de etiquetas Nova Raphaella - roda no PC onde a impressora de etiquetas esta ligada (ex.: caixa 2 da Loja 1).
 # So imprime: pega na nuvem os pedidos de etiqueta da loja e manda o ZPL cru para a impressora local.
 # 1.1.0: etiquetas de envio (Mercado Livre/Shopee, tipo "etiqueta_envio") vao para a Zebra; gondola continua na Elgin.
+# 1.2.0: diagnostico da fila do Windows (porta, offline/pausada, documentos parados) no pedido "impressoras" e no resultado de cada impressao.
 # Nao mexe no Gestao, no caixa nem em vendas. E' mantida viva pela tarefa "Nova Raphaella Etiquetas" (a cada 5 min).
 $ErrorActionPreference = "Stop"
-$Versao = "1.1.0"
+$Versao = "1.2.0"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "etiquetas.log"
 $Vivo = Join-Path $Pasta "etiquetas.alive"
@@ -66,6 +67,30 @@ function ListaImpressoras { try { return @(Get-WmiObject Win32_Printer | ForEach
 $ReElgin = "L42|ELGIN"
 $ReZebra = "ZDesigner|Zebra|\bZD\d"
 
+# Situacao de uma impressora no Windows: porta, offline/pausada/erro e documentos na fila
+$StatusImp = @{ 1 = "outro"; 2 = "desconhecido"; 3 = "pronta"; 4 = "imprimindo"; 5 = "aquecendo"; 6 = "parada"; 7 = "OFFLINE" }
+function SituacaoImpressora($nome) {
+  try {
+    $p = @(Get-WmiObject Win32_Printer | Where-Object { $_.Name -eq $nome })[0]
+    if (-not $p) { return "nao encontrada" }
+    $t = "porta " + $p.PortName + ", " + $StatusImp[[int]$p.PrinterStatus]
+    if ($p.WorkOffline) { $t += ", USAR OFFLINE ligado" }
+    if ([int]$p.DetectedErrorState -gt 2) { $t += ", erro detectado " + $p.DetectedErrorState }
+    if (([int]$p.Attributes -band 0x400) -ne 0) { $t += ", PAUSADA" }
+    $jobs = @(Get-WmiObject Win32_PrintJob | Where-Object { $_.Name -like ($nome + ",*") })
+    $t += ", " + $jobs.Count + " documento(s) na fila"
+    foreach ($j in ($jobs | Select-Object -First 5)) { $t += "`r`n    - " + $j.Document + " (" + $j.JobStatus + $j.Status + ")" }
+    return $t
+  } catch { return "sem diagnostico: " + $_.Exception.Message }
+}
+function Diagnostico {
+  $t = ""
+  foreach ($n in (ListaImpressoras | Where-Object { $_ -match $ReZebra -or $_ -match $ReElgin })) { $t += "`r`n* " + $n + ": " + (SituacaoImpressora $n) }
+  try { $pp = @(Get-PrinterPort -ErrorAction Stop | Where-Object { $_.Name -match "USB|TMUSB|ZD|ZBR" } | ForEach-Object { $_.Name + " = " + $_.Description }); if ($pp.Count) { $t += "`r`nPortas USB de impressora: " + ($pp -join "; ") } } catch {}
+  try { $dv = @(Get-WmiObject Win32_PnPEntity | Where-Object { $_.Name -match "Zebra|ZD2|ZDesigner|Elgin|L42" } | ForEach-Object { $_.Name + " [" + $_.Status + "]" }); $t += "`r`nAparelhos ligados no USB: " + $(if ($dv.Count) { $dv -join "; " } else { "nenhum Zebra/Elgin detectado" }) } catch {}
+  return $t
+}
+
 function Imprime($item) {
   $id = [long]$item.id
   $linhas = ([string]$item.conteudo) -split "\r?\n"
@@ -86,7 +111,7 @@ function Imprime($item) {
   $res = ""; $ok = $false
   if ($item.tipo -eq "impressoras") {
     $z = @($lista | Where-Object { $_ -match $ReZebra -and $_ -notmatch $ReElgin })[0]
-    $ok = $true; $res = "IMPRESSORAS NESTE PC (" + $env:COMPUTERNAME + "):`r`n" + ($lista -join "`r`n") + "`r`n`r`nEscolhida para etiquetas de gondola: " + $alvo + "`r`nEscolhida para etiquetas de envio: " + $z
+    $ok = $true; $res = "IMPRESSORAS NESTE PC (" + $env:COMPUTERNAME + "):`r`n" + ($lista -join "`r`n") + "`r`n`r`nEscolhida para etiquetas de gondola: " + $alvo + "`r`nEscolhida para etiquetas de envio: " + $z + "`r`n`r`nSITUACAO NO WINDOWS:" + (Diagnostico)
   }
   elseif (-not $alvo) { $res = "ERRO: nenhuma impressora " + $(if ($envio) { "Zebra (etiqueta de envio)" } else { "Elgin/L42" }) + " encontrada no " + $env:COMPUTERNAME + ". Impressoras instaladas:`r`n" + ($lista -join "`r`n") }
   else {
@@ -96,7 +121,7 @@ function Imprime($item) {
       $cod = if ($envio) { New-Object System.Text.UTF8Encoding($false) } else { [Text.Encoding]::GetEncoding(1252) }
       $bytes = $cod.GetBytes(($corpo -join "`r`n"))
       $e = [NrRawEst]::Envia($alvo, $bytes, $(if ($envio) { "Etiqueta de envio " + $id } else { "Etiquetas " + $id }))
-      if ($e) { $res = "ERRO na impressora " + $alvo + ": " + $e } else { $ok = $true; $res = "IMPRESSO em " + $alvo + " no " + $env:COMPUTERNAME + " (" + $bytes.Length + " bytes)" }
+      if ($e) { $res = "ERRO na impressora " + $alvo + ": " + $e } else { $ok = $true; Start-Sleep -Milliseconds 1500; $res = "IMPRESSO em " + $alvo + " no " + $env:COMPUTERNAME + " (" + $bytes.Length + " bytes) | " + (SituacaoImpressora $alvo) }
     } catch { $res = "ERRO: " + $_.Exception.Message }
   }
   $null = Rpc "estacao_concluir" @{ p_token = $cfg.token; p_id = $id; p_ok = $ok; p_resultado = $res }

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="133">
+<meta name="versao" content="134">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -189,6 +189,9 @@
   .rec.r-ok { background: #e8f6ee; border-color: #7cc49a; } .rec.r-ok .rst { color: #1b7248; }
   .rec.r-parc { background: #fff6e5; border-color: #f5c26b; } .rec.r-parc .rst { color: #a15c00; }
   .rec.r-falta { background: #fdeeee; border-color: #e8a1a1; } .rec.r-falta .rst { color: #b42318; }
+  .rec-modal { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 80; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .rec-mbox { background: #fff; border-radius: 10px; max-width: 560px; width: 100%; max-height: 90vh; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+  .rec-mbox ul { margin: 0; padding-left: 18px; font-size: 13.5px; max-height: 38vh; overflow: auto; } .rec-mbox li { margin: 3px 0; } .rec-mbox > button { width: 100%; padding: 10px; font-size: 15px; }
   .rec-n { font-size: 12.5px; font-weight: 700; border-radius: 10px; padding: 2px 9px; } .rec-n.ok { background: #e8f6ee; color: #1b7248; } .rec-n.parc { background: #fff6e5; color: #a15c00; } .rec-n.falta { background: #fdeeee; color: #b42318; } .rec-n.nao { background: #eef1f4; color: #4a5566; }
   body.confRec.recPend #tb tr.recok { display: none !important; }
   /* seletor tabela/cartões e legenda de cores da entrada */
@@ -794,6 +797,7 @@
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
   <div class="painel"><b>Validades vencidas e dos próximos 30 dias</b><div id="avVal" style="margin-top:6px"></div></div>
+  <div class="painel"><b>Itens que faltaram no recebimento</b> <span class="orig">— registrados ao enviar ao Gestão com a conferência ligada</span><div id="avFaltas" style="margin-top:6px"></div></div>
   <div class="painel"><b>Notas em andamento</b><div id="avNotas" style="margin-top:6px"></div></div>
  </div>
  <div id="vValidades" style="display:none">
@@ -1107,6 +1111,28 @@ function recAtualizar(it) {
   tr.classList.toggle("recok", sit === "ok"); clearTimeout(recResumoT); recResumoT = setTimeout(recResumo, 60);
 }
 let recResumoT = null;
+let envioSoChegou = false;
+const confUsada = () => document.body.classList.contains("confRec") || itens.some(i => i.rq != null || i.rf);
+function recTextoFaltas(lista, nota) { const f = x => br(x, x % 1 ? 2 : 0);
+  return `Faltas no recebimento — ${nota.rot}${nota.emit ? " · " + nota.emit : ""}\n` + lista.map(x => `- falta ${f(x.q - x.r)} ${x.un || ""} de ${f(x.q)}: ${x.cod ? x.cod + " · " : ""}${x.d}${x.r ? "" : x.rf ? "" : " (não encontrado)"}`).join("\n"); }
+const recListaFaltas = () => itens.filter(it => recSit(it) !== "ok").map(it => ({ n: it.n, cod: it.cod || "", d: it.xprod || it.desc || "", un: it.un || "", q: Number(it.qtd) || 0, r: Number(it.rq) || 0, rf: it.rf ? 1 : 0 }));
+const recCopiar = (lista, nota) => { const t = recTextoFaltas(lista, nota); try { navigator.clipboard.writeText(t); msg(`Lista de ${lista.length} item(ns) copiada — cole no WhatsApp ou e-mail do fornecedor`); } catch (e) { prompt("Copie a lista:", t); } };
+async function recGuardarFaltas() { const l = recListaFaltas(); await salvarMeta(cab.chave, { faltas: l.length ? { em: new Date().toISOString(), itens: l } : null }); return l.length; }
+function recPerguntaEnvio(pend) { return new Promise(res => {
+  const f = x => br(x, x % 1 ? 2 : 0), d1 = destino() === "1", parte = pend.filter(i => (Number(i.rq) || 0) > 0);
+  const li = pend.map(i => { const q = Number(i.qtd) || 0, r = Number(i.rq) || 0;
+    return `<li>${i.cod ? `<span class="mono">${escH(i.cod)}</span> · ` : ""}${escH(i.desc || i.xprod || "")} — <b>${r > 0 ? `chegou ${f(r)} de ${f(q)} ${escH(i.un || "")}` : i.rf ? "faltou" : "não encontrado"}</b></li>`; }).join("");
+  const o = document.createElement("div"); o.className = "rec-modal";
+  o.innerHTML = `<div class="rec-mbox"><b style="font-size:16px">${pend.length} item(ns) não chegaram completos</b><ul>${li}</ul>
+    <button data-r="chegou">Enviar só o que chegou</button>
+    <div class="orig">Os itens completos entram inteiros${d1 && parte.length ? "; os que chegaram em parte entram com a quantidade que chegou (se o resto vier depois, ajuste o estoque na aba Produtos)" : ""}. O que não chegou fica <b>pendente nesta nota</b>: quando chegar, marque ✓ e envie de novo — só os pendentes vão.${!d1 && parte.length ? " Com divisão entre lojas, os que chegaram em parte também ficam pendentes." : ""}</div>
+    <button class="sec" data-r="tudo">Enviar tudo com a quantidade da nota</button>
+    <div class="linha" style="gap:8px;margin-top:4px"><button class="sec" data-r="copiar">Copiar lista de faltas</button><button class="sec" data-r="cancelar">Cancelar</button></div>
+    <div class="orig">Nos dois casos as faltas ficam registradas na aba Avisos, para cobrar o fornecedor.</div></div>`;
+  document.body.appendChild(o);
+  o.addEventListener("click", ev => { const b = ev.target.closest("[data-r]"); if (!b) { if (ev.target === o) { o.remove(); res("cancelar"); } return; }
+    if (b.dataset.r === "copiar") return recCopiar(recListaFaltas(), { rot: cab.manual ? "sem nota" : "NF " + (cab.nnf || ""), emit: cab.emit || "" });
+    o.remove(); res(b.dataset.r); }); }); }
 function recResumo() {
   const el = document.getElementById("recResumo"); if (!el) return;
   const c = { ok: 0, parc: 0, falta: 0, nao: 0 }; for (const it of itens) c[recSit(it)]++;
@@ -1117,11 +1143,7 @@ function recResumo() {
     ${c.ok < n ? '<button class="sec" id="recCopiar" title="copia a lista do que não chegou (para cobrar o fornecedor)">copiar lista de faltas</button>' : ""}
     <span class="orig" style="margin:0">Digite quanto já achou ou toque em <b>✓ tudo</b>; no fim, toque em <b>faltou</b> no que não veio.</span></div>`;
   el.querySelector("#recSoFalta").onchange = ev => document.body.classList.toggle("recPend", ev.target.checked);
-  const bc = el.querySelector("#recCopiar"); if (bc) bc.onclick = () => {
-    const f = x => br(x, x % 1 ? 2 : 0), l = itens.filter(it => recSit(it) !== "ok").map(it => { const q = Number(it.qtd) || 0, r = it.rq || 0;
-      return `- falta ${f(q - r)} ${it.un || ""} de ${f(q)}: ${it.cod ? it.cod + " · " : ""}${it.xprod}${recSit(it) === "nao" ? " (não encontrado)" : ""}`; });
-    const t = `Faltas no recebimento — NF ${cab.nnf || ""}${cab.emit ? " · " + cab.emit : ""}\n` + l.join("\n");
-    try { navigator.clipboard.writeText(t); msg(`Lista de ${l.length} item(ns) copiada — cole no WhatsApp ou e-mail do fornecedor`); } catch (e) { prompt("Copie a lista:", t); } };
+  const bc = el.querySelector("#recCopiar"); if (bc) bc.onclick = () => recCopiar(recListaFaltas(), { rot: cab.manual ? "sem nota" : "NF " + (cab.nnf || ""), emit: cab.emit || "" });
 }
 const ROT_ITEM = ["", "", "", "", "Qtd nota", "Vlr nota", "IPI", "Divisor", "Qtd un.", "EAN da unidade", "% nota", "Fator DIFAL", "Custo item", "Custo un.", "Acrésc. %", "Venda (R$)", "Para a Loja 2 (emb. + un.)", "Venda Loja 2"];
 // ---------- NCM do cadastro do Gestão: entrada sem nota, romaneio e item à mão não trazem NCM; o produto que já existe pega o do Gestão ----------
@@ -1662,11 +1684,14 @@ function sqlEntrada(loja) {
     if (it.jg) continue; // já lançado no Gestão por fora do sistema
     if (it["e" + loja]) continue; // já enviado a esta loja por aqui (envio em partes)
     if (!precoDefinido(it)) continue; // preço só sugerido: fica de fora
+    const rChegou = Number(it.rq) || 0, recOk = recSit(it) === "ok", recParte = envioSoChegou && !recOk && rChegou > 0 && destino() === "1";
+    if (envioSoChegou && !recOk && !recParte) continue; // conferência: o que não chegou fica pendente para um próximo envio
     const k = calc(it); if (!(k.qtdUn > 0) || !(k.custoUn > 0) || !(k.venda > 0)) continue;
     const ePr = codLoja(it, loja); if (!ePr) continue;
     const comAux = it.aux && ePr === principalDe(it);
     if (comAux) auxs.push([it.ean.padStart(13, "0"), ePr.padStart(13, "0")]);
-    const qL = qLojas(it, k)[loja - 1]; if (!(qL > 0)) { if (comAux) auxs.pop(); continue; }
+    let qL = qLojas(it, k)[loja - 1]; if (recParte) qL = Math.floor(qL * rChegou / (Number(it.qtd) || 1) + 1e-9); // chegou só parte: entra o que chegou
+    if (!(qL > 0)) { if (comAux) auxs.pop(); continue; }
     itensDoEnvio[loja].push(it.n);
     const kL = calcL(it, loja); if (!kL) { if (comAux) auxs.pop(); itensDoEnvio[loja].pop(); continue; }
     const vL = duasOn() ? kL.custoItem : k.custoItem * qL / k.qtdUn, venL = loja === 2 ? (it.pv2 ?? k.venda) : k.venda, ecL = loja === 1 ? (it.ec ?? null) : null;
@@ -2169,6 +2194,10 @@ function desenharAvisos() {
   tab("avBol", ["Vencimento", "Fornecedor", "Nota", "Parcela", "Valor a pagar", "Loja 2 me paga", "Situação"], bol.map(x => { const [t, c] = sitBoleto(x.b); return `<tr><td>${dataBr(x.b.venc)}</td><td>${h(x.n.emit)}</td><td>${h(rotNota(x.n))}</td><td>${h(x.b.n || x.i + 1)}</td><td>R$ ${br(aPagar(x.n, x.b))}</td><td>${x.b.p2 ? "R$ " + br(x.b.p2) + (x.b.rec ? " (já pagou)" : "") : ""}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum boleto vencido ou vencendo nos próximos 7 dias.");
   const val = listaValidades().filter(v => !v.baixa && dias(v.val) <= 30);
   tab("avVal", ["Validade", "Produto", "Código de barras", "Qtd", "Situação"], val.map(v => { const [t, c] = sitValidade(v); return `<tr><td>${dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td>${br(v.qtd || 0, 0)}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum produto vencido ou vencendo nos próximos 30 dias.");
+  { const nf = fonteNotas().filter(n => n.faltas && (n.faltas.itens || []).length), f = x => br(x, x % 1 ? 2 : 0), el = document.getElementById("avFaltas");
+    el.innerHTML = nf.length ? `<table><thead><tr><th>Enviada em</th><th>Fornecedor</th><th>Nota</th><th>O que faltou</th><th></th></tr></thead><tbody>${nf.map((n, i) => `<tr><td>${dataBr(n.faltas.em)}</td><td>${h(n.emit)}</td><td>${h(rotNota(n))}</td><td>${n.faltas.itens.map(x => `<b>${f(x.q - x.r)} ${h(x.un)}</b> de ${f(x.q)} · ${h(x.d)}`).join("<br>")}</td><td style="white-space:nowrap"><a href="#" data-avfc="${i}">copiar</a> · <a href="#" data-avfd="${i}" title="o fornecedor mandou ou já foi acertado: tira daqui">resolvido</a></td></tr>`).join("")}</tbody></table>` : "<i>Nenhuma falta registrada.</i>";
+    for (const a of el.querySelectorAll("[data-avfc]")) a.onclick = ev => { ev.preventDefault(); const n = nf[Number(a.dataset.avfc)]; recCopiar(n.faltas.itens, { rot: rotNota(n), emit: n.emit }); };
+    for (const a of el.querySelectorAll("[data-avfd]")) a.onclick = ev => { ev.preventDefault(); const n = nf[Number(a.dataset.avfd)]; if (confirm(`Marcar as faltas de ${n.emit} (${rotNota(n)}) como resolvidas?`)) salvarMeta(n.id, { faltas: null }); }; }
   const nts = fonteNotas().filter(n => !n.concluida).sort((a, b) => (a.criado || "").localeCompare(b.criado || ""));
   tab("avNotas", ["Criada em", "Fornecedor", "Nota", "Situação"], nts.map(n => { const [k, t, c] = sitNota(n); return `<tr><td>${dataBr(n.criado)}</td><td>${h(n.emit)}</td><td>${h(rotNota(n))}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhuma nota em andamento.");
 }
@@ -2184,6 +2213,7 @@ function alertas() {
   const val = listaValidades().filter(v => !v.baixa), vv = val.filter(v => dias(v.val) < 0), v30 = val.filter(v => { const d = dias(v.val); return d >= 0 && d <= 30; });
   if (vv.length) chip(`${vv.length} produto${vv.length > 1 ? "s" : ""} vencido${vv.length > 1 ? "s" : ""}`, "falta", "validades");
   if (v30.length) chip(`${v30.length} validade${v30.length > 1 ? "s" : ""} em 30 dias`, "av", "validades");
+  { const fl = fonteNotas().filter(n => n.faltas && (n.faltas.itens || []).length); if (fl.length) chip(`${fl.length} nota${fl.length > 1 ? "s" : ""} com itens faltando`, "av", "avisos"); }
   const nc = (id, n, alerta) => { const x = document.getElementById("nc_" + id); if (x) { x.textContent = n ? String(n) : ""; x.classList.toggle("alerta", !!alerta); } };
   nc("boletos", bv.length || b7.length, bv.length > 0); nc("validades", vv.length || v30.length, vv.length > 0);
   try { const em = fonteNotas().filter(n => !n.concluida), er = em.filter(n => (n.envio && n.envio.status === "erro") || (n.envio2 && n.envio2.status === "erro")); nc("notas", em.length, er.length > 0); } catch (e) {}
@@ -2489,7 +2519,12 @@ function resumoPos(res) {
 }
 const emCurso = v => v && (v.status === "pendente" || v.status === "aplicando" || v.status === "aguardando");
 async function enviarAoGestao(tipo, comPos) {
+  envioSoChegou = false;
   if (!supa) return baixarArquivo(tipo);
+  if (tipo === "entrada" && confUsada()) { // conferência do recebimento: avisa o que não chegou e deixa escolher
+    const pend = itens.filter(i => !i.jg && !(i.e1 || i.e2) && recSit(i) !== "ok");
+    if (pend.length) { const r = await recPerguntaEnvio(pend); if (r === "cancelar") return; envioSoChegou = r === "chegou"; }
+  }
   const dois = l2On(), dst = destino();
   if (dois && !cad2Info) { await carregarLoja2(); if (!cad2Info) return msg("Não consegui carregar o cadastro da Loja 2; tente de novo."); }
   const gera = loja => tipo === "precos" ? sqlPrecos(loja) : sqlEntrada(loja);
@@ -2534,7 +2569,8 @@ async function enviarAoGestao(tipo, comPos) {
   avisoBaixa();
   for (const campo of Object.keys(patch)) acompanharEnvio(patch[campo].id, cab.chave, campo);
   const nm = await salvarMemoria();
-  msg("Enviado. " + (nm ? `Memória do fornecedor atualizada com ${nm} produto(s).` : ""));
+  const nFal = tipo === "entrada" && confUsada() ? await recGuardarFaltas() : 0;
+  msg("Enviado. " + (nm ? `Memória do fornecedor atualizada com ${nm} produto(s). ` : "") + (nFal ? `${nFal} item(ns) com falta ficaram registrados em Avisos${envioSoChegou ? " e pendentes nesta nota — quando chegarem, marque ✓ e envie de novo" : ""}.` : ""));
 }
 function acompanharEnvio(id, chave, campo) {
   campo = campo || "envio";

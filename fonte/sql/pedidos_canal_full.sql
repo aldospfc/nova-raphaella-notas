@@ -1,0 +1,3 @@
+-- 22/11/2026 (migração pedidos_canal_full): loja 204102560 do Bling = "Mercado Livre Full" (logistica 'full'),
+-- gatilho pedidos_canal_nome antes de gravar; avisos antigos corrigidos. A função de borda bling continua gravando "Canal 204102560"
+-- e o gatilho troca o nome — ao mexer na função, incluir "204102560": "Mercado Livre Full" no mapa CANAIS.

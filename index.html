@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="126">
+<meta name="versao" content="127">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -321,6 +321,9 @@
   .sales-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .sales-card { background: #fff; border: 1px solid var(--borda); border-top: 3px solid var(--loja1); border-radius: 7px; padding: 18px 20px 15px; box-shadow: var(--sombra); }
   .sales-card.l2 { border-top-color: var(--loja2); }
+  .sales-card.online { border-top-color: #f5d000; grid-column: 1 / -1; }
+  .on-canais { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; } .on-canais > div { display: flex; gap: 8px; align-items: center; background: #f6f7f9; border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .sep-canal.full { background: #1b2d4b; color: #ffe600; }
   .sales-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
   .sales-top h3 { font-size: 13px; font-weight: 800; color: var(--azul); margin: 0; }
   .sales-top .loja-nome { font-size: 11px; color: var(--cinza); margin-top: 3px; font-weight: 600; }
@@ -4363,6 +4366,9 @@ async function hjCarregar() {
     for (const c of rc.data || []) { if (c.cancelado || c.gemeo) continue; const o = vivo[c.loja_id] || (vivo[c.loja_id] = { t: 0, n: 0, ult: "", h: Array(24).fill(0) }); o.t += Number(c.total || 0); o.n++; o.h[Number(String(c.hora || "0").slice(0, 2)) || 0] += Number(c.total || 0); if ((c.hora || "") > o.ult) o.ult = c.hora; }
     for (const l of [1, 2]) if (vivo[l] && vivo[l].t > (porDia[l + "|" + hojeIso] || 0)) { porDia[l + "|" + hojeIso] = vivo[l].t; porHora[l + "|" + hojeIso] = vivo[l].h; }
     HJ.vendas = { porDia, porHora, ult, hojeIso, vivo };
+    { const ro = await supa.from("pedidos_online").select("data, canal, total, situacao_id, ignorado_em, ml_status").gte("data", de).lte("data", hojeIso).limit(3000);
+      const on = {}; for (const p of ro.data || []) { if (p.ignorado_em || p.situacao_id === 12 || p.ml_status === "cancelled") continue; const d = on[p.data] || (on[p.data] = { t: 0, n: 0, c: {} }), k = p.canal || "Online", c = d.c[k] || (d.c[k] = { t: 0, n: 0 }); d.t += Number(p.total) || 0; d.n++; c.t += Number(p.total) || 0; c.n++; }
+      HJ.online = ro.error ? null : on; }
     await lerAgente();
     // saúde do sistema: pedidos ao Gestão recusados ou parados, e a ligação com o Bling
     const de2 = new Date(Date.now() - 2 * 864e5).toISOString();
@@ -4472,16 +4478,23 @@ function hjDesenhar() {
       <div class="sales-meio"><div><div class="sales-num">${V ? orBrl(hj) : "…"}</div>${pc != null ? `<span class="badge ${pc >= 0 ? "ok" : "av"}">${pc >= 0 ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>+` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>`}${br(pc, 0)}% vs ${["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][dHoje.getDay()]} passado até agora</span>` : `<span class="badge neutro">sem comparação ainda</span>`}</div><div class="mini-gs">${spark(l)}${ritmo(l)}</div></div>
       ${V && V.vivo && V.vivo[l] ? `<div class="orig" style="margin:2px 0 6px">${br(V.vivo[l].n, 0)} cupons · última venda às ${h_(String(V.vivo[l].ult).slice(0, 5))}</div>` : ""}
       <div class="sales-comp"><div><span>Ontem</span><strong>${orBrl(vd(l, ontem))}</strong></div><div><span>${SEM[dHoje.getDay()]}</span><strong>${orBrl(sp)}</strong></div><div><span>Média 7 dias</span><strong>${orBrl(m)}</strong></div></div></article>`; };
+  const onDia = d => (HJ.online && HJ.online[d] ? HJ.online[d].t : 0);
+  const cardOnline = () => { const O = HJ.online, d = O && O[h]; let s7 = 0; for (let i = 1; i <= 7; i++) s7 += onDia(vdMais(h, -i));
+    const canais = d ? Object.entries(d.c).sort((a, b) => b[1].t - a[1].t) : [], P = HJ.ped;
+    return `<article class="sales-card online"><div class="sales-top"><div><h3>Online — vendas de hoje</h3><div class="loja-nome">Mercado Livre · Full · Shopee</div></div>${P ? `<a href="#" class="badge ${P.pend.length ? "av" : "ok"}" data-v="separacao" title="abrir a Separação">${P.pend.length ? P.pend.length + " para separar" : "separação em dia"}</a>` : ""}</div>
+      <div class="sales-meio"><div><div class="sales-num">${O ? orBrl(d ? d.t : 0) : "…"}</div>${O ? `<div class="orig" style="margin:2px 0 6px">${d ? d.n : 0} pedido${d && d.n === 1 ? "" : "s"} hoje</div>` : ""}</div></div>
+      ${canais.length ? `<div class="on-canais">${canais.map(([c, v]) => `<div><span class="sep-canal ${/full/i.test(c) ? "full" : /mercado/i.test(c) ? "ml" : /shopee/i.test(c) ? "sh" : ""}">${h_(c)}</span><b>${orBrl(v.t)}</b><span class="orig" style="margin:0">${v.n} ped.</span></div>`).join("")}</div>` : ""}
+      <div class="sales-comp"><div><span>Ontem</span><strong>${orBrl(onDia(ontem))}</strong></div><div><span>${SEM[dHoje.getDay()]}</span><strong>${orBrl(onDia(vdMais(h, -7)))}</strong></div><div><span>Média 7 dias</span><strong>${orBrl(s7 / 7)}</strong></div></div></article>`; };
   const tcard = (tit, ico, cont, v, corpo, wide) => `<article class="task-card${wide ? " wide" : ""}"><div class="task-head"><span class="task-icon">${ico}</span>${tit}<span class="task-count">${cont}</span></div><div class="task-body">${corpo}</div><a class="task-link" href="#" data-v="${v}">Ver ${tit.toLowerCase()}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></article>`;
   const row = (cls, esq, dir) => `<div class="task-row${cls ? " " + cls : ""}"><span>${esq}</span>${dir}</div>`;
   const valL = [...vv, ...v30].reduce((a, v) => { const l = lojaValidade(v); a[l === 2 ? 2 : l === 1 ? 1 : 0]++; return a; }, [0, 0, 0]);
   const tf = typeof TF !== "undefined" ? (() => { const docs = [...TF.docs.values()]; return { pend: docs.filter(t => t.status === "enviada"), dv: docs.filter(t => t.status === "divergente"), sd: tfSaldo() }; })() : null;
-  const totHoje = vd(1, h) + vd(2, h);
+  const totHoje = vd(1, h) + vd(2, h) + onDia(h);
   el.innerHTML = `
     <div class="pg-head"><div><h1 class="pg-title">Hoje</h1><div class="pg-sub">${dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1)} · as duas lojas num lugar só</div></div>
       <div class="pg-acoes"><button class="sec btn-ico" id="hjAtu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg> Atualizar</button><button class="zap btn-ico" id="hjZap" title="abre o WhatsApp com o resumo pronto para mandar (escolha o contato ou o grupo)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg> Mandar resumo no WhatsApp</button></div></div>
     <div class="sec-title"><h2>Vendas do dia</h2><span class="sec-linha"></span><span class="sec-extra">Total <b>${V ? orBrl(totHoje) : "…"}</b></span></div>
-    <div class="sales-grid">${cardVenda2(1)}${cardVenda2(2)}</div>
+    <div class="sales-grid">${cardVenda2(1)}${cardVenda2(2)}${cardOnline()}</div>
     <div class="sec-title"><h2>O que precisa de atenção</h2><span class="sec-linha"></span></div>
     <div class="tasks-grid">
       ${hjSistema(tcard, row)}
@@ -4520,6 +4533,7 @@ function hjDesenhar() {
   el.querySelector("#hjZap").addEventListener("click", () => {
     const T = [`*Nova Raphaella — resumo de ${new Date(h + "T12:00:00").toLocaleDateString("pt-BR")}*`, ""];
     for (const l of [1, 2]) T.push(`Loja ${l}: vendas de hoje ${orBrl(vd(l, h))} (ontem ${orBrl(vd(l, ontem))}, média 7 dias ${orBrl(media7(l))})`);
+    if (HJ.online && HJ.online[h]) T.push(`Online: ${orBrl(HJ.online[h].t)} em ${HJ.online[h].n} pedido(s) — ` + Object.entries(HJ.online[h].c).map(([c, v]) => `${c} ${orBrl(v.t)} (${v.n})`).join(" · "));
     T.push("", `Boletos: ${bv.length} vencidos (${orBrl(soma(bv))}), ${bh.length} hoje (${orBrl(soma(bh))}), ${b7.length} nos próximos 7 dias (${orBrl(soma(b7))})`);
     for (const x of [...bv, ...bh, ...b7].slice(0, 12)) T.push(`• ${dataBr(x.b.venc)} ${x.n.emit || ""} ${x.b.n ? "parc. " + x.b.n : ""} ${orBrl(aPagar(x.n, x.b))}${x.b.p2 > 0 ? ` (Loja 2: ${orBrl(x.b.p2)})` : ""}`);
     T.push("", `Validades: ${vv.length} vencidas, ${v30.length} em 30 dias`);

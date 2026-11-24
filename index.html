@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="145">
+<meta name="versao" content="146">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3939,7 +3939,33 @@ async function sepCarregar() {
   const de = new Date(Date.now() - 7 * 864e5).toISOString();
   const { data, error } = await supa.from("pedidos_online").select("*").or(`despachado_em.is.null,criado_em.gte.${de}`).order("criado_em", { ascending: true }).limit(600);
   if (error) { el.innerHTML = `<div class="painel">Não consegui ler os pedidos: ${escH(error.message)}</div>`; return; }
-  SEP.lista = data || []; sepDesenhar(); sepContar();
+  SEP.lista = data || [];
+  try { const r = await supa.rpc("pedidos_estados"); SEP.estados = r.data || {}; } catch (e) {}
+  sepDesenhar(); sepContar();
+}
+// ===== Buscar vendas: todas as vendas online, com a situação real (entregue, a caminho…) =====
+const SEP_EST = { entregue: ["Entregue", "#1b7248", "#e3f6ea"], a_caminho: ["A caminho", "#1d4ed8", "#e8efff"], despachado: ["Despachado", "#475467", "#eef2f6"],
+  divergente: ["⚠ Despachado, mas o ML diz que não saiu", "#b42318", "#fde8e7"], nao_entregue: ["Não entregue", "#b42318", "#fde8e7"],
+  separado: ["Separado", "#b54708", "#fff4e5"], pendente: ["Para separar", "#b54708", "#fff4e5"], cancelado: ["Cancelado", "#667085", "#f2f4f7"] };
+async function sepBuscar() {
+  const B = SEP.busca = SEP.busca || {}; B.carregando = true; sepBuscaDesenhar();
+  const { data, error } = await supa.rpc("pedidos_buscar", { p_q: B.q || "", p_estado: B.est || "", p_desde: B.desde || null, p_limite: 150 });
+  B.carregando = false; B.erro = error ? error.message : ""; B.res = data || []; sepBuscaDesenhar();
+}
+function sepBuscaDesenhar() {
+  const el = document.getElementById("sepBuscaRes"); if (!el) return; const B = SEP.busca || {};
+  if (B.carregando) { el.innerHTML = `<div class="painel orig">Procurando…</div>`; return; }
+  if (B.erro) { el.innerHTML = `<div class="painel" style="color:#b42318">Não deu para buscar: ${escH(B.erro)}</div>`; return; }
+  const L = B.res || []; if (!L.length) { el.innerHTML = `<div class="painel orig">Nenhuma venda encontrada.</div>`; return; }
+  const dt = d => d ? escH(String(d).slice(0, 10).split("-").reverse().join("/")) : "", brl = v => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  el.innerHTML = `<div class="orig" style="margin:6px 2px">${L.length}${L.length >= 150 ? "+" : ""} venda(s)</div>` + L.map(p => { const e = SEP_EST[p.estado] || [p.estado, "#475467", "#eef2f6"];
+    const its = (p.itens || []).map(i => `${br(i.quantidade, 0)}× ${escH(i.descricao || "")}`).join(" · ");
+    return `<div class="painel" style="padding:10px 12px;margin-top:8px">
+      <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center"><b style="flex:1;min-width:180px">${escH(p.cliente || "—")}</b>
+        <span style="background:${e[2]};color:${e[1]};padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">${escH(e[0])}</span></div>
+      <div class="orig" style="font-size:12.5px;margin-top:2px">${dt(p.data)} · ${escH(p.canal || "")} · pedido ${escH(p.numero_loja || "")} (Bling ${escH(String(p.numero || ""))}) · ${brl(p.total)}${p.nf_numero ? " · NF " + escH(String(p.nf_numero)) : ""}${p.rastreio ? " · rastreio " + escH(p.rastreio) : ""}</div>
+      <div style="font-size:13px;margin-top:4px">${its}</div>
+      <div class="orig" style="font-size:12px;margin-top:2px">${p.despachado_em ? "despachado " + dt(p.despachado_em) + (p.despachado_por ? " por " + escH(String(p.despachado_por).split("@")[0]) : "") : ""}${p.conferido_em ? " · conferido bipando" : ""}${p.estado === "divergente" ? ` · no ML: ${escH((typeof ML_SUB !== "undefined" && ML_SUB[p.ml_substatus]) || p.ml_substatus || p.ml_status || "")}${p.envio_limite ? ", prazo " + dt(p.envio_limite) : ""}` : ""}</div></div>`; }).join("");
 }
 function sepDesenhar() {
   const el = document.getElementById("sepLista"), L = SEP.lista, agora = Date.now();
@@ -4020,7 +4046,7 @@ function sepDesenhar() {
       else add(p, it, qi, null); }
     return [...m.values()].sort((x, y) => (x.local || "~").localeCompare(y.local || "~", "pt-BR", { numeric: true }) || x.desc.localeCompare(y.desc, "pt-BR")); };
   if (!SEP.pegos) { SEP.pegos = new Set(); try { SEP.pegos = new Set(JSON.parse(localStorage.getItem("sepPegos:" + hojeSP) || "[]")); } catch (e) {} }
-  const abas = [["hoje", "Envios de hoje", daAba("hoje").length], ["prox", "Próximos dias", daAba("prox").length], ["soma", "Itens somados", somar(somaPeds()).length], ["sep", "Separados", aguard.length], ["desp", "Despachados", feitos.length]];
+  const abas = [["hoje", "Envios de hoje", daAba("hoje").length], ["prox", "Próximos dias", daAba("prox").length], ["soma", "Itens somados", somar(somaPeds()).length], ["sep", "Separados", aguard.length], ["desp", "Despachados", feitos.length], ["busca", "Buscar vendas" + ((SEP.estados || {}).divergente ? " ⚠" : ""), (SEP.estados || {}).divergente || ""]];
   if (SEP.foco && L.length) { const f = SEP.foco, p = L.find(x => x.id === f); SEP.foco = null;
     if (!p) setTimeout(() => msg("Esse pedido não está mais na lista da separação (despachado há mais de 7 dias, cancelado ou ainda não chegou do Bling)."), 50);
     else { SEP.aba = devolver.includes(p) ? SEP.aba : feitos.includes(p) ? "desp" : aguard.includes(p) ? "sep" : daAba("prox").includes(p) ? "prox" : "hoje"; SEP.lg = null; SEP.sub = null; SEP.abertos.add(f); SEP.focoAgora = f; } }
@@ -4089,9 +4115,23 @@ function sepDesenhar() {
   if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
     aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""}${p.conferido_em ? ` · <b>${p.conferencia && p.conferencia.falta ? "conferido com falta: " + escH(p.conferencia.falta) : "conferido bipando"}</b>` : ` · <span style="color:#b54708">sem conferência</span>`} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
     : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
+  const nDiv = (SEP.estados || {}).divergente || 0;
+  if (nDiv && SEP.aba !== "busca") h += `<div class="painel" style="border-color:#b42318;color:#b42318"><b>⚠ ${nDiv} pedido(s) marcados como despachados que o Mercado Livre diz que não saíram.</b> <a href="#" id="sepVerDiv" style="color:#b42318">ver</a></div>`;
+  if (SEP.aba === "busca") { const B = SEP.busca = SEP.busca || {}; const E = SEP.estados || {};
+    h += `<div class="painel"><div class="linha" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <label class="c" style="flex:1;min-width:200px">Comprador, nº do pedido, NF, rastreio ou produto<input type="search" id="sepBq" value="${escH(B.q || "")}" placeholder="ex.: Fernanda, 7385, tekbond…" style="width:100%"></label>
+      <label class="c">Situação<select id="sepBe"><option value="">todas</option>${Object.entries(SEP_EST).map(([k, v]) => `<option value="${k}" ${B.est === k ? "selected" : ""}>${escH(v[0].replace("⚠ ", ""))}${E[k] ? " (" + E[k] + ")" : ""}</option>`).join("")}</select></label>
+      <label class="c">Desde<input type="date" id="sepBd" value="${escH(B.desde || "")}"></label>
+      <button id="sepBbt">Buscar</button></div>
+      <div class="orig" style="font-size:12px;margin-top:6px">Entregue e a caminho vêm do Mercado Livre; a Shopee não informa a entrega (fica "Despachado"). A busca cobre as vendas desde que a Separação começou (22/11).</div></div><div id="sepBuscaRes"></div>`; }
   if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div data-pid="${p.id}" style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
     : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;
   el.innerHTML = h;
+  if (document.getElementById("sepVerDiv")) document.getElementById("sepVerDiv").onclick = ev => { ev.preventDefault(); SEP.aba = "busca"; SEP.busca = { est: "divergente" }; sepDesenhar(); sepBuscar(); };
+  if (SEP.aba === "busca") { const B = SEP.busca, ir = () => { B.q = document.getElementById("sepBq").value.trim(); B.est = document.getElementById("sepBe").value; B.desde = document.getElementById("sepBd").value || ""; sepBuscar(); };
+    document.getElementById("sepBbt").onclick = ir; document.getElementById("sepBq").onkeydown = ev => { if (ev.key === "Enter") ir(); };
+    document.getElementById("sepBe").onchange = ir; document.getElementById("sepBd").onchange = ir;
+    if (!B.res && !B.carregando) sepBuscar(); else sepBuscaDesenhar(); }
   if (SEP.focoAgora) { const alvo = el.querySelector(`[data-pid="${SEP.focoAgora}"]`); SEP.focoAgora = null;
     if (alvo) { alvo.classList.add("sep-foco"); setTimeout(() => alvo.scrollIntoView({ block: "center", behavior: "smooth" }), 60); setTimeout(() => alvo.classList.remove("sep-foco"), 4000); } }
   for (const im of el.querySelectorAll(".sep-it img")) im.onclick = () => { const z = document.getElementById("sepZoom"); z.querySelector("img").src = im.src;

@@ -13,6 +13,7 @@ import { unzipSync, strFromU8 } from "https://esm.sh/fflate@0.8.2";
 //     (impressora Zebra pelo Browser Print) ou PDF; Shopee pelo Bling (logísticas/etiquetas).
 // v3 (22/11/2026): nfe acha a nota gerada pelo próprio pedido quando o Bling não devolve o id.
 // v4 (22/11/2026): sync com ids confere só esses pedidos (rápido, usado logo depois de emitir NF ou imprimir etiqueta).
+// v5 (24/11/2026): sync também acompanha despachados de até 30 dias ainda não entregues no ML (a caminho → entregue; despachado sem ter saído).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -139,9 +140,10 @@ async function envioDoPedido(num: string): Promise<number | null> {
 async function sincronizar(ids: number[] = []) {
   const a = await lerMl(), mlOk = !!a.refresh_token && !!credenciais();
   // pendentes da tela + despachados de 2 dias para cá (para pegar mudanças tardias)
-  const desde = new Date(Date.now() - 2 * 864e5).toISOString();
-  const filtro = ids.length ? `id=in.(${ids.join(",")})` : `or=(despachado_em.is.null,despachado_em.gte.${encodeURIComponent(desde)})&ignorado_em=is.null`;
-  const ps: any[] = (await rest(`pedidos_online?select=id,canal,loja_bling,numero_loja,frete,logistica,ml_envio,ml_status,despachado_em,ignorado_em,situacao_id&${filtro}&order=data.asc&limit=150`)) || [];
+  // + despachados de até 30 dias que o ML ainda não deu como entregues (a caminho, ou marcados como despachados sem ter saído)
+  const desde = new Date(Date.now() - 2 * 864e5).toISOString(), desde30 = new Date(Date.now() - 30 * 864e5).toISOString();
+  const filtro = ids.length ? `id=in.(${ids.join(",")})` : `or=(despachado_em.is.null,despachado_em.gte.${encodeURIComponent(desde)},and(despachado_em.gte.${encodeURIComponent(desde30)},ml_status.in.(shipped,ready_to_ship,pending,handling)))&ignorado_em=is.null`;
+  const ps: any[] = (await rest(`pedidos_online?select=id,canal,loja_bling,numero_loja,frete,logistica,ml_envio,ml_status,despachado_em,ignorado_em,situacao_id&${filtro}&order=data.asc&limit=250`)) || [];
   const rel = { pedidos: ps.length, ml: 0, frete: 0, enviados: 0, cancelados: 0, erros: [] as string[] };
   for (const p of ps) {
     const alt: Record<string, unknown> = {};

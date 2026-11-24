@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="143">
+<meta name="versao" content="144">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3178,6 +3178,8 @@ async function lerCamera(aoLer, op = {}) {
   op.fechar = fechar;
   let ultimo = "", ultimoEm = 0;
   const achou = txt => {
+    if (op.multi) { if (fim) return; const l = [...new Set((Array.isArray(txt) ? txt : [txt]).map(x => String(x || "").trim()).filter(x => x.length >= 4))]; if (!l.length) return;
+      const r = aoLer(l); if (r) cx.querySelector("#camTxt").textContent = r; return; }
     if (op.continuo) { // conferência: a câmera fica aberta e cada leitura vira uma linha de aviso
       const c = String(txt || "").trim(); if (fim || c.length < 4) return; const ag = Date.now(); const rep = c === ultimo && ag - ultimoEm < 1000; ultimoEm = ag; ultimo = c; if (rep) return;
       const r = aoLer(op.bruto ? c : c.replace(/\D/g, "")); if (r) cx.querySelector("#camTxt").textContent = r; return; }
@@ -3190,7 +3192,7 @@ async function lerCamera(aoLer, op = {}) {
     if (nativo) {
       stream = await navigator.mediaDevices.getUserMedia(pede); if (fim) return fechar();
       video.srcObject = stream; await video.play();
-      timer = setInterval(async () => { if (fim || video.readyState < 2) return; try { const r = await nativo.detect(video); if (r && r.length) achou(r[0].rawValue); } catch (e) {} }, 180);
+      timer = setInterval(async () => { if (fim || video.readyState < 2) return; try { const r = await nativo.detect(video); if (r && r.length) achou(op.multi ? r.map(x => x.rawValue) : r[0].rawValue); } catch (e) {} }, 180);
     } else {
       cx.querySelector("#camTxt").textContent = "Preparando o leitor…";
       await carregaZXing(); if (fim) return;
@@ -3762,8 +3764,8 @@ function ckAbrir(pid) {
   cx.querySelector("#ckFechar").onclick = () => { if (CK.ped && CK.linhas.some(l => l.lido < l.qtd) && CK.linhas.some(l => l.lido) && !confirm("Este pedido está pela metade. Fechar mesmo assim? (nada é gravado)")) return; if (CK.cam && CK.cam.fechar) CK.cam.fechar(); CK.ped = null; cx.remove(); sepCarregar(); };
   camBt.onclick = () => {
     if (CK.cam && CK.cam.fechar) return CK.cam.fechar();
-    CK.cam = { continuo: true, bruto: true, alvo: cx.querySelector("#ckCamBox"), aoFechar: () => { CK.cam = null; camBt.textContent = "📷 Câmera"; } };
-    camBt.textContent = "📷 Desligar câmera"; lerCamera(c => ckLido(c), CK.cam); };
+    CK.cam = { continuo: true, bruto: true, multi: true, alvo: cx.querySelector("#ckCamBox"), aoFechar: () => { CK.cam = null; camBt.textContent = "📷 Câmera"; } };
+    camBt.textContent = "📷 Desligar câmera"; lerCamera(l => ckLidoVarios(l), CK.cam); };
   cx.addEventListener("click", ev => { if (!ev.target.closest("input, button, select, a, textarea")) foca(); });
   CK.ped = null; CK.linhas = []; ckDesenha(); foca();
   if (!(SEP.lista || []).length) sepCarregar();
@@ -3773,6 +3775,21 @@ function ckAviso(txt, tipo) {
   const el = document.getElementById("ckMsg"); if (!el) return;
   el.style.display = "block"; el.textContent = txt;
   el.style.background = tipo === "erro" ? "#fde8e7" : tipo === "ok" ? "#e3f6ea" : "#eef2f7"; el.style.color = tipo === "erro" ? "#b42318" : tipo === "ok" ? "#1b7248" : "#344054";
+}
+const ckRastreioRe = /^[A-Z]{2}\d{6,}[A-Z0-9]*$/;
+function ckLidoVarios(l) {
+  const ag = Date.now(); CK.vistos = CK.vistos || new Map();
+  const novos = l.filter(v => { const t0 = CK.vistos.get(v); CK.vistos.set(v, ag); return !t0 || ag - t0 > 1000; }); // parado na frente da câmera não conta de novo
+  if (!novos.length) return null;
+  const classe = v => { const d = ckDig(v), t = ckNorm(v);
+    if (CK.ped && CK.linhas.some(x => (x.gtin && d && (x.gtin === d || x.gtin.replace(/^0+/, "") === d.replace(/^0+/, ""))) || (x.cod && ckNorm(x.cod) === t))) return 4;
+    if (ckAchaPedido(v)) return 3; if (d.length === 44) return 2; if (ckRastreioRe.test(t)) return 0; return 1; };
+  const best = novos.map(v => [v, classe(v)]).sort((a, b) => b[1] - a[1])[0];
+  if (best[1] === 0) { ckAviso("Esse é o código de rastreio. Aponte para o código de barras de baixo (o da nota) ou para o QR.", ""); return "aponte para o código de baixo (nota)"; }
+  // um só rastreio no quadro junto com a nota/etiqueta que abriu o pedido: guarda no pedido (depois o rastreio sozinho já serve)
+  const rs = l.filter(v => ckRastreioRe.test(ckNorm(v)));
+  CK.rastPend = rs.length === 1 && best[1] >= 2 ? { rast: ckNorm(rs[0]), cod: ckNorm(best[0]), em: ag } : null;
+  return ckLido(best[0]);
 }
 // recebe qualquer leitura (leitor ou câmera) e devolve um texto curto para a tela da câmera
 function ckLido(txt) {
@@ -3789,7 +3806,7 @@ function ckLido(txt) {
   if (p) {
     if (CK.ped && p.id === CK.ped.id) return null; // etiqueta do pedido aberto lida de novo: ignora
     if (CK.ped && CK.linhas.some(l => l.lido) && CK.linhas.some(l => l.lido < l.qtd) && !confirm("O pedido aberto ainda não terminou. Trocar para o novo pedido? (o que foi bipado no atual é descartado)")) return null;
-    return ckAbrePedido(p);
+    return ckAbrePedido(p, txt);
   }
   // chave da NF-e que ainda não está na tela: o banco descobre o número de cada nota no Bling e devolve o pedido
   if (d.length === 44) {
@@ -3798,7 +3815,7 @@ function ckLido(txt) {
       if (error || !data) { ckSom("erro"); return ckAviso(error ? "Não deu para procurar: " + error.message : `Não achei pedido com a nota ${Number(d.slice(25, 34))}.`, "erro"); }
       let p = (SEP.lista || []).find(x => x.id === Number(data));
       if (!p) { const r = await supa.from("pedidos_online").select("*").eq("id", data).maybeSingle(); p = r.data; if (p) (SEP.lista = SEP.lista || []).push(p); }
-      if (p) ckAbrePedido(p); else { ckSom("erro"); ckAviso("O pedido dessa nota não está na lista.", "erro"); }
+      if (p) ckAbrePedido(p, d); else { ckSom("erro"); ckAviso("O pedido dessa nota não está na lista.", "erro"); }
     });
     return "procurando pela nota…";
   }
@@ -3806,7 +3823,9 @@ function ckLido(txt) {
   ckAviso(CK.ped ? `Não é deste pedido: ${txt}` : `Não achei pedido com ${txt}. Na Shopee, bipe o código de barras de baixo (o da nota, DANFE). Confira também se o pedido já chegou do Bling.`, "erro");
   return CK.ped ? "NÃO É DESTE PEDIDO" : "pedido não encontrado";
 }
-function ckAbrePedido(p) {
+function ckAbrePedido(p, cod) {
+    const rp = CK.rastPend; CK.rastPend = null;
+    if (rp && cod && rp.cod === ckNorm(cod) && Date.now() - rp.em < 20000 && !p.rastreio) { p.rastreio = rp.rast; supa.rpc("pedido_guardar_rastreio", { p_id: p.id, p_cod: rp.rast }).then(() => {}); }
     CK.ped = p; CK.linhas = ckMontaLinhas(p); ckSom("ped");
     const canc = p.ml_status === "cancelled", avisos = [];
     if (canc) avisos.push("CANCELADO — NÃO ENVIAR");

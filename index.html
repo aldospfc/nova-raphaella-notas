@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="157">
+<meta name="versao" content="158">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1865,6 +1865,9 @@ async function abrirNota(chave, texto) {
     if (emCurso(envioAtual) && supa) acompanharEnvio(envioAtual.id, chave, "envio");
     if (emCurso(envio2Atual) && supa) acompanharEnvio(envio2Atual.id, chave, "envio2");
     aplicarDest(destDeCfg(meta && meta.cfg));
+    // % na nota, markup, arredondamento e modo DESTA nota já na abertura (antes ficavam os da nota anterior até a nuvem responder,
+    // e qualquer mudança nesse meio-tempo gravava o valor errado na nota)
+    { const c = (meta && meta.cfg) || {}; for (const k of ["gPct", "gMk", "gArr", "gModo"]) { const e = document.getElementById(k), v = c[k] != null ? c[k] : k === "gPct" ? 100 : null; if (e && v != null) e.value = v; } }
     if (meta && meta.boletos === undefined && cab.dups && cab.dups.length) salvarMeta(chave, { boletos: cab.dups });
     else if (meta && meta.boletos && cab.dups && cab.dups.length && !meta.boletos.some(b => b.nf)) { const ns = new Set(cab.dups.map(d => d.n)); salvarMeta(chave, { boletos: meta.boletos.map(b => ns.has(b.n) ? { ...b, nf: 1 } : { ...b }) }); }
     prefNota = new Set(itens.map(i => chave13(i.eanNota).slice(-13).slice(0, 7)));

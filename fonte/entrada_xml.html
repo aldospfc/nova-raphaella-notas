@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="155">
+<meta name="versao" content="156">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -630,7 +630,7 @@
       <label class="c">Acréscimo padrão sobre o custo (%)<input type="number" id="gMk" value="100" min="0" step="5" style="width:80px"></label>
       <label class="c">Arredondar venda para<select id="gArr"><option value="0">centavos</option><option value="0.1">R$ 0,10</option><option value="0.5" selected>R$ 0,50</option><option value="1">R$ 1,00</option></select></label>
       <label class="c">O que vai no XML<select id="gModo"><option value="A">A — só destrinchar (valores da nota)</option><option value="B">B — custo final embutido (IPI e DIFAL dentro do valor)</option></select></label>
-      <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option><option value="duas">Duas notas: uma de cada loja</option></select></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="para qual loja esta nota dá entrada no Gestão">Entrada em <select id="gDest" style="font-weight:bold"><option value="1">Loja 1</option><option value="div">Loja 1, dividindo com a Loja 2</option><option value="ambas">As duas lojas (quantidade inteira em cada)</option><option value="2">Só Loja 2</option><option value="div21">Loja 2, dividindo com a Loja 1</option><option value="duas">Duas notas: uma de cada loja</option></select></label>
       <label class="c" id="lXml2" style="flex-direction:row;align-items:center;gap:6px;background:#f3f0ff;padding:4px 8px;border-radius:6px" title="pedidos diferentes do mesmo fornecedor para as duas lojas: abra aqui a nota da Loja 2 e trabalhe as duas na mesma tela. Cada loja fica com a quantidade e o custo da sua própria nota.">Juntar a nota da Loja 2 <input type="file" id="fXml2" accept=".xml" style="max-width:190px"></label><span id="parInfo" class="orig"></span>
       <div class="quebra"></div>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a coluna com o código / referência do produto no fornecedor"><input type="checkbox" id="gCod" style="width:18px;height:18px" checked> Mostrar código / referência</label>
@@ -683,7 +683,7 @@
           <th class="n">Divisor</th><th class="n">Qtd un.</th><th>EAN da unidade</th>
           <th class="n">% nota</th><th class="n">Fator DIFAL</th><th class="n">Custo item</th><th class="n">Custo un.</th>
           <th class="n" title="quanto a venda fica acima do custo">Acrésc. %</th><th class="n" title="digite um preço e o acréscimo e a margem são calculados">Venda (R$)</th>
-          <th class="n c2" title="quanto vai para a Loja 2: embalagens fechadas (× divisor) e/ou unidades avulsas. Em branco = nada; o resto fica na Loja 1.">Para a Loja 2<br><small>embalagens + un. avulsas</small></th><th class="n c2" title="preço de venda na Loja 2. Em branco = igual ao da Loja 1.">Venda Loja 2</th>
+          <th class="n c2" title="quanto vai para a Loja 2: embalagens fechadas (× divisor) e/ou unidades avulsas. Em branco = nada; o resto fica na loja da nota."><span id="thOutra">Para a Loja 2</span><br><small>embalagens + un. avulsas</small></th><th class="n c2" title="preço de venda na Loja 2. Em branco = igual ao da Loja 1.">Venda Loja 2</th>
         </tr></thead>
         <tbody id="tb"></tbody>
       </table>
@@ -1291,11 +1291,11 @@ function atualizarLinha(it) {
   iPv.classList.toggle("def", precoDefinido(it)); iPv.classList.toggle("sug", !precoDefinido(it));
   iPv.title = it.pv != null ? "preço definido por você (apague para voltar ao sugerido)" : it.mk != null ? "preço definido pelo markup que você digitou neste item" : (it.mkMem != null ? `preço SUGERIDO pelo markup da última nota deste fornecedor (${br(it.mkMem, 1)}%)` : "preço SUGERIDO pelo markup geral do topo") + " — NÃO vai para o Gestão até você digitar o preço";
   if (l2On()) {
-    const dst = destino(), q2 = qLojas(it, k)[1], k2 = dst === "duas" ? calcL(it, 2) : null, bruto = dst === "div" ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
-    o("l2in").style.display = dst === "div" ? "" : "none";
+    const dst = destino(), q2 = qLojas(it, k)[1], k2 = dst === "duas" ? calcL(it, 2) : null, bruto = div2On() ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
+    o("l2in").style.display = div2On() ? "" : "none";
     o("e2in").style.display = interno ? "" : "none";
     if (interno && !it.ean2) { const g = equiv.get(String(principalDe(it)).padStart(13, "0")), i2 = tr.querySelector("[data-c=ean2]"); if (g && i2 !== document.activeElement) { it.ean2 = g; if (i2) i2.value = g; } }
-    o("l2").innerHTML = dst === "duas" ? (it.so2 ? `<span class="chip" style="background:#4b3fa3;color:#fff">só na nota da Loja 2</span><br><b>${br(q2, 0)}</b> un · custo ${br(k.custoUn, 4)}` : k2 ? `Loja 2: <b>${br(q2, 0)}</b> un<br>custo ${Math.abs(k2.custoUn - k.custoUn) > 0.00005 ? `<b title="custo diferente do da Loja 1 (${br(k.custoUn, 4)})">${br(k2.custoUn, 4)}</b>` : br(k2.custoUn, 4)}` : `<span class="orig">não veio na nota da Loja 2</span>`) : dst === "ambas" ? `<b>${br(k.qtdUn, 0)}</b> un em cada loja` : dst === "2" ? `<b>${br(k.qtdUn, 0)}</b> un, tudo na Loja 2` : bruto > k.qtdUn ? `<span class="chip falta">passa do que veio (${br(k.qtdUn, 0)})</span>` : bruto ? `Loja 2: <b>${br(q2, 0)}</b> un · Loja 1: <b>${br(k.qtdUn - q2, 0)}</b> un` : `tudo na Loja 1 (${br(k.qtdUn, 0)} un)`;
+    o("l2").innerHTML = dst === "duas" ? (it.so2 ? `<span class="chip" style="background:#4b3fa3;color:#fff">só na nota da Loja 2</span><br><b>${br(q2, 0)}</b> un · custo ${br(k.custoUn, 4)}` : k2 ? `Loja 2: <b>${br(q2, 0)}</b> un<br>custo ${Math.abs(k2.custoUn - k.custoUn) > 0.00005 ? `<b title="custo diferente do da Loja 1 (${br(k.custoUn, 4)})">${br(k2.custoUn, 4)}</b>` : br(k2.custoUn, 4)}` : `<span class="orig">não veio na nota da Loja 2</span>`) : dst === "ambas" ? `<b>${br(k.qtdUn, 0)}</b> un em cada loja` : dst === "2" ? `<b>${br(k.qtdUn, 0)}</b> un, tudo na Loja 2` : bruto > k.qtdUn ? `<span class="chip falta">passa do que veio (${br(k.qtdUn, 0)})</span>` : dst === "div21" ? (bruto ? `Loja 1: <b>${br(k.qtdUn - q2, 0)}</b> un · Loja 2: <b>${br(q2, 0)}</b> un` : `tudo na Loja 2 (${br(k.qtdUn, 0)} un)`) : bruto ? `Loja 2: <b>${br(q2, 0)}</b> un · Loja 1: <b>${br(k.qtdUn - q2, 0)}</b> un` : `tudo na Loja 1 (${br(k.qtdUn, 0)} un)`;
     const e1 = tr.querySelector("[data-c=l2e]"); if (e1) e1.style.visibility = it.div > 1 ? "" : "hidden";
     if (interno && !c2_ && q2 > 0) o("l2").innerHTML += `<br><span class="chip falta" title="código interno (000000000…) é uma numeração de cada loja: na Loja 2 esse mesmo número pode ser outro produto">código interno da Loja 1 — informe ou gere o código da Loja 2, senão este item não vai para lá</span>`;
     else if (interno && it.ean2 && !gtinValido(it.ean2)) o("l2").innerHTML += `<br><span class="chip falta">código da Loja 2 inválido</span>`;
@@ -1493,9 +1493,9 @@ function totais() {
     document.getElementById("tot").innerHTML += `<div style="background:#e8f5e9;border-radius:6px;padding:2px 8px" title="itens já gravados no Gestão por envios desta nota; no próximo envio só vão os que faltam"><small>Enviados ao Gestão</small><b>${ok} · faltam ${falta}</b></div>`;
   }
   if (l2On()) { const t = totaisLojas(), soDiv = div2On();
-    document.getElementById("tot").innerHTML += `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px"><small>Loja 1</small><b>${br(t.un1, 0)} un · R$ ${br(t.custo1)}</b></div><div style="background:#f3f0ff;border-radius:6px;padding:2px 8px"><small>Loja 2</small><b>${br(t.un2, 0)} un · R$ ${br(t.custo2)}</b></div>${soDiv ? `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="parte da Loja 2 no valor da nota, para ratear os boletos"><small>Loja 2 nos boletos</small><b>${br(t.fracao * 100, 1)}%</b></div><div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="o DIFAL é pago pela Loja 1 na GARE; esta é a parte da Loja 2, somada ao que ela paga nos boletos"><small>DIFAL da Loja 2</small><b>R$ ${br(t.difal2)}</b></div>` : ""}`; }
+    document.getElementById("tot").innerHTML += `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px"><small>Loja 1</small><b>${br(t.un1, 0)} un · R$ ${br(t.custo1)}</b></div><div style="background:#f3f0ff;border-radius:6px;padding:2px 8px"><small>Loja 2</small><b>${br(t.un2, 0)} un · R$ ${br(t.custo2)}</b></div>${soDiv ? `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="parte da Loja ${lojaOutra()} no valor da nota, para ratear os boletos"><small>Loja ${lojaOutra()} nos boletos</small><b>${br(t.fracao * 100, 1)}%</b></div><div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="o DIFAL é pago pela Loja ${lojaPrinc()} na GARE; esta é a parte da Loja ${lojaOutra()}, somada ao que ela paga nos boletos"><small>DIFAL da Loja ${lojaOutra()}</small><b>R$ ${br(t.difal2)}</b></div>` : ""}`; }
   const av = [];
-  if (div2On()) { const ex = totaisLojas().excede; if (ex) av.push(`<b>${ex} item(ns) com mais unidades para a Loja 2 do que vieram na nota.</b>`); }
+  if (div2On()) { const ex = totaisLojas().excede; if (ex) av.push(`<b>${ex} item(ns) com mais unidades para a Loja ${lojaOutra()} do que vieram na nota.</b>`); }
   if (!cad) av.push("Cadastro do Gestão não carregado: sem ele não dá para saber quais EANs já existem nem sugerir a unidade.");
   if (semEan) av.push(`${semEan} item(ns) sem EAN de unidade válido — no XML vão como SEM GTIN.`);
   document.getElementById("avisos").innerHTML = av.join("<br>");
@@ -1662,6 +1662,7 @@ function sqlPrecos(loja) {
     if (!(custo > 0) || !(venda > 0)) continue;
     if (loja === 2 && !(qLojas(it, k)[1] > 0) && it.pv2 == null) continue;
     if (loja === 1 && destino() === "2") continue; // na Loja 2 só mexe no que foi dividido ou teve preço digitado
+    if (loja === 1 && destino() === "div21" && !(qLojas(it, k)[0] > 0)) continue; // nota da Loja 2: a Loja 1 só recebe preço do que vai para ela
     visto.add(ePr);
     const cod = ePr.padStart(13, "0"), margem = Math.floor((venda / custo - 1) * 10000 + 1e-6) / 100;
     if (it.aux && ePr === principalDe(it)) linhas.push(...sqlAuxiliar(it.ean.padStart(13, "0"), cod));
@@ -2026,7 +2027,7 @@ function desenharBoletosNota() {
   bs.forEach((b, i) => {
     const [txtS, cls] = sitBoleto(b), e = document.createElement("div"); e.className = "bol";
     e.innerHTML = `<span style="min-width:70px">${h(b.n || i + 1)}</span><label>vencimento <input type="date" data-k="venc" value="${h(b.venc || "")}"></label><label>${b.nf ? "valor na nota" : "valor"} R$ <input type="text" inputmode="decimal" data-k="valor" value="${b.valor ? br(b.valor) : ""}" style="width:90px;text-align:right"></label>` +
-      `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${partes && partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="${r2_ ? "parte da Loja 2 neste boleto, já com a parte dela no DIFAL" : "parte da Loja 2 neste boleto, rateada pelo valor informado acima"}">Loja 2 me paga: R$ ${br(partes[i])} · Loja 1: R$ ${br(r2(aPagar(m, b) - partes[i]))}</span><label title="marque quando a Loja 2 te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec ? " checked" : ""}> Loja 2 já me pagou</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
+      `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${partes && partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="${r2_ ? `parte da Loja ${lojaOutra()} neste boleto, já com a parte dela no DIFAL` : `parte da Loja ${lojaOutra()} neste boleto, rateada pelo valor informado acima`}">Loja ${lojaOutra()} me paga: R$ ${br(partes[i])} · Loja ${lojaPrinc()}: R$ ${br(r2(aPagar(m, b) - partes[i]))}</span><label title="marque quando a outra loja te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec ? " checked" : ""}> Loja 2 já me pagou</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
     e.querySelector("[data-k=venc]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { venc: ev.target.value }));
     e.querySelector("[data-k=valor]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { valor: pnum(ev.target.value) }));
     e.querySelector("[data-k=pago]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { pago: ev.target.checked ? new Date().toISOString() : null }));
@@ -2058,7 +2059,7 @@ function faixaBoletos(per) {
   return ["", ""];
 }
 // de qual loja é o boleto: jogo da Loja 2 (mesmo pedido nas duas lojas ou duas notas) ou nota lançada só na Loja 2
-const lojaBoleto = x => x.b.l2 || (x.n.cfg && x.n.cfg.gDest === "2") ? 2 : 1;
+const lojaBoleto = x => x.b.l2 || (x.n.cfg && (x.n.cfg.gDest === "2" || x.n.cfg.gDest === "div21")) ? 2 : 1;
 function desenharBoletos() {
   if (vista !== "boletos") return;
   const todos = todosBoletos(), abertos_ = todos.filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
@@ -2092,7 +2093,7 @@ function desenharBoletos() {
         const [txtS, cls] = sitBoleto(x.b), c = document.createElement("div"), v = x.b.venc || "", l2_ = lojaBoleto(x) === 2; c.className = "bcard " + cls;
         c.innerHTML = `<div class="topo"><span class="dia">${v ? v.slice(8, 10) + "/" + v.slice(5, 7) : "—"}</span><span class="sem">${v ? SEM[new Date(v + "T12:00:00").getDay()] : ""}</span><span class="chip ${cls}" style="margin:0 0 0 auto">${txtS}</span></div>` +
           `<div class="forn">${h(x.n.emit)}</div><div class="det"><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a> · parcela ${h(x.b.n || x.i + 1)} · <span${l2_ ? ' style="color:#4b3fa3;font-weight:600"' : ""}>Loja ${l2_ ? 2 : 1}</span>${x.b.nf && fbDe(x.n) > 1 ? " · meia nota" : ""}</div>` +
-          (x.b.p2 ? `<div class="l2"><span>Loja 2 me paga <b>R$ ${br(x.b.p2)}</b></span><label style="margin-left:auto"><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : "") +
+          (x.b.p2 ? `<div class="l2"><span>Loja ${lojaBoleto(x) === 2 ? 1 : 2} me paga <b>R$ ${br(x.b.p2)}</b></span><label style="margin-left:auto"><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : "") +
           `<div class="pe"><span class="val">R$ ${br(aPagar(x.n, x.b))}</span><label class="pagar"><input type="checkbox" data-pago="1"${x.b.pago ? " checked" : ""}> ${x.b.pago ? "pago" : "marcar pago"}</label></div>`;
         c.querySelector("a").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(x.n.id); });
         c.querySelector("[data-pago]").addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { pago: ev.target.checked ? new Date().toISOString() : null }));
@@ -2176,7 +2177,7 @@ function sitValidade(v) {
 // loja de uma validade: a informada no lançamento avulso, ou a loja de destino da nota de origem
 function lojaValidade(v) {
   if (v.loja) { const m = String(v.loja).match(/\d/); return m ? Number(m[0]) : null; }
-  const m = v.nota && metaDe(v.nota); const g = m && m.cfg && m.cfg.gDest; return g === "2" ? 2 : g ? 1 : null;
+  const m = v.nota && metaDe(v.nota); const g = m && m.cfg && m.cfg.gDest; return g === "2" || g === "div21" ? 2 : g ? 1 : null;
 }
 function desenharValidades() {
   if (vista !== "validades") return;
@@ -2237,7 +2238,7 @@ function desenharAvisos() {
   if (vista !== "avisos") return;
   const tab = (id, cab_, linhas, vazio) => { document.getElementById(id).innerHTML = linhas.length ? `<table><thead><tr>${cab_.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${linhas.join("")}</tbody></table>` : `<i>${vazio}</i>`; };
   const bol = todosBoletos().filter(x => !x.b.pago && dias(x.b.venc) <= 7);
-  tab("avBol", ["Vencimento", "Fornecedor", "Nota", "Parcela", "Valor a pagar", "Loja 2 me paga", "Situação"], bol.map(x => { const [t, c] = sitBoleto(x.b); return `<tr><td>${dataBr(x.b.venc)}</td><td>${h(x.n.emit)}</td><td>${h(rotNota(x.n))}</td><td>${h(x.b.n || x.i + 1)}</td><td>R$ ${br(aPagar(x.n, x.b))}</td><td>${x.b.p2 ? "R$ " + br(x.b.p2) + (x.b.rec ? " (já pagou)" : "") : ""}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum boleto vencido ou vencendo nos próximos 7 dias.");
+  tab("avBol", ["Vencimento", "Fornecedor", "Nota", "Parcela", "Valor a pagar", "Outra loja me paga", "Situação"], bol.map(x => { const [t, c] = sitBoleto(x.b); return `<tr><td>${dataBr(x.b.venc)}</td><td>${h(x.n.emit)}</td><td>${h(rotNota(x.n))}</td><td>${h(x.b.n || x.i + 1)}</td><td>R$ ${br(aPagar(x.n, x.b))}</td><td>${x.b.p2 ? "R$ " + br(x.b.p2) + (x.b.rec ? " (já pagou)" : "") : ""}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum boleto vencido ou vencendo nos próximos 7 dias.");
   const val = listaValidades().filter(v => !v.baixa && dias(v.val) <= 30);
   tab("avVal", ["Validade", "Produto", "Código de barras", "Qtd", "Situação"], val.map(v => { const [t, c] = sitValidade(v); return `<tr><td>${dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td>${br(v.qtd || 0, 0)}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum produto vencido ou vencendo nos próximos 30 dias.");
   { const nf = fonteNotas().filter(n => n.faltas && (n.faltas.itens || []).length), f = x => br(x, x % 1 ? 2 : 0), el = document.getElementById("avFaltas");
@@ -2596,8 +2597,8 @@ async function enviarAoGestao(tipo, comPos) {
   const falta = itens.filter(i => !i.ean || !gtinValido(i.ean) || !(calc(i).qtdUn > 0)).length;
   if (tipo !== "precos" && falta && !confirm(`${falta} item(ns) vão ficar de fora por falta de código de barras válido ou quantidade.\nEnviar os demais?`)) return;
   if (tipo !== "precos" && dois) {
-    const t = totaisLojas(); if (t.excede) return msg(`${t.excede} item(ns) com mais unidades para a Loja 2 do que vieram na nota. Corrija antes de enviar.`);
-    if (!confirm(`${dst === "duas" ? "Duas notas: cada loja recebe a quantidade e o custo da sua nota" : dst === "ambas" ? "Entrada INTEIRA nas duas lojas" : dst === "2" ? "Entrada só na Loja 2" : "Dividir a entrada"}:\n\nLoja 1: ${br(t.un1, 0)} unidades (R$ ${br(t.custo1)})\nLoja 2: ${br(t.un2, 0)} unidades (R$ ${br(t.custo2)})\n\n${dst === "2" ? "Enviar para a Loja 2?" : "Enviar para as duas lojas?"}`)) return;
+    const t = totaisLojas(); if (t.excede) return msg(`${t.excede} item(ns) com mais unidades para a Loja ${lojaOutra()} do que vieram na nota. Corrija antes de enviar.`);
+    if (!confirm(`${dst === "duas" ? "Duas notas: cada loja recebe a quantidade e o custo da sua nota" : dst === "ambas" ? "Entrada INTEIRA nas duas lojas" : dst === "2" ? "Entrada só na Loja 2" : dst === "div21" ? "Nota da Loja 2, dividindo com a Loja 1" : "Dividir a entrada"}:\n\nLoja 1: ${br(t.un1, 0)} unidades (R$ ${br(t.custo1)})\nLoja 2: ${br(t.un2, 0)} unidades (R$ ${br(t.custo2)})\n\n${dst === "2" ? "Enviar para a Loja 2?" : "Enviar para as duas lojas?"}`)) return;
   }
   const base = ((tipo === "precos" ? "Precos " : "Entrada ") + (cab.manual ? "sem nota" : "NF " + cab.nnf) + " - " + semAcento(cab.emit)).slice(0, 110);
   msg("Enviando…");
@@ -3257,10 +3258,11 @@ document.getElementById("addCam").addEventListener("click", () => lerCamera(c =>
 // ---------- divisão com a Loja 2 ----------
 let destAplicado = "1", destLocalEm = 0;
 function aplicarDest(d) {
-  if (!["1", "div", "ambas", "2", "duas"].includes(d)) d = "1";
+  if (!["1", "div", "div21", "ambas", "2", "duas"].includes(d)) d = "1";
   const e = document.getElementById("gDest"); if (e.value !== d) e.value = d;
   if (destAplicado === d) return;
   destAplicado = d; const on = d !== "1";
+  { const o = d === "div21" ? 1 : 2, a = document.getElementById("thOutra"); if (a) a.textContent = "Para a Loja " + o; ROT_ITEM[16] = `Para a Loja ${o} (emb. + un.)`; for (const td of document.querySelectorAll("#tb tr.it > td:nth-child(17)")) td.dataset.l = ROT_ITEM[16]; }
   document.body.classList.toggle("div2", on);
   if (on && !cad2Info) carregarLoja2();
   if (on) carregarEquiv();
@@ -3279,7 +3281,9 @@ function guardarEquiv(e1, e2) {
   if (db) db.doc("equiv/" + e1).set({ e1, e2, em: new Date().toISOString() }).catch(() => {});
 }
 const destino = () => { const e = document.getElementById("gDest"); return (e && e.value) || "1"; };
-const div2On = () => destino() === "div";   // dividindo: aparecem os campos de quantidade da Loja 2
+const div2On = () => destino() === "div" || destino() === "div21";   // dividindo: aparecem os campos de quantidade da outra loja
+const lojaPrinc = () => destino() === "div21" || destino() === "2" ? 2 : 1;   // loja dona da nota (paga os boletos)
+const lojaOutra = () => lojaPrinc() === 2 ? 1 : 2;                             // loja que recebe parte e acerta com a dona
 const l2On = () => destino() !== "1";       // a Loja 2 participa: aparece a coluna de venda da Loja 2
 const destDeCfg = c => (c && (c.gDest || (c.gDiv2 ? "div" : "1"))) || "1";
 // quantas unidades de cada item vão para [Loja 1, Loja 2]
@@ -3307,7 +3311,7 @@ function qLojas(it, k) {
   if (d === "duas") { const k2 = calcL(it, 2); return [it.so2 ? 0 : k.qtdUn, k2 ? k2.qtdUn : 0]; }
   if (d === "ambas") return [k.qtdUn, k.qtdUn];
   if (d === "2") return [0, k.qtdUn];
-  const q2 = q2De(it, k); return [k.qtdUn - q2, q2];
+  const qo = q2De(it, k); return d === "div21" ? [qo, k.qtdUn - qo] : [k.qtdUn - qo, qo]; // div21: os campos de divisão são a parte da Loja 1
 }
 // unidades que vão para a Loja 2: embalagens × divisor + unidades avulsas (em branco = nada)
 const q2Bruto = it => (it.l2e || 0) * (it.div || 1) + (it.l2u || 0);
@@ -3345,9 +3349,9 @@ function totaisLojas() {
     return { un1, un2, custo1: r2(custo1), custo2: r2(custo2), fracao: 0, difal2: 0, excede: 0 };
   }
   for (const it of itens) {
-    const k = calc(it), [q1, q2] = qLojas(it, k), fr = k.qtdUn > 0 ? q2 / k.qtdUn : 0, fr1 = k.qtdUn > 0 ? q1 / k.qtdUn : 0;
+    const k = calc(it), [q1, q2] = qLojas(it, k), fr2 = k.qtdUn > 0 ? q2 / k.qtdUn : 0, fr1 = k.qtdUn > 0 ? q1 / k.qtdUn : 0, fr = destino() === "div21" ? fr1 : fr2;
     if (div2On() && q2Bruto(it) > k.qtdUn) excede++;
-    un2 += q2; un1 += q1; custo2 += k.custoItem * fr; custo1 += k.custoItem * fr1;
+    un2 += q2; un1 += q1; custo2 += k.custoItem * fr2; custo1 += k.custoItem * fr1;
     const vn = k.custoItem - k.difal; nota += vn; nota2 += vn * fr; difal2 += k.difal * fr; // boleto cobra só o que está na nota (sem o DIFAL)
   }
   return { un1, un2, custo1: r2(custo1), custo2: r2(custo2), fracao: nota > 0 ? nota2 / nota : 0, difal2: r2(difal2), excede };
@@ -3358,7 +3362,7 @@ function rateioLoja2(m, bs) {
   const nfB = b => (/^(\d{3,})-/.exec(b.n || "") || [])[1] || "", nfI = it => (/^NF (\d+) ·/.exec(it.xprod || "") || [])[1] || "";
   const porNota = bs.length && bs.every(b => nfB(b)) && itens.some(it => nfI(it));
   const g = new Map(), grupo = k => { if (!g.has(k)) g.set(k, { nota: 0, nota2: 0, difal2: 0, bol: 0 }); return g.get(k); };
-  for (const it of itens) { const k = calc(it), q2 = qLojas(it, k)[1], fr = k.qtdUn > 0 ? q2 / k.qtdUn : 0, x = grupo(porNota ? nfI(it) : ""), vn = k.custoItem - k.difal; x.nota += vn; x.nota2 += vn * fr; x.difal2 += k.difal * fr; }
+  for (const it of itens) { const k = calc(it), q2 = qLojas(it, k)[lojaOutra() - 1], fr = k.qtdUn > 0 ? q2 / k.qtdUn : 0, x = grupo(porNota ? nfI(it) : ""), vn = k.custoItem - k.difal; x.nota += vn; x.nota2 += vn * fr; x.difal2 += k.difal * fr; }
   for (const b of bs) grupo(porNota ? nfB(b) : "").bol += aPagar(m, b);
   let bol = 0, difal2 = 0;
   const partes = bs.map(b => { const x = grupo(porNota ? nfB(b) : ""), v = aPagar(m, b), fr = x.nota > 0 ? x.nota2 / x.nota : 0; return r2(v * fr + (x.bol > 0 ? x.difal2 * v / x.bol : 0)); });
@@ -5412,7 +5416,7 @@ function hjDesenhar() {
         (bv.length ? row("erro", `<strong>${bv.length}</strong> vencido${bv.length > 1 ? "s" : ""}`, `<strong>${orBrl(soma(bv))}</strong>`) : "") +
         (bh.length ? row("av", `<strong>${bh.length}</strong> vence${bh.length > 1 ? "m" : ""} hoje`, `<strong>${orBrl(soma(bh))}</strong>`) : "") +
         row(b7.length ? "" : "vazio", `<strong>${b7.length}</strong> nos próximos 7 dias`, `<strong>${orBrl(soma(b7))}</strong>`) +
-        (l2rec.length ? `<div class="debt" title="parte da Loja 2 em boletos já vencidos ou de hoje que ainda não está marcada como recebida"><span>Loja 2 me deve (${l2rec.length} boleto${l2rec.length > 1 ? "s" : ""})</span><strong>${orBrl(l2soma)}</strong></div>` : ""))}
+        (l2rec.length ? `<div class="debt" title="parte da outra loja (nota dividida) em boletos já vencidos ou de hoje que ainda não está marcada como recebida"><span>Outra loja me deve (${l2rec.length} boleto${l2rec.length > 1 ? "s" : ""})</span><strong>${orBrl(l2soma)}</strong></div>` : ""))}
       ${tcard("Validades", `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 2v3"/><path d="M17 15.5v1.7l1 .625"/><path d="M21 8.936V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h3.935"/><path d="M3 9h9.873"/><path d="M8 2v3"/><circle cx="17" cy="17" r="5"/></svg>`, `${val.length} controlada${val.length === 1 ? "" : "s"}`, "validades",
         (vv.length ? row("erro", `<strong>${vv.length}</strong> produto${vv.length > 1 ? "s" : ""} vencido${vv.length > 1 ? "s" : ""}`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`) : "") +
         row(v30.length ? "av" : "vazio", `<strong>${v30.length}</strong> vence${v30.length === 1 ? "" : "m"} em 30 dias`, `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6h4"/></svg>`) +

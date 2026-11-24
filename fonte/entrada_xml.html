@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="153">
+<meta name="versao" content="154">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3943,7 +3943,7 @@ function rvDesenhar() {
   const delta = (x) => { if (!R.ant) return ""; const a = R.ant.get(x.chave), va = a ? Number(a.tot_qtd) || 0 : 0, vb = Number(x.tot_qtd) || 0;
     if (!va) return `<span class="sobe" title="não vendeu no período anterior">novo</span>`; const p = (vb / va - 1) * 100; return `<span class="${p >= 0 ? "sobe" : "cai"}" title="antes: ${n(va)} un.">${p >= 0 ? "+" : ""}${br(p, 0)}%</span>`; };
   if (!R.L.length) { el.innerHTML = `<div class="orig">Nenhuma venda encontrada de ${dt(R.ini)} a ${dt(R.fim)}${R.q ? ` para "${escH(R.q)}"` : ""}.</div>`; return; }
-  el.innerHTML = `<div class="orig" style="margin:6px 0">${R.q ? `"${escH(R.q)}"` : "Mais vendidos"} · ${dt(R.ini)} a ${dt(R.fim)}${R.antP ? ` · comparado com ${dt(R.antP[0])} a ${dt(R.antP[1])}` : ""} · online (ML/Shopee) conta desde 10/11/2026</div>
+  el.innerHTML = `<div class="orig" style="margin:6px 0">${R.q ? `"${escH(R.q)}"` : "Mais vendidos"} · ${dt(R.ini)} a ${dt(R.fim)}${R.antP ? ` · comparado com ${dt(R.antP[0])} a ${dt(R.antP[1])}` : ""} · lojas e online (ML/Shopee) com histórico desde 31/08/2026</div>
     <div class="linha" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">${[["l1", "Loja 1"], ["l2", "Loja 2"], ["ml", "Mercado Livre"], ["sh", "Shopee"]].map(([k, t]) => `<div class="painel" style="margin:0;padding:6px 10px;min-width:110px"><div class="orig" style="font-size:12px">${t}</div><b>${n(sum(k + "_qtd"))} un.</b><div class="orig" style="font-size:12px">${rs(sum(k + "_val"))}</div></div>`).join("")}
       <div class="painel" style="margin:0;padding:6px 10px;min-width:110px;background:#eef3fb"><div class="orig" style="font-size:12px">Total</div><b>${n(sum("tot_qtd"))} un.</b><div class="orig" style="font-size:12px">${rs(sum("tot_val"))}</div></div></div>
     <div style="overflow:auto"><table><thead><tr><th>Produto</th><th class="n">Loja 1</th><th class="n">Loja 2</th><th class="n">ML</th><th class="n">Shopee</th><th class="n">Total</th><th class="n">Valor</th>${R.ant ? `<th class="n">vs. antes</th>` : ""}</tr></thead><tbody>

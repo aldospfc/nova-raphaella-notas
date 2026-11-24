@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="142">
+<meta name="versao" content="143">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3719,8 +3719,9 @@ const ckNorm = s => String(s || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
 function ckAchaPedido(txt) {
   const t = ckNorm(txt), runs = (String(txt).match(/\d{6,}/g) || []);
   if (!t) return null;
-  const L = SEP.lista || [];
+  const L = SEP.lista || [], d44 = ckDig(txt), nNf = d44.length === 44 ? Number(d44.slice(25, 34)) : 0;
   const bate = p => {
+    if (nNf && p.nf_numero && Number(p.nf_numero) === nNf) return 3; // chave da NF-e (DANFE simplificado da etiqueta)
     const env = p.ml_envio ? String(p.ml_envio) : "";
     if (env && (runs.includes(env) || t.includes(env))) return 3;
     if (p.rastreio && ckNorm(p.rastreio) === t) return 3;
@@ -3788,8 +3789,19 @@ function ckLido(txt) {
     if (CK.ped && CK.linhas.some(l => l.lido) && CK.linhas.some(l => l.lido < l.qtd) && !confirm("O pedido aberto ainda não terminou. Trocar para o novo pedido? (o que foi bipado no atual é descartado)")) return null;
     return ckAbrePedido(p);
   }
+  // chave da NF-e que ainda não está na tela: o banco descobre o número de cada nota no Bling e devolve o pedido
+  if (d.length === 44) {
+    ckAviso("Procurando o pedido pela nota fiscal…", "");
+    supa.rpc("pedido_por_chave", { p_chave: d }).then(async ({ data, error }) => {
+      if (error || !data) { ckSom("erro"); return ckAviso(error ? "Não deu para procurar: " + error.message : `Não achei pedido com a nota ${Number(d.slice(25, 34))}.`, "erro"); }
+      let p = (SEP.lista || []).find(x => x.id === Number(data));
+      if (!p) { const r = await supa.from("pedidos_online").select("*").eq("id", data).maybeSingle(); p = r.data; if (p) (SEP.lista = SEP.lista || []).push(p); }
+      if (p) ckAbrePedido(p); else { ckSom("erro"); ckAviso("O pedido dessa nota não está na lista.", "erro"); }
+    });
+    return "procurando pela nota…";
+  }
   ckSom("erro");
-  ckAviso(CK.ped ? `Não é deste pedido: ${txt}` : `Não achei pedido com ${txt}. Confira se ele já chegou do Bling (lista dos últimos 7 dias).`, "erro");
+  ckAviso(CK.ped ? `Não é deste pedido: ${txt}` : `Não achei pedido com ${txt}. Na Shopee, bipe o código de barras de baixo (o da nota, DANFE). Confira também se o pedido já chegou do Bling.`, "erro");
   return CK.ped ? "NÃO É DESTE PEDIDO" : "pedido não encontrado";
 }
 function ckAbrePedido(p) {
@@ -3816,7 +3828,7 @@ async function ckGravar(falta) {
 function ckDesenha() {
   const el = document.getElementById("ckCorpo"); if (!el) return;
   const p = CK.ped;
-  if (!p) { el.innerHTML = `<div class="painel orig">1. Bipe a <b>etiqueta de envio</b> do pacote (Mercado Livre: código de barras ou QR).<br>2. Aparecem os produtos do pedido; bipe cada um.<br>3. Quando tudo bater, o pedido vira <b>separado</b> e fica registrado quem conferiu.<br><br>Produto sem código de barras: toque em <b>+1</b> na linha dele.</div>`; return; }
+  if (!p) { el.innerHTML = `<div class="painel orig">1. Bipe a <b>etiqueta de envio</b> do pacote. Mercado Livre: código de barras ou QR. <b>Shopee: o código de barras de baixo</b> (o da nota, DANFE simplificado).<br>2. Aparecem os produtos do pedido; bipe cada um.<br>3. Quando tudo bater, o pedido vira <b>separado</b> e fica registrado quem conferiu.<br><br>Produto sem código de barras: toque em <b>+1</b> na linha dele.</div>`; return; }
   const tot = CK.linhas.reduce((a, l) => a + l.qtd, 0), ok = CK.linhas.reduce((a, l) => a + Math.min(l.lido, l.qtd), 0);
   el.innerHTML = `<div class="painel"><div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center"><b style="flex:1">${escH(p.canal || "")} · ${escH(p.numero_loja || String(p.numero || ""))} · ${escH(p.cliente || "")}</b><span style="font-size:18px;font-weight:bold">${ok} / ${tot}</span></div>
     ${CK.linhas.map((l, i) => { const cor = l.lido >= l.qtd ? "#e3f6ea" : l.lido ? "#fff6dc" : "#fff";

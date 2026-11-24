@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="151">
+<meta name="versao" content="152">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3916,6 +3916,7 @@ async function mlCarregar(forcar) {
     if (a === "perguntas" && (forcar || !ML2.perguntas)) { ML2.perguntas = "…"; mlDesenhar(); ML2.perguntas = (await mlFn({ acao: "perguntas" })).itens; }
     if (a === "reclamacoes" && (forcar || !ML2.reclamacoes)) { ML2.reclamacoes = "…"; mlDesenhar(); ML2.reclamacoes = (await mlFn({ acao: "reclamacoes" })).itens; }
     if (a === "mensagens" && (forcar || !ML2.naolidas)) { ML2.naolidas = "…"; mlDesenhar(); ML2.naolidas = (await mlFn({ acao: "naolidas" })).itens; }
+    if (a === "qualidade" && (forcar || !ML2.qual)) { await mlQualCarregar(); return; }
     if (a === "promocoes" && (forcar || !ML2.promos)) { ML2.promos = "…"; mlDesenhar(); ML2.promos = (await mlFn({ acao: "promos_loja" })).itens; if (forcar && ML2.camp) mlCampItens(); }
     if (a === "anuncios" && (forcar || !ML2.anuncios)) { ML2.anuncios = "…"; mlDesenhar(); ML2.anuncios = await mlFn({ acao: "anuncios", q: ML2.aq, status: ML2.ast, offset: ML2.aoff }); }
   } catch (e) { ML2[a === "mensagens" ? "naolidas" : a === "promocoes" ? "promos" : a] = { erro: e.message }; }
@@ -3928,8 +3929,8 @@ async function mlResumo() { try { const r = await mlFn({ acao: "resumo" }); cons
 function mlDesenhar() {
   const el = document.getElementById("mlPainel"); if (!el) return;
   const R = ML2.resumo || {}, cont = k => { const v = ML2[k === "mensagens" ? "naolidas" : k]; if (Array.isArray(v)) return k === "mensagens" ? v.reduce((s, x) => s + (x.qtd || 0), 0) : v.length; return R[k] ?? ""; };
-  const abas = [["perguntas", "Perguntas"], ["reclamacoes", "Reclamações"], ["mensagens", "Mensagens das vendas"], ["anuncios", "Anúncios"], ["promocoes", "Promoções"]];
-  let h = `<div class="sep-abas">${abas.map(([k, t]) => { const n = k === "anuncios" || k === "promocoes" ? "" : cont(k); return `<button class="sep-aba${ML2.aba === k ? " on" : ""}" data-mla="${k}">${t}${n !== "" ? ` <span class="sep-n${n ? " q" : ""}">${n}</span>` : ""}</button>`; }).join("")}</div>`;
+  const abas = [["perguntas", "Perguntas"], ["reclamacoes", "Reclamações"], ["mensagens", "Mensagens das vendas"], ["anuncios", "Anúncios"], ["promocoes", "Promoções"], ["qualidade", "Qualidade"]];
+  let h = `<div class="sep-abas">${abas.map(([k, t]) => { const n = ["anuncios", "promocoes", "qualidade"].includes(k) ? "" : cont(k); return `<button class="sep-aba${ML2.aba === k ? " on" : ""}" data-mla="${k}">${t}${n !== "" ? ` <span class="sep-n${n ? " q" : ""}">${n}</span>` : ""}</button>`; }).join("")}</div>`;
   const est = v => v === "…" ? `<div class="painel orig">Carregando do Mercado Livre…</div>` : v && v.erro ? `<div class="painel" style="color:#b42318">Não deu: ${escH(v.erro)} <a href="#" data-mlre>tentar de novo</a></div>` : "";
   if (ML2.aba === "perguntas") { const L = ML2.perguntas; h += est(L) || (!L ? "" : !L.length ? `<div class="painel"><b style="color:var(--ok)">Nenhuma pergunta esperando resposta.</b></div>` :
     L.map(q => `<div class="painel" style="margin-top:8px">
@@ -3955,6 +3956,7 @@ function mlDesenhar() {
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:50vh;overflow:auto">${(C.mensagens || []).length ? C.mensagens.map(m => `<div style="align-self:${m.eu ? "flex-end" : "flex-start"};max-width:85%;background:${m.eu ? "#e3f6ea" : "#f2f4f7"};padding:8px 10px;border-radius:10px"><div style="white-space:pre-wrap">${escH(m.texto || "")}</div><div class="orig" style="font-size:11px;text-align:right">${m.eu ? "você" : "comprador"} · ${escH(mlDh(m.data))}</div></div>`).join("") : `<span class="orig">Nenhuma mensagem nesta venda ainda.</span>`}</div>
         ${C.bloqueada ? "" : `<textarea id="mlMsg" rows="3" maxlength="350" placeholder="Mensagem para o comprador (até 350 caracteres; sem telefone, e-mail ou links)" style="width:100%;margin-top:8px;box-sizing:border-box"></textarea><div class="linha" style="margin-top:6px"><span id="mlMsgN" class="orig" style="flex:1">0/350</span><button id="mlMsgEnv">Enviar mensagem</button></div>`}</div>`; }
   if (ML2.aba === "promocoes") h += mlPromosHtml();
+  if (ML2.aba === "qualidade") h += mlQualHtml();
   if (ML2.aba === "anuncios" && ML2.ed) h += mlEdHtml();
   if (ML2.aba === "anuncios" && !ML2.ed) { const A = ML2.anuncios;
     h += `<div class="painel"><div class="linha" style="gap:8px;align-items:flex-end;flex-wrap:wrap"><label class="c" style="flex:1;min-width:200px">Buscar anúncio<input type="search" id="mlAq" value="${escH(ML2.aq)}" placeholder="ex.: tekbond, caderno…" style="width:100%"></label>
@@ -3969,6 +3971,7 @@ function mlDesenhar() {
   for (const b of el.querySelectorAll("[data-mled]")) b.onclick = () => mlEdAbrir(b.dataset.mled);
   if (ML2.ed) mlEdLigar(el);
   if (ML2.aba === "promocoes") mlPromosLigar(el);
+  if (ML2.aba === "qualidade") mlQualLigar(el);
   for (const a of el.querySelectorAll("[data-mlre]")) a.onclick = ev => { ev.preventDefault(); mlCarregar(true); };
   for (const t of el.querySelectorAll("[data-mlr]")) t.oninput = () => { ML2.rascunho[t.dataset.mlr] = t.value; };
   for (const b of el.querySelectorAll("[data-mls]")) b.onclick = async () => { b.disabled = true; b.textContent = "Pensando…";
@@ -4117,6 +4120,37 @@ function mlEdPromosHtml() { const L = ML2.ed.promos, id = ML2.ed.id;
         <div class="orig" style="font-size:12px">${escH(ML_PT[p.tipo] || p.tipo)}${mlPromoDesc(p) ? " · " + escH(mlPromoDesc(p)) : ""}${p.preco ? " · " + mlBrl(p.preco) : ""}${p.min && p.status === "candidate" ? ` · aceita ${mlBrl(p.min)} a ${mlBrl(p.max)}` : ""}${p.meli_pct ? ` · ML banca ${p.meli_pct}%` : ""}${p.fim ? " · até " + mlD(p.fim) : ""}</div></div>
       <div class="linha" style="gap:6px;align-items:center;flex-wrap:wrap">${mlPromoAcao(id, p)}</div></div>`).join("");
   return `<div class="painel" id="mlEdPromos"><b>Promoções deste anúncio</b> <span class="orig">— o preço da promoção é do Mercado Livre e não muda o preço do Bling</span><div style="margin-top:6px">${corpo}</div></div>`; }
+// ---- qualidade dos anúncios (nota do ML por anúncio ativo e o que falta) ----
+const ML_NV = { good: ["boa", "#1b7248", "#e3f6ea"], medium: ["média", "#b54708", "#fff4e5"], bad: ["ruim", "#b42318", "#fde8e7"], "sem nota": ["sem nota", "#667085", "#f2f4f7"] };
+async function mlQualCarregar() { ML2.qual = "…"; mlDesenhar();
+  const r = await supa.from("ml_qualidade").select("mlb,titulo,thumb,preco,score,nivel,pendentes,em").eq("ativo", true).order("score", { ascending: true, nullsFirst: false }).limit(1000);
+  ML2.qual = r.error ? { erro: r.error.message } : r.data || []; mlDesenhar(); }
+async function mlQualAtualizar(bt) { bt.disabled = true;
+  try { for (let i = 0; i < 6; i++) { bt.textContent = "Atualizando notas…" + (i ? ` (${i + 1})` : ""); const { data, error } = await supa.rpc("ml_qualidade_rodar", { p_max: 60 }); if (error) throw error; if (!data.ok) throw new Error(data.msg); if (!data.faltam) break; } msg("Notas atualizadas ✅"); }
+  catch (e) { msg("Não deu: " + (e.message || e)); } bt.disabled = false; mlQualCarregar(); }
+function mlQualHtml() { const L = ML2.qual;
+  if (L === "…" || !L) return `<div class="painel orig">Carregando a qualidade dos anúncios…</div>`;
+  if (L.erro) return `<div class="painel" style="color:#b42318">Não deu: ${escH(L.erro)}</div>`;
+  const comNota = L.filter(x => x.score != null), media = comNota.length ? Math.round(comNota.reduce((s, x) => s + Number(x.score), 0) / comNota.length) : null;
+  const niv = {}; for (const x of L) niv[x.nivel || "sem nota"] = (niv[x.nivel || "sem nota"] || 0) + 1;
+  const prob = {}; for (const x of L) for (const p of x.pendentes || []) prob[p.o_que] = (prob[p.o_que] || 0) + 1;
+  const f = ML2.qf || "", fn = ML2.qn || "", vis = L.filter(x => (!f || (x.pendentes || []).some(p => p.o_que === f)) && (!fn || (x.nivel || "sem nota") === fn));
+  const ult = L.map(x => x.em).filter(Boolean).sort().pop();
+  return `<div class="painel"><div class="linha" style="gap:10px;align-items:center;flex-wrap:wrap"><b style="font-size:22px">${media ?? "—"}</b><span class="orig">nota média de ${L.length} anúncios ativos${ult ? " · atualizado " + mlDh(ult) : ""}</span><span style="flex:1"></span><button class="sec" id="mlQAtu">Atualizar notas</button></div>
+      <div class="linha" style="gap:6px;margin-top:8px;flex-wrap:wrap">${Object.entries(ML_NV).filter(([k]) => niv[k]).map(([k, v]) => `<button class="sep-aba${fn === k ? " on" : ""}" data-mlqn="${k}" style="color:${v[1]}">${v[0]} <span class="sep-n">${niv[k]}</span></button>`).join("")}</div></div>
+    <div class="painel"><b>O que mais falta</b> <span class="orig">— toque para ver só esses anúncios</span><div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${Object.entries(prob).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, n]) => `<a href="#" data-mlqf="${escH(k)}" style="${f === k ? "font-weight:700" : ""}">${n} · ${escH(k.replace(/\|$/, ""))}</a>`).join("")}</div>${f || fn ? `<div style="margin-top:6px"><a href="#" id="mlQLimpa">mostrar todos</a></div>` : ""}</div>` +
+    vis.slice(0, 150).map(x => { const v = ML_NV[x.nivel || "sem nota"] || ML_NV["sem nota"];
+      return `<div class="painel" style="margin-top:6px;padding:8px 10px"><div style="display:flex;gap:10px;align-items:center">${x.thumb ? `<img src="${escH(x.thumb)}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;background:#fff" loading="lazy">` : ""}
+        <div style="flex:1;min-width:0"><b>${escH(x.titulo || x.mlb)}</b><div class="orig" style="font-size:12px">${escH(x.mlb)}${x.preco ? " · " + mlBrl(x.preco) : ""}</div></div>
+        <span style="background:${v[2]};color:${v[1]};padding:4px 10px;border-radius:12px;font-weight:700">${x.score != null ? Math.round(x.score) : "—"}</span><button class="sec" data-mlqed="${escH(x.mlb)}">Editar</button></div>
+        ${(x.pendentes || []).length ? `<ul style="margin:6px 0 0 18px;padding:0;font-size:13px">${x.pendentes.map(p => `<li>${escH(String(p.o_que || "").replace(/\|$/, ""))}${p.link ? ` — <a href="${escH(p.link)}" target="_blank" rel="noopener">${escH(p.acao || "resolver no ML")}</a>` : ""}</li>`).join("")}</ul>` : ""}</div>`; }).join("") + (vis.length > 150 ? `<div class="painel orig">Mostrando 150 de ${vis.length}. Use os filtros acima.</div>` : ""); }
+function mlQualLigar(el) {
+  const b = document.getElementById("mlQAtu"); if (b) b.onclick = () => mlQualAtualizar(b);
+  for (const a of el.querySelectorAll("[data-mlqf]")) a.onclick = ev => { ev.preventDefault(); ML2.qf = ML2.qf === a.dataset.mlqf ? "" : a.dataset.mlqf; mlDesenhar(); };
+  for (const a of el.querySelectorAll("[data-mlqn]")) a.onclick = () => { ML2.qn = ML2.qn === a.dataset.mlqn ? "" : a.dataset.mlqn; mlDesenhar(); };
+  if (document.getElementById("mlQLimpa")) document.getElementById("mlQLimpa").onclick = ev => { ev.preventDefault(); ML2.qf = ""; ML2.qn = ""; mlDesenhar(); };
+  for (const a of el.querySelectorAll("[data-mlqed]")) a.onclick = () => { ML2.aba = "anuncios"; if (!ML2.anuncios) ML2.anuncios = { total: 0, itens: [] }; mlEdAbrir(a.dataset.mlqed); };
+}
 // ligação com o Mercado Livre (função "envios"): Flex/Agência/Coleta/Full e prazos
 async function sepMlStatus() {
   const el = document.getElementById("sepMl"); if (!el || !supa) return;

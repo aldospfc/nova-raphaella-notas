@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="138">
+<meta name="versao" content="139">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -708,7 +708,7 @@
  </div>
  <div id="vSeparacao" style="display:none">
   <div class="painel sep-topo"><div class="t"><b>Pedidos online</b><div id="sepMl" class="sep-status">Mercado Livre e Shopee que entram no Bling</div></div>
-   <button class="sec sep-ico" id="sepVisBt" title="trocar a exibição: compacta / detalhada">☰</button><button class="sec sep-ico" id="sepAtu" title="atualizar a lista">⟳</button><button class="sec sep-ico" id="sepZebraEsc" title="deixar a etiqueta de envio da Zebra mais escura (grava na impressora, vale também para o que sai direto da página do ML)">◐</button><button class="sec sep-ico" id="sepSomBt" title="som do aviso de pedido novo">🔔</button>
+   <button class="sec" id="sepConferir" title="conferência (checkout): bipe a etiqueta de envio e depois os produtos">▣ Conferir pedidos</button><button class="sec sep-ico" id="sepVisBt" title="trocar a exibição: compacta / detalhada">☰</button><button class="sec sep-ico" id="sepAtu" title="atualizar a lista">⟳</button><button class="sec sep-ico" id="sepZebraEsc" title="deixar a etiqueta de envio da Zebra mais escura (grava na impressora, vale também para o que sai direto da página do ML)">◐</button><button class="sec sep-ico" id="sepSomBt" title="som do aviso de pedido novo">🔔</button>
    <div class="sep-som" id="sepSomBox" hidden>
     <select id="sepSomTipo" title="som do aviso"><option value="sino">Som: sino</option><option value="campainha">Som: campainha (dim-dom)</option><option value="caixa">Som: caixa registradora</option><option value="alarme">Som: alarme</option><option value="apito">Som: apito curto</option><option value="nenhum">Sem som</option></select>
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="volume">vol. <input type="range" id="sepVol" min="0" max="100" step="5" value="80" style="width:110px"></label>
@@ -3158,7 +3158,7 @@ document.getElementById("fRom").addEventListener("change", async ev => {
 });
 // ---------- leitura de código de barras pela câmera do celular ----------
 function carregaZXing() { return new Promise((ok, ko) => { if (window.ZXing) return ok(); const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; s.onload = () => ok(); s.onerror = () => ko(new Error("não consegui baixar o leitor de código de barras")); document.head.appendChild(s); }); }
-async function lerCamera(aoLer) {
+async function lerCamera(aoLer, op = {}) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return msg("Este navegador não libera a câmera para o site. Abra pelo Chrome ou Safari do celular.");
   const cx = document.createElement("div");
   cx.style.cssText = "position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center";
@@ -3166,12 +3166,17 @@ async function lerCamera(aoLer) {
   document.body.appendChild(cx);
   const video = cx.querySelector("video"); let stream = null, leitor = null, timer = null, fim = false;
   const fechar = () => { fim = true; clearInterval(timer); try { if (leitor) leitor.reset(); } catch (e) {} try { if (stream) for (const t of stream.getTracks()) t.stop(); } catch (e) {} cx.remove(); };
-  const achou = txt => { const c = String(txt || "").replace(/\D/g, ""); if (fim || c.length < 8) return; fechar(); try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {} aoLer(c); };
+  let ultimo = "", ultimoEm = 0;
+  const achou = txt => {
+    if (op.continuo) { // conferência: a câmera fica aberta e cada leitura vira uma linha de aviso
+      const c = String(txt || "").trim(); if (fim || c.length < 4) return; const ag = Date.now(); if (c === ultimo && ag - ultimoEm < 1500) return; ultimo = c; ultimoEm = ag;
+      const r = aoLer(op.bruto ? c : c.replace(/\D/g, "")); if (r) cx.querySelector("#camTxt").textContent = r; return; }
+    const c = String(txt || "").replace(/\D/g, ""); if (fim || c.length < 8) return; fechar(); try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {} aoLer(c); };
   cx.querySelector("#camX").onclick = fechar;
   const pede = { video: { facingMode: { ideal: "environment" } }, audio: false };
   try {
     let nativo = null;
-    if ("BarcodeDetector" in window) { try { const fs = await BarcodeDetector.getSupportedFormats(), quero = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "itf"].filter(f => fs.includes(f)); if (quero.includes("ean_13")) nativo = new BarcodeDetector({ formats: quero }); } catch (e) {} }
+    if ("BarcodeDetector" in window) { try { const fs = await BarcodeDetector.getSupportedFormats(), quero = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "itf"].concat(op.bruto ? ["qr_code", "code_39", "data_matrix"] : []).filter(f => fs.includes(f)); if (quero.includes("ean_13")) nativo = new BarcodeDetector({ formats: quero }); } catch (e) {} }
     if (nativo) {
       stream = await navigator.mediaDevices.getUserMedia(pede); if (fim) return fechar();
       video.srcObject = stream; await video.play();
@@ -3595,6 +3600,7 @@ function sepIniciar() {
   sepContar(); setInterval(sepContar, 120000);
   document.getElementById("sepAtu").onclick = () => sepCarregar();
   // escuro da Zebra: grava na própria impressora (~SD + ^JUS), então vale para qualquer etiqueta impressa nela pelo Browser Print
+  document.getElementById("sepConferir").onclick = () => ckAbrir();
   document.getElementById("sepZebraEsc").onclick = async () => {
     let ant = ""; try { ant = localStorage.getItem("zebraEscuro") || ""; } catch (e) {}
     const r = prompt("Escuro da Zebra (0 a 30). O normal é 10 a 15; saindo apagado, tente 22. De 20 para cima ela também imprime mais devagar.\n\nO ajuste fica gravado na impressora.", ant || "22");
@@ -3683,6 +3689,130 @@ function sepVigiar(ids, motivo) {
     if (mudou.length === ids.length || n >= 18) { clearInterval(t); sepCarregar(); }
     else if (mudou.length) sepCarregar();
   }, 10000);
+}
+// ===== Conferência de pedidos (checkout): bipa a etiqueta de envio → mostra os itens → bipa cada produto =====
+// Leitor USB (digita o código e dá Enter no campo) ou câmera do celular (leitura contínua).
+const CK = { ped: null, linhas: [], ultimo: "", ultimoEm: 0 };
+function ckSom(tipo) {
+  try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const ctx = CK.ctx || (CK.ctx = new A());
+    const nota = (f, ini, dur, forma) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = forma || "sine"; o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime + ini; g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.start(t); o.stop(t + dur); };
+    if (tipo === "ok") nota(1300, 0, 0.09);
+    else if (tipo === "erro") { nota(220, 0, 0.35, "square"); nota(180, 0.38, 0.35, "square"); }
+    else if (tipo === "fim") { nota(880, 0, 0.12); nota(1175, 0.13, 0.12); nota(1568, 0.26, 0.25); }
+    else if (tipo === "ped") nota(990, 0, 0.12);
+  } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(tipo === "erro" ? [200, 80, 200] : 60); } catch (e) {}
+}
+const ckDig = s => String(s || "").replace(/\D/g, "");
+const ckNorm = s => String(s || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+// acha o pedido pelo que foi bipado: número do envio do ML (código de barras ou QR da etiqueta), rastreio, nº do pedido no canal ou no Bling
+function ckAchaPedido(txt) {
+  const t = ckNorm(txt), runs = (String(txt).match(/\d{6,}/g) || []);
+  if (!t) return null;
+  const L = SEP.lista || [];
+  const bate = p => {
+    const env = p.ml_envio ? String(p.ml_envio) : "";
+    if (env && (runs.includes(env) || t.includes(env))) return 3;
+    if (p.rastreio && ckNorm(p.rastreio) === t) return 3;
+    if (p.numero_loja && (ckNorm(p.numero_loja) === t || (ckNorm(p.numero_loja).length >= 10 && t.includes(ckNorm(p.numero_loja))))) return 2;
+    if (p.numero && String(p.numero) === t) return 1;
+    return 0; };
+  let melhor = null, nota = 0; for (const p of L) { const n = bate(p); if (n > nota) { nota = n; melhor = p; } }
+  return melhor;
+}
+function ckMontaLinhas(p) {
+  const m = new Map();
+  const add = (x, q, kit) => { const gtin = ckDig(x.gtin), cod = String(x.codigo || ""), k = (x.id || x.produto_id || "") + "|" + cod + "|" + gtin + "|" + (x.nome || x.descricao || "");
+    const r = m.get(k) || { nome: x.nome || x.descricao || cod || "item", cod, gtin, img: x.imagem || "", local: x.localizacao || "", kit, qtd: 0, lido: 0, manual: 0 };
+    r.qtd += q; m.set(k, r); };
+  for (const it of p.itens || []) { const qi = Number(it.quantidade) || 1;
+    if ((it.componentes || []).length) for (const c of it.componentes) add(c, (Number(c.quantidade) || 1) * qi, it.descricao || "kit");
+    else add(it, qi, null); }
+  return [...m.values()];
+}
+function ckAbrir() {
+  let cx = document.getElementById("ckTela"); if (cx) cx.remove();
+  cx = document.createElement("div"); cx.id = "ckTela";
+  cx.style.cssText = "position:fixed;inset:0;background:var(--bg,#f6f7f9);z-index:9000;overflow:auto;padding:12px";
+  cx.innerHTML = `<div style="max-width:760px;margin:0 auto">
+    <div class="linha" style="gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:18px;flex:1">Conferência de pedidos</b>
+      <button class="sec" id="ckCam">📷 Câmera</button><button class="sec" id="ckFechar">Fechar</button></div>
+    <input id="ckIn" type="text" autocomplete="off" placeholder="bipe a etiqueta de envio (ou digite o nº do pedido e Enter)" style="width:100%;font-size:18px;padding:12px;margin-top:10px;box-sizing:border-box">
+    <div id="ckMsg" style="margin-top:8px;padding:10px;border-radius:8px;font-size:16px;font-weight:bold;display:none"></div>
+    <div id="ckCorpo" style="margin-top:10px"></div></div>`;
+  document.body.appendChild(cx);
+  const inp = cx.querySelector("#ckIn"), toque = matchMedia("(pointer: coarse)").matches;
+  const foca = () => { if (!toque && document.getElementById("ckTela")) inp.focus(); };
+  inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const v = inp.value.trim(); inp.value = ""; if (v) ckLido(v); } });
+  cx.querySelector("#ckFechar").onclick = () => { if (CK.ped && CK.linhas.some(l => l.lido < l.qtd) && CK.linhas.some(l => l.lido) && !confirm("Este pedido está pela metade. Fechar mesmo assim? (nada é gravado)")) return; CK.ped = null; cx.remove(); sepCarregar(); };
+  cx.querySelector("#ckCam").onclick = () => lerCamera(c => ckLido(c), { continuo: true, bruto: true });
+  cx.addEventListener("click", ev => { if (!ev.target.closest("input, button, select, a, textarea")) foca(); });
+  CK.ped = null; CK.linhas = []; ckDesenha(); foca();
+  if (!(SEP.lista || []).length) sepCarregar();
+}
+function ckAviso(txt, tipo) {
+  const el = document.getElementById("ckMsg"); if (!el) return;
+  el.style.display = "block"; el.textContent = txt;
+  el.style.background = tipo === "erro" ? "#fde8e7" : tipo === "ok" ? "#e3f6ea" : "#eef2f7"; el.style.color = tipo === "erro" ? "#b42318" : tipo === "ok" ? "#1b7248" : "#344054";
+}
+// recebe qualquer leitura (leitor ou câmera) e devolve um texto curto para a tela da câmera
+function ckLido(txt) {
+  const agora = Date.now(); if (txt === CK.ultimo && agora - CK.ultimoEm < 1200) return null; CK.ultimo = txt; CK.ultimoEm = agora;
+  const t = ckNorm(txt), d = ckDig(txt);
+  // é produto do pedido aberto?
+  if (CK.ped) {
+    const l = CK.linhas.find(x => (x.gtin && d && (x.gtin === d || x.gtin.replace(/^0+/, "") === d.replace(/^0+/, ""))) || (x.cod && ckNorm(x.cod) === t));
+    if (l) {
+      if (l.lido >= l.qtd) { ckSom("erro"); ckAviso(`A MAIS: ${l.nome} — o pedido pede só ${l.qtd}`, "erro"); ckDesenha(); return "A MAIS: " + l.nome; }
+      l.lido++; ckSom("ok"); ckAviso(`✓ ${l.nome} (${l.lido} de ${l.qtd})`, "ok"); ckDesenha(); ckTalvezFim(); return `✓ ${l.nome} ${l.lido}/${l.qtd}`;
+    }
+  }
+  const p = ckAchaPedido(txt);
+  if (p) {
+    if (CK.ped && p.id === CK.ped.id) { ckAviso("Esse é o pedido que já está aberto.", ""); return "pedido já aberto"; }
+    if (CK.ped && CK.linhas.some(l => l.lido) && CK.linhas.some(l => l.lido < l.qtd) && !confirm("O pedido aberto ainda não terminou. Trocar para o novo pedido? (o que foi bipado no atual é descartado)")) return null;
+    CK.ped = p; CK.linhas = ckMontaLinhas(p); ckSom("ped");
+    const canc = p.ml_status === "cancelled", avisos = [];
+    if (canc) avisos.push("CANCELADO — NÃO ENVIAR");
+    if (p.despachado_em) avisos.push("já foi despachado");
+    if (p.conferido_em) avisos.push("já conferido em " + new Date(p.conferido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
+    if (canc) ckSom("erro");
+    ckAviso(avisos.length ? "Atenção: " + avisos.join(" · ") : `Pedido ${p.numero_loja || p.numero} — bipe os produtos`, avisos.length ? "erro" : "");
+    ckDesenha(); return canc ? "CANCELADO" : "pedido " + (p.numero_loja || p.numero);
+  }
+  ckSom("erro");
+  ckAviso(CK.ped ? `Não é deste pedido: ${txt}` : `Não achei pedido com ${txt}. Confira se ele já chegou do Bling (lista dos últimos 7 dias).`, "erro");
+  return CK.ped ? "NÃO É DESTE PEDIDO" : "pedido não encontrado";
+}
+function ckTalvezFim() { if (CK.ped && CK.linhas.length && CK.linhas.every(l => l.lido >= l.qtd)) ckGravar(""); }
+async function ckGravar(falta) {
+  const p = CK.ped; if (!p) return;
+  const dados = { itens: CK.linhas.map(l => ({ nome: l.nome, cod: l.cod, gtin: l.gtin, kit: l.kit, qtd: l.qtd, lido: l.lido, manual: l.manual })), falta: falta || null, completo: !falta, aparelho: matchMedia("(pointer: coarse)").matches ? "celular" : "pc" };
+  const { error } = await supa.rpc("pedido_conferir", { p_id: p.id, p_dados: dados });
+  if (error) { ckSom("erro"); return ckAviso("Não gravou: " + error.message, "erro"); }
+  p.conferido_em = new Date().toISOString(); p.separado_em = p.separado_em || p.conferido_em;
+  ckSom(falta ? "ok" : "fim");
+  ckAviso(falta ? `Pedido ${p.numero_loja || p.numero} fechado COM FALTA (${falta}). Bipe a próxima etiqueta.` : `✅ Pedido ${p.numero_loja || p.numero} conferido. Pode fechar a caixa e bipar a próxima etiqueta.`, falta ? "erro" : "ok");
+  CK.ped = null; CK.linhas = []; ckDesenha();
+}
+function ckDesenha() {
+  const el = document.getElementById("ckCorpo"); if (!el) return;
+  const p = CK.ped;
+  if (!p) { el.innerHTML = `<div class="painel orig">1. Bipe a <b>etiqueta de envio</b> do pacote (Mercado Livre: código de barras ou QR).<br>2. Aparecem os produtos do pedido; bipe cada um.<br>3. Quando tudo bater, o pedido vira <b>separado</b> e fica registrado quem conferiu.<br><br>Produto sem código de barras: toque em <b>+1</b> na linha dele.</div>`; return; }
+  const tot = CK.linhas.reduce((a, l) => a + l.qtd, 0), ok = CK.linhas.reduce((a, l) => a + Math.min(l.lido, l.qtd), 0);
+  el.innerHTML = `<div class="painel"><div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center"><b style="flex:1">${escH(p.canal || "")} · ${escH(p.numero_loja || String(p.numero || ""))} · ${escH(p.cliente || "")}</b><span style="font-size:18px;font-weight:bold">${ok} / ${tot}</span></div>
+    ${CK.linhas.map((l, i) => { const cor = l.lido >= l.qtd ? "#e3f6ea" : l.lido ? "#fff6dc" : "#fff";
+      return `<div style="display:flex;gap:10px;align-items:center;padding:8px;margin-top:8px;border:1px solid #d9dee5;border-radius:8px;background:${cor}">
+        ${l.img ? `<img src="${escH(l.img)}" style="width:56px;height:56px;object-fit:contain;background:#fff;border-radius:6px" loading="lazy">` : `<div style="width:56px"></div>`}
+        <div style="flex:1;min-width:0"><div style="font-weight:bold">${escH(l.nome)}</div><div class="orig" style="font-size:12px">${l.kit ? "do kit: " + escH(l.kit) + " · " : ""}${l.gtin ? "cód. " + escH(l.gtin) : "<b style='color:#b54708'>sem código de barras — use +1</b>"}${l.cod ? " · " + escH(l.cod) : ""}${l.local ? " · 📍" + escH(l.local) : ""}</div></div>
+        <div style="text-align:center;min-width:64px"><div style="font-size:22px;font-weight:bold">${l.lido}<span style="font-size:14px;color:#667085">/${l.qtd}</span></div>
+        <div style="display:flex;gap:4px;justify-content:center"><button class="sec" data-ckm="${i}" style="padding:2px 8px" title="tirar um">−</button><button class="sec" data-ckp="${i}" style="padding:2px 8px" title="contar um sem bipar">+1</button></div></div></div>`; }).join("")}
+    <div class="linha" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="sec" id="ckFalta">Fechar com falta…</button><span style="flex:1"></span><button class="sec" id="ckLimpa">Recomeçar este pedido</button></div></div>`;
+  for (const b of el.querySelectorAll("[data-ckp]")) b.onclick = () => { const l = CK.linhas[Number(b.dataset.ckp)]; if (l.lido >= l.qtd) { ckSom("erro"); return ckAviso("Essa linha já está completa.", "erro"); } l.lido++; l.manual++; ckSom("ok"); ckAviso(`✓ ${l.nome} (${l.lido} de ${l.qtd}) — sem bipar`, "ok"); ckDesenha(); ckTalvezFim(); };
+  for (const b of el.querySelectorAll("[data-ckm]")) b.onclick = () => { const l = CK.linhas[Number(b.dataset.ckm)]; if (l.lido > 0) { l.lido--; if (l.manual > l.lido) l.manual = l.lido; } ckDesenha(); };
+  document.getElementById("ckLimpa").onclick = () => { for (const l of CK.linhas) { l.lido = 0; l.manual = 0; } ckDesenha(); };
+  document.getElementById("ckFalta").onclick = () => { const r = prompt("O que faltou ou por que vai fechar assim? (fica registrado no pedido)"); if (r && r.trim()) ckGravar(r.trim()); };
 }
 // ligação com o Mercado Livre (função "envios"): Flex/Agência/Coleta/Full e prazos
 async function sepMlStatus() {
@@ -3887,7 +4017,7 @@ function sepDesenhar() {
       : `<div class="painel"><b style="color:var(--ok)">Nada para separar${SEP.somaProx ? "" : " hoje"}.</b></div>`;
   }
   if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
-    aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
+    aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""}${p.conferido_em ? ` · <b>${p.conferencia && p.conferencia.falta ? "conferido com falta: " + escH(p.conferencia.falta) : "conferido bipando"}</b>` : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
     : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
   if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div data-pid="${p.id}" style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
     : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="156">
+<meta name="versao" content="157">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -823,7 +823,7 @@
  <div id="vMl" style="display:none"><div class="painel"><b>Mercado Livre</b> <span class="orig">— perguntas, reclamações, mensagens das vendas e anúncios. Nada é enviado ao comprador sem o seu clique.</span> <span style="float:right"><a href="#" id="mlReligar" title="autorizar de novo o aplicativo no Mercado Livre (depois de mudar as permissões dele)">religar ao ML</a> · <a href="#" id="mlAtu">⟳ atualizar</a></span></div><div id="mlPainel"></div></div>
  <div id="vMargem" style="display:none"><div class="painel"><b>Margem das vendas online</b> <span class="orig">— receita da venda menos tarifa do canal, frete pago por você, imposto e custo do produto</span>
   <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
-   <label class="c">Período<select id="mgModo"><option value="mes">este mês</option><option value="mesant">mês passado</option><option value="30">últimos 30 dias</option><option value="ano" selected>este ano</option><option value="per">escolher…</option></select></label>
+   <label class="c">Período<select id="mgModo"><option value="tudo" selected>desde 24/09/2026</option><option value="mes">este mês</option><option value="mesant">mês passado</option><option value="30">últimos 30 dias</option><option value="per">escolher…</option></select></label>
    <input type="date" id="mgDe" style="display:none"><input type="date" id="mgAte" style="display:none">
    <label class="c" title="alíquota efetiva do Simples sobre a venda (entra como custo em cada venda)">Imposto %<input type="number" id="mgImp" step="0.1" min="0" max="40" style="width:80px" placeholder="0"></label>
    <button id="mgBt">Calcular</button> <a href="#" id="mgAtu" title="busca no ML e no Bling as tarifas e o frete das vendas novas e o custo dos produtos novos">buscar vendas novas</a> <span id="mgSt" class="orig"></span>
@@ -3986,7 +3986,7 @@ function rvIniciar() { const g = id => document.getElementById(id); if (!g("rvBt
 const MG = { aba: "produtos", R: null, ini: null, fim: null, rodando: false, ligado: false };
 const MG_FONTE = { manual: "digitado", kit: "kit", bling: "Bling", loja: "Gestão" };
 async function mgBuscar() {
-  const g = id => document.getElementById(id), [ini, fim] = rvPeriodo(g("mgModo").value, g("mgDe").value, g("mgAte").value), imp = parseFloat(g("mgImp").value) || 0;
+  const g = id => document.getElementById(id), [ini0, fim] = g("mgModo").value === "tudo" ? ["2026-09-24", rvPeriodo("mes")[1]] : rvPeriodo(g("mgModo").value, g("mgDe").value, g("mgAte").value), ini = ini0 < "2026-09-24" ? "2026-09-24" : ini0, imp = parseFloat(g("mgImp").value) || 0;
   try { localStorage.setItem("mg:imp", g("mgImp").value); } catch (e) { }
   g("mgRes").innerHTML = `<div class="orig">Calculando…</div>`;
   const { data, error } = await supa.rpc("rel_margem", { p_ini: ini, p_fim: fim, p_imposto: imp });
@@ -4035,8 +4035,8 @@ function mgDesenhar() {
       ${L.map(x => `<tr><td>${dt(x.data)}</td><td><span class="sep-canal ${/shopee/i.test(x.canal) ? "sh" : /full/i.test(x.canal) ? "full" : "ml"}">${escH(x.canal)}</span> <span class="mono">${escH(x.numero_loja || x.numero || "")}</span>${x.cliente ? ` · ${escH(x.cliente)}` : ""}<div class="orig" style="font-size:12px">${escH(x.itens || "")}</div></td>
         <td class="n">${rs(x.receita)}</td><td class="n">${rs(x.tarifa)}</td><td class="n">${rs(x.frete)}</td>${L.some(y => Number(y.imposto)) ? `<td class="n">${rs(x.imposto)}</td>` : ""}<td class="n">${x.custo == null || !x.ok ? "—" : rs(x.custo)}</td><td class="n">${lc(x.ok ? x.lucro : null)}</td></tr>`).join("")}</tbody></table></div>`;
   }
-  el.innerHTML = `<div class="orig" style="margin-bottom:6px">${dt(MG.ini)} a ${dt(MG.fim)} · vendas canceladas não entram · a margem dos cartões só conta vendas com custo de todos os itens</div><div class="linha" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">${cards}</div>${corpo}
-    <div class="orig" style="font-size:12px;margin-top:8px">Custo: digitado aqui &gt; kit (soma dos componentes) &gt; preço de custo no Bling &gt; custo do Gestão da loja. Tarifa e frete de cada venda vêm do ML (tarifa de venda + custo do envio) e do Bling (comissão da Shopee); num pedido com vários itens eles são divididos pelo valor de cada item.</div>`;
+  el.innerHTML = `<div class="orig" style="margin-bottom:6px">${dt(MG.ini)} a ${dt(MG.fim)} · só conta vendas de 24/09/2026 em diante (antes disso o custo do cadastro não é confiável) · vendas canceladas não entram · a margem dos cartões só conta vendas com custo de todos os itens</div><div class="linha" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">${cards}</div>${corpo}
+    <div class="orig" style="font-size:12px;margin-top:8px">Custo: digitado aqui &gt; kit (soma dos componentes) &gt; preço de custo no Bling &gt; custo do Gestão da loja (só se o preço foi alterado de 24/09/2026 para cá). Tarifa e frete de cada venda vêm do ML (tarifa de venda + custo do envio) e do Bling (comissão da Shopee); num pedido com vários itens eles são divididos pelo valor de cada item.</div>`;
   for (const inp of el.querySelectorAll("input[data-mgc]")) inp.onchange = async () => {
     const x = MG.L[Number(inp.dataset.mgc)], v = inp.value.trim() === "" ? 0 : parseFloat(inp.value.replace(/\./g, "").replace(",", "."));
     if (!(v >= 0)) return msg("Custo inválido.");

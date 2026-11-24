@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="137">
+<meta name="versao" content="138">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -708,7 +708,7 @@
  </div>
  <div id="vSeparacao" style="display:none">
   <div class="painel sep-topo"><div class="t"><b>Pedidos online</b><div id="sepMl" class="sep-status">Mercado Livre e Shopee que entram no Bling</div></div>
-   <button class="sec sep-ico" id="sepVisBt" title="trocar a exibição: compacta / detalhada">☰</button><button class="sec sep-ico" id="sepAtu" title="atualizar a lista">⟳</button><button class="sec sep-ico" id="sepSomBt" title="som do aviso de pedido novo">🔔</button>
+   <button class="sec sep-ico" id="sepVisBt" title="trocar a exibição: compacta / detalhada">☰</button><button class="sec sep-ico" id="sepAtu" title="atualizar a lista">⟳</button><button class="sec sep-ico" id="sepZebraEsc" title="deixar a etiqueta de envio da Zebra mais escura (grava na impressora, vale também para o que sai direto da página do ML)">◐</button><button class="sec sep-ico" id="sepSomBt" title="som do aviso de pedido novo">🔔</button>
    <div class="sep-som" id="sepSomBox" hidden>
     <select id="sepSomTipo" title="som do aviso"><option value="sino">Som: sino</option><option value="campainha">Som: campainha (dim-dom)</option><option value="caixa">Som: caixa registradora</option><option value="alarme">Som: alarme</option><option value="apito">Som: apito curto</option><option value="nenhum">Sem som</option></select>
     <label class="c" style="display:flex;align-items:center;gap:6px;margin:0" title="volume">vol. <input type="range" id="sepVol" min="0" max="100" step="5" value="80" style="width:110px"></label>
@@ -3594,6 +3594,18 @@ function sepIniciar() {
   }).subscribe();
   sepContar(); setInterval(sepContar, 120000);
   document.getElementById("sepAtu").onclick = () => sepCarregar();
+  // escuro da Zebra: grava na própria impressora (~SD + ^JUS), então vale para qualquer etiqueta impressa nela pelo Browser Print
+  document.getElementById("sepZebraEsc").onclick = async () => {
+    let ant = ""; try { ant = localStorage.getItem("zebraEscuro") || ""; } catch (e) {}
+    const r = prompt("Escuro da Zebra (0 a 30). O normal é 10 a 15; saindo apagado, tente 22. De 20 para cima ela também imprime mais devagar.\n\nO ajuste fica gravado na impressora.", ant || "22");
+    if (r === null) return; const v = Math.round(Number(String(r).replace(",", ".")));
+    if (!(v >= 0 && v <= 30)) return msg("Use um número de 0 a 30.");
+    try {
+      const nome = await zebraImprimir(`~SD${String(v).padStart(2, "0")}^XA^PR${v >= 25 ? 2 : v >= 20 ? 3 : 4}^JUS^XZ`);
+      try { localStorage.setItem("zebraEscuro", String(v)); } catch (e) {}
+      msg(`Escuro ${v} gravado na ${nome}. Imprima uma etiqueta para conferir.`);
+    } catch (e) { msg("Não consegui falar com a Zebra: " + e.message + ". Faça pelo PC onde a Zebra está ligada."); }
+  };
   document.getElementById("sepSomBt").onclick = () => { const b = document.getElementById("sepSomBox"); b.hidden = !b.hidden; };
   const vis = document.getElementById("sepVisBt"), visTxt = () => { vis.textContent = SEP.compacto ? "▦" : "☰"; vis.title = SEP.compacto ? "mostrar detalhado (fotos e todos os botões)" : "mostrar compacto (uma linha por pedido)"; };
   visTxt(); vis.onclick = () => { SEP.compacto = !SEP.compacto; SEP.abertos.clear(); try { localStorage.setItem("sepCompacto", SEP.compacto ? "1" : "0"); } catch (e) {} visTxt(); sepDesenhar(); };

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="135">
+<meta name="versao" content="136">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5567,6 +5567,13 @@ function etNomePrev(txt, w, hMax, x, y, k, tams) { x = x ?? 16; y = y ?? 10; k =
   return `<div style="position:absolute;left:${(x * k).toFixed(1)}px;top:${(y * k).toFixed(1)}px;width:${(w * k).toFixed(1)}px;font-size:${(a.h * k).toFixed(1)}px;font-weight:bold;line-height:${lh.toFixed(1)}px;max-height:${(lh * a.maxL).toFixed(1)}px;overflow:hidden">${escH(a.texto)}</div>`; }
 function etBarrasPrev(ean, x, y, h, by, k) { k = k || ET_K; const largura = ((ean.length === 13 ? 95 : 11 * Math.ceil(ean.length / 2) + 35) * by + 20) * k;
   return `<div style="position:absolute;left:${(x * k).toFixed(1)}px;top:${(y * k).toFixed(1)}px;width:${largura.toFixed(1)}px"><div style="height:${(h * k).toFixed(1)}px;background:repeating-linear-gradient(90deg,#000 0 2px,#fff 2px 3px,#000 3px 4px,#fff 4px 6px,#000 6px 9px,#fff 9px 10px,#000 10px 11px,#fff 11px 13px)"></div><div style="font-size:${(9 * by * k).toFixed(1)}px;letter-spacing:1.5px;text-align:center;line-height:1.15">${escH(ean)}</div></div>`; }
+// Preço na etiqueta: os centavos ficam fixos perto da borda direita e o número inteiro é alinhado à direita
+// (^FB ...,R) encostado neles. Antes a posição dos centavos era estimada pela largura dos dígitos, e na Elgin
+// o "27,00" saía com os centavos longe do número.
+function etPrecoZpl(inteiro, cent, x0, xMax, yI, fh, fw, yC, ch, cw) {
+  const xc = xMax - Math.round(cw * 1.6), wI = Math.max(40, xc - x0);
+  return { xc, zpl: [`^FO${x0},${yI}^A0N,${fh},${fw}^FB${wI},1,0,R,0^FD${inteiro}^FS`, `^FO${xc},${yC}^A0N,${ch},${cw}^FD,${cent}^FS`] };
+}
 function etZpl(it, c) {
   const dpm = 8, W = Math.round(c.larg * dpm), H = Math.round(c.alt * dpm), dx = Math.round((Number(c.dx) || 0) * dpm), dy = Math.round((Number(c.dy) || 0) * dpm);
   const desc = etAscii(it.desc).toUpperCase().slice(0, 64), ean = String(it.ean || "").replace(/\D/g, ""), promo = it.de > 0 && it.de > it.preco;
@@ -5583,21 +5590,17 @@ function etZpl(it, c) {
   const sob = it.sob ? etAscii(it.sob).toUpperCase().slice(0, 8) : "";
   if (sob && promo) {
     // DE/POR com unidade: preço um pouco menor e a unidade logo abaixo dos centavos
-    z.push(`^FO${xp},92^A0N,100,76^FD${inteiro}^FS`);
-    const li = inteiro.length * 54 + 6;
-    z.push(`^FO${Math.min(W - 64, xp + li)},96^A0N,46,36^FD,${cent}^FS`, `^FO${Math.min(W - 90, xp + li)},148^A0N,30,26^FD${sob}^FS`);
+    const pr = etPrecoZpl(inteiro, cent, xp, W - 12, 92, 100, 76, 96, 46, 36);
+    z.push(...pr.zpl, `^FO${Math.min(W - 90, pr.xc)},148^A0N,30,26^FD${sob}^FS`);
   } else if (sob) {
     // preço normal com unidade embaixo (R$ pequeno à esquerda)
-    z.push(`^FO${xp},40^A0N,26,22^FDR$^FS`, `^FO${xp + 34},30^A0N,116,86^FD${inteiro}^FS`);
-    z.push(`^FO${Math.min(W - 60, xp + 34 + inteiro.length * 62 + 6)},38^A0N,52,40^FD,${cent}^FS`, `^FO${xp + 34},156^A0N,40,34^FD${sob}^FS`);
+    z.push(`^FO${xp},40^A0N,26,22^FDR$^FS`, ...etPrecoZpl(inteiro, cent, xp + 34, W - 12, 30, 116, 86, 38, 52, 40).zpl, `^FO${xp + 34},156^A0N,40,34^FD${sob}^FS`);
   } else {
     // R$ pequeno em cima do número (antes saía na altura do número e ficava por cima do 1º dígito); 3 ou mais dígitos: número menor para os centavos caberem
-    const nd = inteiro.length, fh = promo ? 120 : nd >= 4 ? 100 : nd === 3 ? 118 : 140, fw = promo ? 92 : nd >= 4 ? 70 : nd === 3 ? 84 : 104, dw = promo ? 64 : nd >= 4 ? 50 : nd === 3 ? 60 : 72;
+    const nd = inteiro.length, fh = promo ? 120 : nd >= 4 ? 100 : nd === 3 ? 118 : 140, fw = promo ? 92 : nd >= 4 ? 70 : nd === 3 ? 84 : 104;
     const yN = promo ? 92 : 64 + (140 - fh);
     if (!promo) z.push(`^FO${xp},26^A0N,30,26^FDR$^FS`);
-    z.push(`^FO${xp},${yN}^A0N,${fh},${fw}^FD${inteiro}^FS`);
-    const largInt = nd * dw + 6;
-    z.push(`^FO${Math.min(W - 84, xp + largInt)},${yN + (promo ? 6 : 8)}^A0N,${promo ? 54 : 62},${promo ? 42 : 48}^FD,${cent}^FS`);
+    z.push(...etPrecoZpl(inteiro, cent, xp - (nd >= 3 ? 20 : 0), W - 12, yN, fh, fw, yN + (promo ? 6 : 8), promo ? 54 : 62, promo ? 42 : 48).zpl);
   }
   z.push(`^FO${W - 150},${H - 22}^A0N,16,14^FD${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}${it.cod ? " " + etAscii(it.cod).slice(0, 8) : ""}^FS`);
   z.push("^XZ");
@@ -5642,14 +5645,12 @@ function etZplModelo(it, c, modelo) {
     if (modelo === "combo") {
       const n = Math.max(2, Math.floor(it.cq || 0)), tot = Number(it.cp) || 0, [inteiro, cent] = etPreco(tot).split(",");
       z.push(`^FO${xp},10^A0N,34,28^FD${n} UNID. POR^FS`, `^FO${xp},58^A0N,24,20^FDR$^FS`);
-      const x0 = xp + 34; z.push(`^FO${x0},44^A0N,104,78^FD${inteiro}^FS`);
-      z.push(`^FO${Math.min(W - 60, x0 + inteiro.length * 56 + 6)},50^A0N,48,36^FD,${cent}^FS`);
+      z.push(...etPrecoZpl(inteiro, cent, xp + 34, W - 12, 44, 104, 78, 50, 48, 36).zpl);
       z.push(`^FO${xp},152^A0N,26,22^FDSAI R$ ${etPreco(tot / n)} CADA^FS`);
       if (Number(it.preco) > 0) z.push(`^FO${xp},184^A0N,22,18^FDAVULSO R$ ${etPreco(it.preco)}^FS`);
     } else if (modelo === "medida") {
       const [inteiro, cent] = etPreco(it.preco).split(",");
-      z.push(`^FO${xp},22^A0N,26,22^FDR$^FS`, `^FO${xp + 34},30^A0N,116,86^FD${inteiro}^FS`);
-      z.push(`^FO${Math.min(W - 60, xp + 34 + inteiro.length * 62 + 6)},38^A0N,52,40^FD,${cent}^FS`);
+      z.push(`^FO${xp},22^A0N,26,22^FDR$^FS`, ...etPrecoZpl(inteiro, cent, xp + 34, W - 12, 30, 116, 86, 38, 52, 40).zpl);
       z.push(`^FO${xp},156^A0N,38,32^FD${etAscii("o " + (it.un || "metro")).toUpperCase()}^FS`);
     }
   }

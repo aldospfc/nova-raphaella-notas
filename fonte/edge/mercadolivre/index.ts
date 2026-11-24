@@ -8,6 +8,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // v1 (24/11/2026).
 // v2 (24/11/2026): anuncio (detalhe + ficha técnica da categoria + vínculo do Bling), anuncio_salvar (título, descrição, ficha, pausar/ativar no ML)
 //     e preco (pelo Bling: produtos/lojas da loja Mercado Livre; o Bling leva ao ML). Regra do Aldo: preço e estoque só pelo Bling.
+// v3 (24/11/2026): promoções (seller-promotions v2): campanhas da loja e seus anúncios, promoções de um anúncio, entrar/sair, desconto próprio com período.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -175,6 +176,41 @@ async function precoBling(mlb: string, preco: number) {
   return corpo.preco;
 }
 
+// ---- promoções ----
+const PV = "app_version=v2";
+async function promosLoja() {
+  const { user } = await auth();
+  const r = await ml(`/seller-promotions/users/${user}?${PV}`);
+  return (r.results || []).map((p: any) => ({ id: p.id, tipo: p.type, sub: p.sub_type || null, status: p.status, nome: p.name || "", inicio: p.start_date || null, fim: p.finish_date || null, prazo: p.deadline_date || null,
+    valor: p.fixed_amount ?? null, pct: p.fixed_percentage ?? null, minimo: p.min_purchase_amount ?? null }));
+}
+async function promoItens(id: string, tipo: string, status: string, depois: string) {
+  const q = `promotion_type=${encodeURIComponent(tipo)}${status ? "&status=" + encodeURIComponent(status) : ""}${depois ? "&search_after=" + encodeURIComponent(depois) : ""}&limit=50&${PV}`;
+  const r = await ml(`/seller-promotions/promotions/${encodeURIComponent(id)}/items?${q}`);
+  const l = r.results || []; const it = await itens(l.map((x: any) => x.id), "id,title,price,available_quantity,thumbnail,permalink,status");
+  return { proximo: r.paging?.searchAfter || null, total: r.paging?.total ?? null,
+    itens: l.map((x: any) => ({ id: x.id, status: x.status, preco: x.price ?? null, original: x.original_price ?? null, sugerido: x.suggested_discounted_price ?? null, min: x.min_discounted_price ?? null, max: x.max_discounted_price ?? null,
+      oferta: x.offer_id || null, meli_pct: x.meli_percentage ?? null, item: it[x.id] || null })) };
+}
+async function promosItem(item: string) {
+  const l = await ml(`/seller-promotions/items/${item}?${PV}`);
+  return (Array.isArray(l) ? l : []).map((p: any) => ({ id: p.id || null, tipo: p.type, sub: p.sub_type || null, status: p.status, nome: p.name || "", preco: p.price || null, original: p.original_price ?? null,
+    min: p.min_discounted_price ?? null, max: p.max_discounted_price ?? null, sugerido: p.suggested_discounted_price ?? null, inicio: p.start_date || null, fim: p.finish_date || null, oferta: p.offer_id || null,
+    valor: p.fixed_amount ?? null, pct: p.fixed_percentage ?? null, meli_pct: p.meli_percentage ?? null }));
+}
+async function promoEntrar(item: string, c: any) {
+  const corpo: any = { promotion_type: String(c.tipo) };
+  if (c.promotion_id) corpo.promotion_id = String(c.promotion_id);
+  if (c.offer_id) corpo.offer_id = String(c.offer_id);
+  if (c.preco != null && c.preco !== "") corpo.deal_price = Math.round(Number(c.preco) * 100) / 100;
+  if (c.tipo === "PRICE_DISCOUNT") { if (!c.inicio || !c.fim) throw new Error("informe início e fim do desconto"); corpo.start_date = String(c.inicio); corpo.finish_date = String(c.fim); }
+  return await ml(`/seller-promotions/items/${item}?${PV}`, { method: "POST", body: JSON.stringify(corpo) });
+}
+async function promoSair(item: string, c: any) {
+  const q = `promotion_type=${encodeURIComponent(String(c.tipo))}${c.promotion_id ? "&promotion_id=" + encodeURIComponent(String(c.promotion_id)) : ""}${c.offer_id ? "&offer_id=" + encodeURIComponent(String(c.offer_id)) : ""}&${PV}`;
+  return await ml(`/seller-promotions/items/${item}?${q}`, { method: "DELETE" });
+}
+
 async function anuncios(q: string, status: string, offset: number) {
   const { user } = await auth();
   const st = ["active", "paused", "closed"].includes(status) ? `&status=${status}` : "";
@@ -191,7 +227,7 @@ Deno.serve(async (req: Request) => {
     const corpo = await req.json().catch(() => ({}));
     const acao = String(corpo?.acao || "");
     // ler: quem pode separar; responder/mandar mensagem: só perfil completo
-    const fn = ["responder", "mensagem", "sugerir", "anuncio_salvar", "preco"].includes(acao) ? "permitido" : "pode_separar";
+    const fn = ["responder", "mensagem", "sugerir", "anuncio_salvar", "preco", "promo_entrar", "promo_sair"].includes(acao) ? "permitido" : "pode_separar";
     const p = await fetch(URL_SB + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: ANON, Authorization: authz, "Content-Type": "application/json" }, body: "{}" });
     if (!p.ok || (await p.json()) !== true) return resp({ ok: false, erro: "sem_permissao", msg: "Sem permissão para isso." }, 403);
 
@@ -209,6 +245,11 @@ Deno.serve(async (req: Request) => {
     if (acao === "anuncio") return resp({ ok: true, ...(await anuncio(String(corpo.id || "").toUpperCase())) });
     if (acao === "anuncio_salvar") return resp({ ok: true, feito: await anuncioSalvar(String(corpo.id || "").toUpperCase(), corpo) });
     if (acao === "preco") return resp({ ok: true, preco: await precoBling(String(corpo.id || "").toUpperCase(), Number(corpo.preco)) });
+    if (acao === "promos_loja") return resp({ ok: true, itens: await promosLoja() });
+    if (acao === "promo_itens") return resp({ ok: true, ...(await promoItens(String(corpo.id || ""), String(corpo.tipo || ""), String(corpo.status || ""), String(corpo.depois || ""))) });
+    if (acao === "promos_item") return resp({ ok: true, itens: await promosItem(String(corpo.id || "").toUpperCase()) });
+    if (acao === "promo_entrar") return resp({ ok: true, r: await promoEntrar(String(corpo.item || "").toUpperCase(), corpo) });
+    if (acao === "promo_sair") return resp({ ok: true, r: await promoSair(String(corpo.item || "").toUpperCase(), corpo) });
     if (acao === "anuncios") return resp({ ok: true, ...(await anuncios(String(corpo.q || "").trim(), String(corpo.status || "active"), Number(corpo.offset) || 0)) });
     return resp({ ok: false, erro: "acao", msg: "ação desconhecida: " + acao }, 400);
   } catch (e) {

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="140">
+<meta name="versao" content="141">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -420,6 +420,8 @@
   .sep-status { font-size: 12px; color: #5b6576; margin-top: 2px; line-height: 1.35; } .sep-status a { color: var(--azul, #1b2d4b); }
   .sep-ok { color: #1b9e55; font-size: 11px; vertical-align: 1px; }
   @media (max-width: 700px) { .sep-topo .t { flex: 1 1 100%; } .sep-topo #sepConferir { flex: 1 1 auto; height: 44px; } }
+  .sep-etqtit { margin: 12px 0 6px; padding: 6px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 600; display: flex; justify-content: space-between; }
+  .sep-etqtit.falta { background: #fff4e5; color: #b54708; } .sep-etqtit.ok { background: #e3f6ea; color: #1b7248; }
   .sep-ico { width: 44px; height: 44px; padding: 0; font-size: 20px; border-radius: 12px; flex: none; line-height: 1; }
   .sep-som { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; width: 100%; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--borda); }
   .sep-som[hidden] { display: none; }
@@ -3659,10 +3661,11 @@ async function sepEtiquetas(ids) {
     const est = await supa.rpc("fila_etiqueta_envio", { p_zpl: zpl, p_titulo: (ids.length > 1 ? ids.length + " etiquetas de envio" : "Etiqueta de envio") + " (Separação)" });
     if (!est.error && est.data && est.data.ok) {
       msg(`${ids.length > 1 ? ids.length + " etiquetas enviadas" : "Etiqueta enviada"} para a Zebra (${est.data.estacao})` + (est.data.online ? " — imprimindo…" : " — o PC do caixa 2 parece desligado; imprime assim que ligar") + txtErros);
+      supa.rpc("pedido_etiqueta_impressa", { p_ids: ids.map(Number) }).then(() => sepCarregar());
       sepEtqAcompanhar(est.data.id); sepVigiar(ids, "etq"); return;
     }
     // sem estação: Zebra ligada neste PC pelo Browser Print
-    try { const nome = await zebraImprimir(zpl); msg(`${d.zpl.length > 1 ? d.zpl.length + " arquivos de etiqueta enviados" : "Etiqueta enviada"} para ${nome}${erros.length ? " · " + erros.join(" · ") : ""}`); }
+    try { const nome = await zebraImprimir(zpl); supa.rpc("pedido_etiqueta_impressa", { p_ids: ids.map(Number) }).then(() => sepCarregar()); msg(`${d.zpl.length > 1 ? d.zpl.length + " arquivos de etiqueta enviados" : "Etiqueta enviada"} para ${nome}${erros.length ? " · " + erros.join(" · ") : ""}`); }
     catch (e) {
       if (confirm("Não consegui mandar para a Zebra: " + e.message + "\n\nAbrir a etiqueta em PDF para imprimir pelo navegador?")) {
         const { data: p } = await supa.functions.invoke("envios", { body: { acao: "etiqueta", ids, formato: "pdf" } });
@@ -3930,7 +3933,7 @@ function sepDesenhar() {
   const precisaNf = p => p.ml_substatus === "invoice_pending" || (!/mercado/i.test(p.canal || "") && !(p.nf_id > 0));
   const temEtiqueta = p => /^(ready_to_print|printed)$/.test(p.ml_substatus || "") || (/shopee/i.test(p.canal || "") && p.nf_id > 0);
   const botoesEnvio = p => (adm && precisaNf(p) ? `<button class="sec sep-mini" data-nf="${p.id}" title="gera e transmite a NF-e deste pedido pelo Bling">Emitir NF</button>` : "") +
-    (temEtiqueta(p) ? `<button class="sec sep-mini" data-etq="${p.id}" title="manda a etiqueta para a Zebra do caixa 2 (funciona também pelo celular)">${p.ml_substatus === "printed" ? "Reimprimir etiqueta" : "Imprimir etiqueta"}</button>` : "");
+    (temEtiqueta(p) ? `<button class="sec sep-mini" data-etq="${p.id}" title="manda a etiqueta para a Zebra do caixa 2 (funciona também pelo celular)">${p.ml_substatus === "printed" || p.etiqueta_em ? "Reimprimir etiqueta" : "Imprimir etiqueta"}</button>` : "");
   // ===== abas e cartões por forma de envio (como no painel do Mercado Livre) =====
   const LG = { flex: "Flex", agencia: "Agência", coleta: "Coleta", full: "Full", shopee_direta: "Shopee · Entrega Direta", shopee_xpress: "Shopee Xpress", shopee_retirada: "Shopee · Retirada", outro: "Outros envios", ml: "Mercado Livre", shopee: "Shopee" };
   const LGORD = ["flex", "agencia", "coleta", "shopee_direta", "shopee_xpress", "shopee_retirada", "ml", "shopee", "outro", "full"];
@@ -4007,7 +4010,13 @@ function sepDesenhar() {
     for (const p of vis) { const e = envio(p), k = cancML(p) ? "canc" : !e ? "sem" : e < hojeSP ? "atras" : e; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, l: [] }); g.l.push(p); }
     const ordem = g => g.k === "canc" ? "0" : g.k === "atras" ? "1" : g.k === "sem" ? "z" : "2" + g.k; grupos.sort((a, b) => ordem(a).localeCompare(ordem(b)));
     const titG = g => g.k === "canc" ? `<b style="color:#b42318">Canceladas no Mercado Livre — não enviar (${g.l.length})</b>` : g.k === "atras" ? `<b style="color:#b42318">Atrasados — já deviam ter saído (${g.l.length})</b>` : g.k === "sem" ? `<b>Sem data de envio (${g.l.length})</b> <span class="orig">— veja a data no Mercado Livre/Shopee e informe no pedido</span>` : `<b>Enviar ${nomeDia(g.k)}${g.k === hojeSP || g.k === amanha ? " (" + dsem(g.k) + " " + dm(g.k) + ")" : ""} — ${g.l.length}</b>`;
-    h += vis.length ? grupos.map(g => `<div class="sep-gtit">${titG(g)}</div>` + g.l.map(btSep).join("")).join("")
+    // dentro de cada dia: primeiro os que ainda precisam de etiqueta, depois os já impressos (prontos para sair)
+    const etqImp = p => !!p.etiqueta_em || /^(printed|ready_for_pickup|ready_for_dropoff|in_hub|picked_up)$/.test(p.ml_substatus || "");
+    const divEtq = g => { if (g.k === "canc") return g.l.map(btSep).join("");
+      const falta = g.l.filter(p => !etqImp(p)), ok = g.l.filter(etqImp);
+      return (falta.length ? `<div class="sep-etqtit falta">🖨 Etiqueta para imprimir <b>${falta.length}</b></div>` + falta.map(btSep).join("") : "")
+        + (ok.length ? `<div class="sep-etqtit ok">✓ Etiqueta impressa — pronto para enviar <b>${ok.length}</b></div>` + ok.map(btSep).join("") : ""); };
+    h += vis.length ? grupos.map(g => `<div class="sep-gtit">${titG(g)}</div>` + divEtq(g)).join("")
       : `<div class="painel"><b style="color:var(--ok)">${SEP.aba === "hoje" ? "Nada para enviar hoje." : "Nada para os próximos dias."}</b> <span class="orig">Quando entrar um pedido, ele aparece aqui sozinho${document.getElementById("sepSomTipo").value !== "nenhum" ? " com um aviso sonoro" : ""}.</span></div>`;
   }
   if (SEP.aba === "soma") {

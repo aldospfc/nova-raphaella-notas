@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="158">
+<meta name="versao" content="159">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -62,7 +62,7 @@
   td.rv input { width: 20px; height: 20px; cursor: pointer; }
   body.soPend tr.rev { display: none; }
   body.f-naoenv #tb tr.it.env, body.f-naoenv #tb tr.it.env + tr, body.f-env #tb tr.it:not(.env), body.f-env #tb tr.it:not(.env) + tr,
-  body.f-sempv #tb tr.it.pdef, body.f-sempv #tb tr.it.pdef + tr, body.f-sempv #tb tr.it.env, body.f-sempv #tb tr.it.env + tr,
+  body.f-sempv #tb tr.it.pdef, body.f-sempv #tb tr.it.pdef + tr,
   body.f-compv #tb tr.it:not(.pdef), body.f-compv #tb tr.it:not(.pdef) + tr { display: none !important; }
   body.semCod .cc { display: none; }
   body.semBol #lBol, body.semBol #bAddBol { display: none; }
@@ -1474,7 +1474,7 @@ function desenharDetalhe(it) {
 // filtro da tabela de itens (enviados / falta enviar / com e sem preço digitado)
 function fltContar() {
   const sel = document.getElementById("fIt"); if (!sel) return;
-  const env = i => !!(i.e1 || i.e2 || i.jg), n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !env(i) && !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length };
+  const env = i => !!(i.e1 || i.e2 || i.jg), n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length };
   const rot = { "": "todos os itens", naoenv: "falta enviar ao Gestão", env: "já enviados", sempv: "sem preço digitado", compv: "com preço digitado" };
   for (const o of sel.options) o.textContent = `${rot[o.value]} (${n[o.value]})`;
 }

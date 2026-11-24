@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="159">
+<meta name="versao" content="160">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2437,7 +2437,8 @@ const AV_TIPOS = {
 const NTF = { reg: null, erroSw: "", instalar: null };
 // ---------- histórico de notificações (sino) ----------
 const AV_ICO = { venda_mkt: "🛒", carga: "📦", trava: "🔒", boletos: "💳", resumo: "📊", teste: "🧪" };
-const AVH = { n: 0, ultimoId: 0, t: null };
+const AVH = { n: 0, ultimoId: (() => { try { return Number(localStorage.getItem("av:ult")) || 0; } catch (e) { return 0; } })(), t: null };
+const avGuardarUlt = id => { AVH.ultimoId = Math.max(AVH.ultimoId, id || 0); try { localStorage.setItem("av:ult", String(AVH.ultimoId)); } catch (e) { } };
 function avQuando(d) {
   const t = new Date(d), s = (Date.now() - t) / 1000, hm = t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   if (s < 60) return "agora"; if (s < 3600) return `há ${Math.floor(s / 60)} min`;
@@ -2452,14 +2453,15 @@ function avItemHtml(it) {
   return `<div data-avi="${it.id}" style="display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid #eee;${avAba(it) ? "cursor:pointer;" : ""}${it.lido ? "" : "background:#FBF4F7;border-radius:6px"}">
     <span style="font-size:20px;line-height:1.2">${AV_ICO[it.tipo] || "🔔"}</span>
     <div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:13px">${escH(it.titulo)}</b><span class="orig" style="font-size:11px;white-space:nowrap">${avQuando(it.criado_em)}</span></div>
-    ${it.corpo ? `<div style="font-size:12px;color:#333;white-space:pre-wrap">${escH(it.corpo)}</div>` : ""}${!it.lido ? `<span style="font-size:10px;color:#C35078;font-weight:700">NOVA</span>` : ""}</div></div>`;
+    ${it.corpo ? `<div style="font-size:12px;color:#333;white-space:pre-wrap">${escH(it.corpo)}</div>` : ""}${!it.lido ? `<span style="font-size:10px;color:#C35078;font-weight:700">NOVA</span>` : ""}</div>
+    <button type="button" data-avx="${it.id}" title="tirar este aviso da lista" style="background:none;border:0;color:#888;font-size:16px;padding:0 4px;cursor:pointer;align-self:flex-start">✕</button></div>`;
 }
 function avToast(it, n) {
   const velho = document.getElementById("avToast"); if (velho) velho.remove();
   const t = document.createElement("div"); t.id = "avToast";
   t.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);top:12px;z-index:9999;background:#1B2D4B;color:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.3);width:440px;max-width:92vw;cursor:pointer;font-size:14px";
   t.innerHTML = `<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:22px">${AV_ICO[it.tipo] || "🔔"}</span><div style="flex:1;min-width:0"><b>${escH(it.titulo)}</b><div style="opacity:.9">${escH(it.corpo || "")}</div><div style="opacity:.75;font-size:12px;margin-top:2px">${avQuando(it.criado_em)}${n > 1 ? ` · e mais ${n - 1} nova${n > 2 ? "s" : ""}` : ""} · toque para ver todas</div></div><span data-x style="opacity:.75;padding:0 4px">✕</span></div>`;
-  t.onclick = ev => { t.remove(); if (!ev.target.closest("[data-x]")) avisosAbrir(); };
+  t.onclick = ev => { t.remove(); if (!ev.target.closest("[data-x]")) avisosAbrir(); else supa.rpc("avisos_ler").then(() => { AVH.n = 0; avBadge(); }); };
   document.body.appendChild(t); setTimeout(() => t.remove(), 15000);
 }
 async function avConferir(comToast) {
@@ -2469,7 +2471,7 @@ async function avConferir(comToast) {
   AVH.n = d.nao_lidos || 0; avBadge();
   const b = document.getElementById("busca"); const painelAberto = b && b.style.display === "block" && b.querySelector("#avLista");
   if (comToast && !painelAberto && novos[0] && novos[0].id > AVH.ultimoId) avToast(novos[0], novos.length);
-  if (novos[0]) AVH.ultimoId = Math.max(AVH.ultimoId, novos[0].id);
+  if (novos[0]) avGuardarUlt(novos[0].id);
 }
 function avHistoricoIniciar() {
   setTimeout(() => avConferir(true), 1500);
@@ -2532,7 +2534,7 @@ async function avisosAbrir() {
   else if (NTF.erroSw) estado = `<span style="color:#b42318">Faltam os arquivos do app no servidor (sw.js e manifest.json na Hostinger).</span>`;
   else if (ativoAqui) estado = `<span class="chip ok">ativas neste aparelho</span> <a href="#" id="avDes">desativar aqui</a>`;
   else estado = `<button id="avAtv">Ativar notificações neste aparelho</button>`;
-  b.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b>🔔 Notificações</b><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div>
+  b.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b>🔔 Notificações</b><span>${H.length ? `<a style="cursor:pointer;color:#0b57d0;margin-right:14px" id="avLimpar" title="tira todos os avisos da lista (os novos que chegarem depois aparecem normalmente)">limpar todas</a>` : ""}<a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></span></div>
     <div id="avLista" style="margin-top:6px;max-height:52vh;overflow:auto">${H.length ? H.map(avItemHtml).join("") : `<div class="orig" style="padding:8px 0">Nenhuma notificação nos últimos 14 dias.</div>`}</div>
     <details style="margin-top:10px" ${ativoAqui ? "" : "open"}><summary style="cursor:pointer;font-weight:700">Configurar avisos no celular</summary>
     <div style="margin-top:8px">${estado}</div>
@@ -2543,8 +2545,11 @@ async function avisosAbrir() {
     <div style="margin-top:12px;font-weight:700">Aparelhos que recebem</div>
     ${(M.aparelhos || []).length ? M.aparelhos.map(x => `<div style="font-size:12px;margin-top:4px">${escH(x.nome || "aparelho")}${sub && x.endpoint === sub.endpoint ? " <b>(este)</b>" : ""} · último aviso: ${hm(x.ultimo_ok)} · <a href="#" data-avr="${x.id}">remover</a></div>`).join("") : `<div class="orig">nenhum ainda</div>`}
     </details>`;
-  for (const el of b.querySelectorAll("[data-avi]")) { const it = H.find(x => x.id === Number(el.dataset.avi)), v = it && avAba(it); if (v) el.onclick = () => { b.style.display = "none"; irDestino(v); }; }
-  if (H.some(x => !x.lido)) supa.rpc("avisos_ler").then(() => { AVH.n = 0; avBadge(); if (H[0]) AVH.ultimoId = Math.max(AVH.ultimoId, H[0].id); });
+  for (const el of b.querySelectorAll("[data-avi]")) { const it = H.find(x => x.id === Number(el.dataset.avi)), v = it && avAba(it); if (v) el.onclick = ev => { if (ev.target.closest("[data-avx]")) return; b.style.display = "none"; irDestino(v); }; }
+  const vazio = () => { const l = b.querySelector("#avLista"); if (l && !l.querySelector("[data-avi]")) { l.innerHTML = `<div class="orig" style="padding:8px 0">Nenhuma notificação.</div>`; const lp = b.querySelector("#avLimpar"); if (lp) lp.remove(); } };
+  for (const x of b.querySelectorAll("[data-avx]")) x.onclick = async ev => { ev.stopPropagation(); const el = x.closest("[data-avi]"); el.style.opacity = ".4"; const r = await supa.rpc("avisos_dispensar", { p_id: Number(x.dataset.avx) }); if (r.error) { el.style.opacity = ""; return msg("Não consegui tirar o aviso: " + r.error.message); } el.remove(); vazio(); };
+  { const lp = b.querySelector("#avLimpar"); if (lp) lp.onclick = async () => { const r = await supa.rpc("avisos_dispensar", { p_id: null }); if (r.error) return msg("Não consegui limpar: " + r.error.message); for (const el of b.querySelectorAll("[data-avi]")) el.remove(); vazio(); AVH.n = 0; avBadge(); if (H[0]) avGuardarUlt(H[0].id); }; }
+  if (H.some(x => !x.lido)) supa.rpc("avisos_ler").then(() => { AVH.n = 0; avBadge(); if (H[0]) avGuardarUlt(H[0].id); });
   b.querySelector("#bx").onclick = () => b.style.display = "none";
   const m = b.querySelector("#avMsg");
   const atv = b.querySelector("#avAtv"); if (atv) atv.onclick = async () => { atv.disabled = true; atv.textContent = "ativando…"; try { await avAtivar(); avisosAbrir(); } catch (e) { atv.disabled = false; atv.textContent = "Ativar notificações neste aparelho"; m.textContent = ""; atv.insertAdjacentHTML("afterend", `<div class="aviso" style="margin-top:6px">${escH(e.message || e)}</div>`); } };

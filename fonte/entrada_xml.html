@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="148">
+<meta name="versao" content="149">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3933,16 +3933,19 @@ function mlDesenhar() {
       `<div class="painel"><b>Conversa do pedido ${escH(C.pack)}</b>${C.bloqueada ? ` <span class="chip falta">conversa bloqueada pelo ML (${escH(C.bloqueada)})</span>` : ""}
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:50vh;overflow:auto">${(C.mensagens || []).length ? C.mensagens.map(m => `<div style="align-self:${m.eu ? "flex-end" : "flex-start"};max-width:85%;background:${m.eu ? "#e3f6ea" : "#f2f4f7"};padding:8px 10px;border-radius:10px"><div style="white-space:pre-wrap">${escH(m.texto || "")}</div><div class="orig" style="font-size:11px;text-align:right">${m.eu ? "você" : "comprador"} · ${escH(mlDh(m.data))}</div></div>`).join("") : `<span class="orig">Nenhuma mensagem nesta venda ainda.</span>`}</div>
         ${C.bloqueada ? "" : `<textarea id="mlMsg" rows="3" maxlength="350" placeholder="Mensagem para o comprador (até 350 caracteres; sem telefone, e-mail ou links)" style="width:100%;margin-top:8px;box-sizing:border-box"></textarea><div class="linha" style="margin-top:6px"><span id="mlMsgN" class="orig" style="flex:1">0/350</span><button id="mlMsgEnv">Enviar mensagem</button></div>`}</div>`; }
-  if (ML2.aba === "anuncios") { const A = ML2.anuncios;
+  if (ML2.aba === "anuncios" && ML2.ed) h += mlEdHtml();
+  if (ML2.aba === "anuncios" && !ML2.ed) { const A = ML2.anuncios;
     h += `<div class="painel"><div class="linha" style="gap:8px;align-items:flex-end;flex-wrap:wrap"><label class="c" style="flex:1;min-width:200px">Buscar anúncio<input type="search" id="mlAq" value="${escH(ML2.aq)}" placeholder="ex.: tekbond, caderno…" style="width:100%"></label>
       <label class="c">Situação<select id="mlAst">${[["active", "ativos"], ["paused", "pausados"], ["closed", "finalizados"], ["", "todos"]].map(([k, t]) => `<option value="${k}" ${ML2.ast === k ? "selected" : ""}>${t}</option>`).join("")}</select></label><button id="mlAbt">Buscar</button></div></div>`;
     h += est(A) || (!A ? "" : `<div class="orig" style="margin:6px 2px">${A.total} anúncio(s)${A.total > 50 ? ` · mostrando ${ML2.aoff + 1}–${Math.min(ML2.aoff + 50, A.total)}` : ""}</div>` + (A.itens || []).map(i => `<div class="painel" style="margin-top:6px;padding:8px 10px;display:flex;gap:10px;align-items:center">
       ${i.thumbnail ? `<img src="${escH(i.thumbnail.replace(/^http:/, "https:"))}" style="width:48px;height:48px;object-fit:contain;border-radius:6px;background:#fff" loading="lazy">` : ""}
       <div style="flex:1;min-width:0"><a href="${escH(i.permalink || "#")}" target="_blank" rel="noopener" style="font-weight:600">${escH(i.title || i.id)}</a><div class="orig" style="font-size:12px">${escH(i.id)}${i.seller_custom_field ? " · SKU " + escH(i.seller_custom_field) : ""} · ${i.listing_type_id === "gold_pro" ? "Premium" : i.listing_type_id === "gold_special" ? "Clássico" : escH(i.listing_type_id || "")}${i.status !== "active" ? " · " + escH(i.status) : ""}</div></div>
-      <div style="text-align:right;min-width:90px"><b>${mlBrl(i.price)}</b><div class="orig" style="font-size:12px">estoque ${i.available_quantity ?? "?"} · ${i.sold_quantity ?? 0} vendidos</div></div></div>`).join("")
+      <div style="text-align:right;min-width:90px"><b>${mlBrl(i.price)}</b><div class="orig" style="font-size:12px">estoque ${i.available_quantity ?? "?"} · ${i.sold_quantity ?? 0} vendidos</div></div><button class="sec" data-mled="${escH(i.id)}">Editar</button></div>`).join("")
       + (A.total > 50 ? `<div class="linha" style="gap:8px;margin-top:8px;justify-content:center">${ML2.aoff > 0 ? `<button class="sec" id="mlAprev">← anteriores</button>` : ""}${ML2.aoff + 50 < A.total ? `<button class="sec" id="mlAnext">próximos →</button>` : ""}</div>` : "")); }
   el.innerHTML = h;
-  for (const b of el.querySelectorAll("[data-mla]")) b.onclick = () => { ML2.aba = b.dataset.mla; mlDesenhar(); mlCarregar(); };
+  for (const b of el.querySelectorAll("[data-mla]")) b.onclick = () => { ML2.aba = b.dataset.mla; ML2.ed = null; mlDesenhar(); mlCarregar(); };
+  for (const b of el.querySelectorAll("[data-mled]")) b.onclick = () => mlEdAbrir(b.dataset.mled);
+  if (ML2.ed) mlEdLigar(el);
   for (const a of el.querySelectorAll("[data-mlre]")) a.onclick = ev => { ev.preventDefault(); mlCarregar(true); };
   for (const t of el.querySelectorAll("[data-mlr]")) t.oninput = () => { ML2.rascunho[t.dataset.mlr] = t.value; };
   for (const b of el.querySelectorAll("[data-mls]")) b.onclick = async () => { b.disabled = true; b.textContent = "Pensando…";
@@ -3966,6 +3969,63 @@ function mlDesenhar() {
     document.getElementById("mlAbt").onclick = ir; document.getElementById("mlAq").onkeydown = ev => { if (ev.key === "Enter") ir(); }; document.getElementById("mlAst").onchange = ir;
     if (document.getElementById("mlAprev")) document.getElementById("mlAprev").onclick = () => { ML2.aoff = Math.max(0, ML2.aoff - 50); mlCarregar(true); };
     if (document.getElementById("mlAnext")) document.getElementById("mlAnext").onclick = () => { ML2.aoff += 50; mlCarregar(true); }; }
+}
+// ---- editor do anúncio (título, preço pelo Bling, situação, ficha técnica, descrição) ----
+async function mlEdAbrir(id) { ML2.ed = { id, carregando: true }; mlDesenhar();
+  try { const r = await mlFn({ acao: "anuncio", id }); ML2.ed = { id, ...r, mud: {}, titulo: r.item.title, desc: r.descricao }; } catch (e) { ML2.ed = { id, erro: e.message }; } mlDesenhar(); }
+function mlEdHtml() {
+  const E = ML2.ed; if (E.carregando) return `<div class="painel orig">Abrindo o anúncio ${escH(E.id)}…</div>`;
+  if (E.erro) return `<div class="painel" style="color:#b42318">Não deu: ${escH(E.erro)} · <a href="#" id="mlEdVolta">voltar</a></div>`;
+  const it = E.item, vend = Number(it.sold_quantity) > 0, fx = E.ficha || [];
+  const falta = fx.filter(a => a.obrigatorio && !a.valor && !(a.id in E.mud)), peso = a => a.obrigatorio && !a.valor ? 0 : a.obrigatorio ? 1 : a.valor ? 2 : 3, ord = [...fx].sort((a, b) => peso(a) - peso(b)); // obrigatórios vazios primeiro
+  const campo = a => { const v = a.id in E.mud ? E.mud[a.id] : { value_name: a.valor, value_id: a.valor_id }, cor = a.obrigatorio && !(v.value_name || v.value_id) ? "#b42318" : "inherit";
+    const ctl = a.valores && a.valores.length && (a.tipo === "list" || a.tipo === "boolean")
+      ? `<select data-mlat="${escH(a.id)}" style="width:100%"><option value="">—</option>${a.valores.map(x => `<option value="${escH(x.id)}" ${String(v.value_id || "") === String(x.id) || (!v.value_id && v.value_name === x.nome) ? "selected" : ""}>${escH(x.nome)}</option>`).join("")}</select>`
+      : `<input data-mlat="${escH(a.id)}" value="${escH(v.value_name || "")}" ${a.max ? `maxlength="${a.max}"` : ""} placeholder="${a.unidades && a.unidades.length ? "ex.: 10 " + escH(a.unidades[0]) : ""}" style="width:100%">`;
+    return `<label class="c" style="min-width:200px;flex:1 1 240px;color:${cor}">${escH(a.nome)}${a.obrigatorio ? " *" : ""}${ctl}</label>`; };
+  return `<div class="painel"><a href="#" id="mlEdVolta">← voltar à lista</a>
+    <div style="display:flex;gap:12px;margin-top:8px;align-items:flex-start">${it.thumbnail ? `<img src="${escH(String(it.thumbnail).replace(/^http:/, "https:"))}" style="width:72px;height:72px;object-fit:contain;border-radius:8px;background:#fff">` : ""}
+      <div style="flex:1;min-width:0"><a href="${escH(it.permalink || "#")}" target="_blank" rel="noopener"><b>${escH(it.title)}</b></a>
+        <div class="orig" style="font-size:12.5px">${escH(it.id)} · ${it.status === "active" ? "ativo" : it.status === "paused" ? "pausado" : escH(it.status)} · ${it.sold_quantity || 0} vendidos · estoque ${it.available_quantity ?? "?"} (vem do Bling)${it.variacoes ? " · " + it.variacoes + " variações" : ""}${it.catalog_listing ? " · anúncio de catálogo" : ""}</div></div>
+      ${it.status === "active" ? `<button class="sec" id="mlEdPausar">Pausar</button>` : it.status === "paused" ? `<button class="sec" id="mlEdAtivar">Ativar</button>` : ""}</div></div>
+  <div class="painel"><b>Preço</b> <span class="orig">— alterado no Bling, que manda ao Mercado Livre</span>
+    <div class="linha" style="gap:8px;align-items:flex-end;margin-top:6px;flex-wrap:wrap"><span>No ML hoje: <b>${mlBrl(it.price)}</b></span>${E.vinculo ? `<span class="orig">No Bling: ${mlBrl(E.vinculo.preco)}</span>
+      <label class="c">Novo preço<input id="mlEdPreco" inputmode="decimal" placeholder="0,00" style="width:110px"></label><button id="mlEdPrecoBt">Salvar preço no Bling</button>` : `<span class="orig" style="color:#b54708">Este anúncio não está vinculado a um produto no Bling — o preço só muda no Bling depois de vincular (produto → aba Lojas).</span>`}</div></div>
+  <div class="painel"><b>Título</b> <span class="orig" id="mlEdTn">${(E.titulo || "").length}/60</span>
+    <input id="mlEdTit" maxlength="60" value="${escH(E.titulo || "")}" ${vend ? "disabled" : ""} style="width:100%;margin-top:4px">${vend ? `<div class="orig" style="font-size:12px">O Mercado Livre não deixa mudar o título de anúncio que já tem vendas.</div>` : ""}</div>
+  <div class="painel"><b>Ficha técnica</b> ${falta.length ? `<span style="color:#b42318;font-weight:600">— faltam ${falta.length} obrigatória(s)</span>` : `<span class="orig">— campos com * são obrigatórios</span>`}
+    <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px">${ord.map(campo).join("")}</div></div>
+  <div class="painel"><b>Descrição</b> <span class="orig">— só texto, sem telefone, e-mail ou links</span><textarea id="mlEdDesc" rows="10" style="width:100%;margin-top:4px;box-sizing:border-box">${escH(E.desc || "")}</textarea></div>
+  <div class="linha" style="justify-content:flex-end;margin-top:8px"><button id="mlEdSalvar">Salvar no Mercado Livre</button></div>`;
+}
+function mlEdLigar(el) {
+  const E = ML2.ed; if (!E) return; const $ = id => document.getElementById(id);
+  if ($("mlEdVolta")) $("mlEdVolta").onclick = ev => { ev.preventDefault(); ML2.ed = null; mlDesenhar(); };
+  if (!E.item) return;
+  if ($("mlEdTit")) $("mlEdTit").oninput = ev => { E.titulo = ev.target.value; $("mlEdTn").textContent = E.titulo.length + "/60"; };
+  if ($("mlEdDesc")) $("mlEdDesc").oninput = ev => { E.desc = ev.target.value; };
+  for (const c of el.querySelectorAll("[data-mlat]")) c.onchange = c.oninput = () => { const a = E.ficha.find(x => x.id === c.dataset.mlat);
+    E.mud[a.id] = c.tagName === "SELECT" ? (c.value ? { value_id: c.value, value_name: c.options[c.selectedIndex].text } : { value_name: "" }) : { value_name: c.value }; };
+  const sit = async st => { if (!confirm(st === "paused" ? "Pausar este anúncio no Mercado Livre?" : "Ativar este anúncio no Mercado Livre?")) return;
+    try { await mlFn({ acao: "anuncio_salvar", id: E.id, status: st }); msg(st === "paused" ? "Anúncio pausado" : "Anúncio ativado"); mlEdAbrir(E.id); } catch (e) { msg("Não deu: " + e.message); } };
+  if ($("mlEdPausar")) $("mlEdPausar").onclick = () => sit("paused");
+  if ($("mlEdAtivar")) $("mlEdAtivar").onclick = () => sit("active");
+  if ($("mlEdPrecoBt")) $("mlEdPrecoBt").onclick = async () => { const v = Number(String($("mlEdPreco").value).replace(/\./g, "").replace(",", "."));
+    if (!(v > 0)) return msg("Digite o novo preço.");
+    if (!confirm(`Mudar o preço deste anúncio no Bling para ${mlBrl(v)}?\n\nO Bling manda o preço ao Mercado Livre na sincronização dele.`)) return;
+    try { const r = await mlFn({ acao: "preco", id: E.id, preco: v }); msg(`Preço ${mlBrl(r.preco)} gravado no Bling ✅ — confira no ML em alguns minutos`); E.vinculo.preco = r.preco; mlDesenhar(); } catch (e) { msg("Não deu: " + e.message); } };
+  if ($("mlEdSalvar")) $("mlEdSalvar").onclick = async () => {
+    const corpo = { acao: "anuncio_salvar", id: E.id };
+    if (!$("mlEdTit").disabled && E.titulo.trim() && E.titulo.trim() !== E.item.title) corpo.title = E.titulo.trim();
+    if (E.desc !== E.descricao) corpo.descricao = E.desc;
+    const at = Object.entries(E.mud).filter(([k, v]) => { const a = E.ficha.find(x => x.id === k); return a && (String(v.value_id || "") !== String(a.valor_id || "") || (v.value_name || "") !== (a.valor || "")); })
+      .map(([k, v]) => v.value_id ? { id: k, value_id: v.value_id } : { id: k, value_name: v.value_name || "" });
+    if (at.length) corpo.atributos = at;
+    const o = [corpo.title ? "título" : "", at.length ? at.length + " campo(s) da ficha" : "", corpo.descricao !== undefined ? "descrição" : ""].filter(Boolean);
+    if (!o.length) return msg("Nada mudou.");
+    if (!confirm("Salvar no Mercado Livre: " + o.join(", ") + "?")) return;
+    $("mlEdSalvar").disabled = true;
+    try { const r = await mlFn(corpo); msg("Salvo no Mercado Livre ✅ (" + (r.feito || []).join(", ") + ")"); mlEdAbrir(E.id); } catch (e) { $("mlEdSalvar").disabled = false; msg("O Mercado Livre não aceitou: " + e.message); } };
 }
 // ligação com o Mercado Livre (função "envios"): Flex/Agência/Coleta/Full e prazos
 async function sepMlStatus() {

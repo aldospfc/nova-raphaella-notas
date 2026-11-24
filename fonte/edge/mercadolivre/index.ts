@@ -6,6 +6,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // Sugestão de resposta: IA (segredo ANTHROPIC_API_KEY; modelo no segredo SUGESTAO_MODELO, padrão Sonnet).
 // Nada é enviado ao comprador sem o clique de quem está logado (ações responder / mensagem).
 // v1 (24/11/2026).
+// v2 (24/11/2026): anuncio (detalhe + ficha técnica da categoria + vínculo do Bling), anuncio_salvar (título, descrição, ficha, pausar/ativar no ML)
+//     e preco (pelo Bling: produtos/lojas da loja Mercado Livre; o Bling leva ao ML). Regra do Aldo: preço e estoque só pelo Bling.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -121,6 +123,58 @@ async function mandarMensagem(pack: string, texto: string) {
   return await ml(`/messages/packs/${pack}/sellers/${user}?tag=post_sale`, { method: "POST", body: JSON.stringify({ from: { user_id: user }, to: { user_id: comprador }, text: texto.trim() }) });
 }
 
+// ---- edição do anúncio ----
+async function blingTok(): Promise<string> {
+  const a = ((await rest("bling_auth?id=eq.1&select=access_token,expires_at")) || [])[0] || {};
+  if (!a.access_token || new Date(a.expires_at).getTime() < Date.now() + 60000) throw new Error("o acesso ao Bling está sendo renovado — tente de novo em 1 minuto");
+  return a.access_token;
+}
+async function bling(caminho: string, init: RequestInit = {}): Promise<any> {
+  const t = await blingTok();
+  const r = await fetch("https://api.bling.com.br/Api/v3" + caminho, { ...init, headers: { Authorization: "Bearer " + t, Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } });
+  const txt = await r.text(); let j: any = null; try { j = JSON.parse(txt); } catch { j = {}; }
+  if (!r.ok) { const f = (j?.error?.fields || []).map((x: any) => x.msg).filter(Boolean).join("; "); throw new Error(`Bling ${r.status}: ${f || j?.error?.description || j?.error?.message || txt.slice(0, 200)}`); }
+  return j;
+}
+async function anuncio(id: string) {
+  const it = await ml(`/items/${id}?include_attributes=all`);
+  const desc = await ml(`/items/${id}/description`).catch(() => ({}));
+  const cat = await ml(`/categories/${it.category_id}/attributes`).catch(() => []);
+  const atuais = new Map((it.attributes || []).map((a: any) => [a.id, a]));
+  const ficha = (cat || []).filter((a: any) => !a.tags?.hidden && !a.tags?.read_only && !a.tags?.fixed && !a.tags?.variation_attribute && !["SELLER_SKU", "GTIN", "ITEM_CONDITION"].includes(a.id) || atuais.has(a.id) && ["GTIN", "SELLER_SKU"].includes(a.id))
+    .map((a: any) => { const v: any = atuais.get(a.id) || {};
+      return { id: a.id, nome: a.name, tipo: a.value_type, obrigatorio: !!(a.tags?.required || a.tags?.catalog_required), conditional: !!a.tags?.conditional_required,
+        valores: (a.values || []).slice(0, 80).map((x: any) => ({ id: x.id, nome: x.name })), unidades: (a.allowed_units || []).map((u: any) => u.name),
+        valor: v.value_name || "", valor_id: v.value_id || null, max: a.value_max_length || null }; });
+  const vin = ((await rest(`ml_vinculo?select=vinculo_id,produto_id,preco,preco_promo,em&mlb=eq.${encodeURIComponent(id)}`)) || [])[0] || null;
+  return { item: { id: it.id, title: it.title, price: it.price, available_quantity: it.available_quantity, sold_quantity: it.sold_quantity, status: it.status, permalink: it.permalink,
+    thumbnail: it.thumbnail, pictures: (it.pictures || []).map((p: any) => p.secure_url || p.url).slice(0, 12), listing_type_id: it.listing_type_id, category_id: it.category_id,
+    catalog_listing: !!it.catalog_listing, variacoes: (it.variations || []).length, health: it.health ?? null, tags: it.tags || [] },
+    descricao: desc.plain_text || "", ficha, vinculo: vin };
+}
+async function anuncioSalvar(id: string, c: any) {
+  const feito: string[] = [];
+  const corpo: any = {};
+  if (typeof c.title === "string" && c.title.trim()) corpo.title = c.title.trim().slice(0, 60);
+  if (Array.isArray(c.atributos) && c.atributos.length) corpo.attributes = c.atributos.slice(0, 100).map((a: any) => a.value_id ? { id: String(a.id), value_id: String(a.value_id) } : { id: String(a.id), value_name: String(a.value_name ?? "") });
+  if (c.status === "paused" || c.status === "active") corpo.status = c.status;
+  if (Object.keys(corpo).length) { await ml(`/items/${id}`, { method: "PUT", body: JSON.stringify(corpo) }); feito.push(...Object.keys(corpo).map(k => ({ title: "título", attributes: "ficha técnica", status: "situação" } as any)[k])); }
+  if (typeof c.descricao === "string") { await ml(`/items/${id}/description?api_version=2`, { method: "PUT", body: JSON.stringify({ plain_text: c.descricao.slice(0, 50000) }) }); feito.push("descrição"); }
+  return feito;
+}
+// preço do anúncio pelo Bling (vínculo produtos/lojas); o Bling sincroniza com o ML
+async function precoBling(mlb: string, preco: number) {
+  if (!(preco > 0)) throw new Error("preço inválido");
+  const v = ((await rest(`ml_vinculo?select=vinculo_id&mlb=eq.${encodeURIComponent(mlb)}`)) || [])[0];
+  if (!v) throw new Error("este anúncio não está vinculado a um produto no Bling (Produtos → aba Lojas)");
+  const atual = (await bling(`/produtos/lojas/${v.vinculo_id}`)).data || {};
+  const corpo = { codigo: atual.codigo || mlb, preco: Math.round(preco * 100) / 100, precoPromocional: Math.round(preco * 100) / 100, produto: { id: atual.produto?.id }, loja: { id: atual.loja?.id },
+    fornecedorLoja: atual.fornecedorLoja || { id: 0 }, marcaLoja: atual.marcaLoja || { id: 0 }, categoriasProdutos: atual.categoriasProdutos || [] };
+  await bling(`/produtos/lojas/${v.vinculo_id}`, { method: "PUT", body: JSON.stringify(corpo) });
+  await rest(`ml_vinculo?mlb=eq.${encodeURIComponent(mlb)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ preco: corpo.preco, preco_promo: corpo.precoPromocional, em: new Date().toISOString() }) });
+  return corpo.preco;
+}
+
 async function anuncios(q: string, status: string, offset: number) {
   const { user } = await auth();
   const st = ["active", "paused", "closed"].includes(status) ? `&status=${status}` : "";
@@ -137,7 +191,7 @@ Deno.serve(async (req: Request) => {
     const corpo = await req.json().catch(() => ({}));
     const acao = String(corpo?.acao || "");
     // ler: quem pode separar; responder/mandar mensagem: só perfil completo
-    const fn = ["responder", "mensagem", "sugerir"].includes(acao) ? "permitido" : "pode_separar";
+    const fn = ["responder", "mensagem", "sugerir", "anuncio_salvar", "preco"].includes(acao) ? "permitido" : "pode_separar";
     const p = await fetch(URL_SB + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: ANON, Authorization: authz, "Content-Type": "application/json" }, body: "{}" });
     if (!p.ok || (await p.json()) !== true) return resp({ ok: false, erro: "sem_permissao", msg: "Sem permissão para isso." }, 403);
 
@@ -152,6 +206,9 @@ Deno.serve(async (req: Request) => {
     if (acao === "naolidas") return resp({ ok: true, itens: await naoLidas() });
     if (acao === "conversa") return resp({ ok: true, ...(await conversa(String(corpo.pack || "").replace(/\D/g, ""))) });
     if (acao === "mensagem") return resp({ ok: true, r: await mandarMensagem(String(corpo.pack || "").replace(/\D/g, ""), String(corpo.texto || "")) });
+    if (acao === "anuncio") return resp({ ok: true, ...(await anuncio(String(corpo.id || "").toUpperCase())) });
+    if (acao === "anuncio_salvar") return resp({ ok: true, feito: await anuncioSalvar(String(corpo.id || "").toUpperCase(), corpo) });
+    if (acao === "preco") return resp({ ok: true, preco: await precoBling(String(corpo.id || "").toUpperCase(), Number(corpo.preco)) });
     if (acao === "anuncios") return resp({ ok: true, ...(await anuncios(String(corpo.q || "").trim(), String(corpo.status || "active"), Number(corpo.offset) || 0)) });
     return resp({ ok: false, erro: "acao", msg: "ação desconhecida: " + acao }, 400);
   } catch (e) {

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="147">
+<meta name="versao" content="148">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -798,7 +798,7 @@
   <div class="orig" style="margin-top:8px">Os dados vêm do XML da nota mais recente de cada CNPJ (cada filial é um fornecedor). E-mail, contato e observações você preenche aqui e eles não são apagados quando chega nota nova.</div>
  </div>
  <div id="vPromocoes" style="display:none"><div class="painel"><b>Promoções</b> <span class="orig">— preço promocional ou combo (leve N por R$ X), por período e horário; começa e termina sozinho no Gestão e nos caixas</span><div id="pmPainel" style="margin-top:8px"></div></div></div>
- <div id="vMl" style="display:none"><div class="painel"><b>Mercado Livre</b> <span class="orig">— perguntas, reclamações, mensagens das vendas e anúncios. Nada é enviado ao comprador sem o seu clique.</span> <a href="#" id="mlAtu" style="float:right">⟳ atualizar</a></div><div id="mlPainel"></div></div>
+ <div id="vMl" style="display:none"><div class="painel"><b>Mercado Livre</b> <span class="orig">— perguntas, reclamações, mensagens das vendas e anúncios. Nada é enviado ao comprador sem o seu clique.</span> <span style="float:right"><a href="#" id="mlReligar" title="autorizar de novo o aplicativo no Mercado Livre (depois de mudar as permissões dele)">religar ao ML</a> · <a href="#" id="mlAtu">⟳ atualizar</a></span></div><div id="mlPainel"></div></div>
  <div id="vEtiquetas" style="display:none"><div class="painel"><b>Etiquetas de gôndola</b> <span class="orig">— 105 × 30 mm na Elgin L42 Pro da loja; monte a lista e imprima tudo de uma vez</span><div id="etPainel" style="margin-top:8px"></div></div></div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
@@ -3634,6 +3634,7 @@ function sepIniciar() {
   sepSomIniciar(); sepMlStatus();
   if (!document.body.classList.contains("perfil-sep")) { setTimeout(mlResumo, 4000); setInterval(mlResumo, 10 * 60 * 1000); }
   { const a = document.getElementById("mlAtu"); if (a) a.onclick = ev => { ev.preventDefault(); mlCarregar(true); mlResumo(); }; }
+  { const a = document.getElementById("mlReligar"); if (a) a.onclick = async ev => { ev.preventDefault(); const { data: d } = await supa.functions.invoke("envios", { body: { acao: "link" } }); if (d && d.url) window.open(d.url, "_blank"); else msg((d && d.msg) || "Não consegui gerar o link."); }; }
   document.addEventListener("keydown", ev => { if (ev.key === "Escape") document.getElementById("sepZoom")?.classList.remove("on"); });
 }
 // impressora Zebra pelo Browser Print (programa da Zebra no PC; na 1ª vez ele pergunta se libera este site)
@@ -3953,7 +3954,7 @@ function mlDesenhar() {
     if (!txt) return msg("Escreva a resposta antes de enviar.");
     if (!confirm("Enviar esta resposta ao comprador no Mercado Livre?\n\n" + txt)) return;
     b.disabled = true; try { await mlFn({ acao: "responder", id: Number(id), texto: txt }); delete ML2.rascunho[id]; ML2.perguntas = ML2.perguntas.filter(q => String(q.id) !== String(id)); msg("Resposta enviada ✅"); mlDesenhar(); mlBadge(); }
-    catch (e) { b.disabled = false; msg("Não enviou: " + e.message); } };
+    catch (e) { b.disabled = false; msg(/UNAUTHORIZED|403/.test(e.message) ? "O Mercado Livre recusou: o aplicativo do sistema ainda não tem permissão para responder perguntas. Ative a permissão no painel de desenvolvedor do ML e clique em \"religar ao ML\"." : "Não enviou: " + e.message); } };
   const abrirConv = async pack => { pack = String(pack || "").replace(/\D/g, ""); if (!pack) return msg("Digite o número do pedido no ML.");
     ML2.aba = "mensagens"; ML2.conversa = { pack, carregando: true }; mlDesenhar();
     try { const r = await mlFn({ acao: "conversa", pack }); ML2.conversa = { pack, ...r }; } catch (e) { ML2.conversa = { pack, erro: e.message }; } mlDesenhar(); if (!ML2.naolidas) mlCarregar(); };

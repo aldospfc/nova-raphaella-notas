@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="154">
+<meta name="versao" content="155">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -61,6 +61,9 @@
   td.rv { text-align: center; white-space: nowrap; }
   td.rv input { width: 20px; height: 20px; cursor: pointer; }
   body.soPend tr.rev { display: none; }
+  body.f-naoenv #tb tr.it.env, body.f-naoenv #tb tr.it.env + tr, body.f-env #tb tr.it:not(.env), body.f-env #tb tr.it:not(.env) + tr,
+  body.f-sempv #tb tr.it.pdef, body.f-sempv #tb tr.it.pdef + tr, body.f-sempv #tb tr.it.env, body.f-sempv #tb tr.it.env + tr,
+  body.f-compv #tb tr.it:not(.pdef), body.f-compv #tb tr.it:not(.pdef) + tr { display: none !important; }
   body.semCod .cc { display: none; }
   body.semBol #lBol, body.semBol #bAddBol { display: none; }
   td.cc { font-size: 13px; white-space: nowrap; }
@@ -579,6 +582,7 @@
    <div class="nav-label">E-commerce</div>
    <button class="aba" data-v="separacao" title="Pedidos online"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Pedidos online</span><b id="sepBadge" class="nav-badge" style="display:none"></b></button>
    <button class="aba" data-v="ml" title="Mercado Livre"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Mercado Livre</span><b id="mlBadge" class="nav-badge" style="display:none"></b></button>
+   <button class="aba" data-v="margem" title="Margem das vendas online"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg><span>Margem online</span></button>
    <div class="nav-label">Financeiro</div>
    <button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span><i class="nav-count" id="nc_vendas"></i></button>
    <button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span><i class="nav-count" id="nc_boletos"></i></button>
@@ -632,7 +636,8 @@
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a coluna com o código / referência do produto no fornecedor"><input type="checkbox" id="gCod" style="width:18px;height:18px" checked> Mostrar código / referência</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#eef8f1;border-radius:6px" title="liga em cada item a marcação do que chegou (para notas que vêm bagunçadas: vá marcando conforme encontra os pacotes). Fica guardado neste aparelho; o que for marcado aparece nos dois PCs."><input type="checkbox" id="gRec" style="width:18px;height:18px"> Conferir recebimento</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
-      <span class="legenda" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido · <a href="#" id="bAceitarSug" title="transforma a sugestão de todos os itens pendentes em preço definido, para eles poderem ir ao Gestão">aceitar preços sugeridos</a> · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#fff7e0;border-radius:6px" title="filtra os itens da nota na tabela">Mostrar <select id="fIt"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option></select></label>
+      <span class="legenda" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido (sugerido nunca vai ao Gestão) · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
       <div class="quebra lin"></div>
       <button id="bEnt" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão da loja, pelo agente do PC 1. NÃO use junto com a importação do XML pelo Gestão, senão o estoque entra duas vezes.">Enviar ao Gestão (entrada completa)</button>
       <button id="bEntPos" title="faz a entrada completa no Gestão e, em seguida, manda o preço dos produtos que já existem direto para os caixas, sem precisar da Carga Completa. Produto novo só entra no caixa com a Carga Completa.">Enviar ao Gestão e ao POS</button>
@@ -816,6 +821,20 @@
  </div>
  <div id="vPromocoes" style="display:none"><div class="painel"><b>Promoções</b> <span class="orig">— preço promocional ou combo (leve N por R$ X), por período e horário; começa e termina sozinho no Gestão e nos caixas</span><div id="pmPainel" style="margin-top:8px"></div></div></div>
  <div id="vMl" style="display:none"><div class="painel"><b>Mercado Livre</b> <span class="orig">— perguntas, reclamações, mensagens das vendas e anúncios. Nada é enviado ao comprador sem o seu clique.</span> <span style="float:right"><a href="#" id="mlReligar" title="autorizar de novo o aplicativo no Mercado Livre (depois de mudar as permissões dele)">religar ao ML</a> · <a href="#" id="mlAtu">⟳ atualizar</a></span></div><div id="mlPainel"></div></div>
+ <div id="vMargem" style="display:none"><div class="painel"><b>Margem das vendas online</b> <span class="orig">— receita da venda menos tarifa do canal, frete pago por você, imposto e custo do produto</span>
+  <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
+   <label class="c">Período<select id="mgModo"><option value="mes">este mês</option><option value="mesant">mês passado</option><option value="30">últimos 30 dias</option><option value="ano" selected>este ano</option><option value="per">escolher…</option></select></label>
+   <input type="date" id="mgDe" style="display:none"><input type="date" id="mgAte" style="display:none">
+   <label class="c" title="alíquota efetiva do Simples sobre a venda (entra como custo em cada venda)">Imposto %<input type="number" id="mgImp" step="0.1" min="0" max="40" style="width:80px" placeholder="0"></label>
+   <button id="mgBt">Calcular</button> <a href="#" id="mgAtu" title="busca no ML e no Bling as tarifas e o frete das vendas novas e o custo dos produtos novos">buscar vendas novas</a> <span id="mgSt" class="orig"></span>
+  </div>
+  <div class="linha" style="gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px">
+   <button class="sec mg-aba" data-a="produtos">Por produto</button><button class="sec mg-aba" data-a="pedidos">Por venda</button>
+   <select id="mgCanal"><option value="">todos os canais</option><option value="Mercado Livre">Mercado Livre</option><option value="Shopee">Shopee</option></select>
+   <label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="mgNeg"> só prejuízo / sem custo</label>
+   <input id="mgQ" placeholder="buscar produto ou comprador" style="min-width:180px">
+  </div>
+  <div id="mgRes" style="margin-top:8px"></div></div></div>
  <div id="vEtiquetas" style="display:none"><div class="painel"><b>Etiquetas de gôndola</b> <span class="orig">— 105 × 30 mm na Elgin L42 Pro da loja; monte a lista e imprima tudo de uma vez</span><div id="etPainel" style="margin-top:8px"></div></div></div>
  <div id="vAvisos" style="display:none">
   <div class="painel"><b>Boletos vencidos e dos próximos 7 dias</b><div id="avBol" style="margin-top:6px"></div></div>
@@ -923,7 +942,7 @@ function calc(it) {
   let venda;
   if (it.pv != null) venda = it.pv;
   else {
-    venda = custoUn * (1 + (it.mk ?? gMk()) / 100);
+    venda = custoUn * (1 + (it.mk ?? it.mkMem ?? gMk()) / 100);
     const arr = parseFloat(document.getElementById("gArr").value);
     venda = arr > 0 ? Math.ceil(venda / arr - 1e-9) * arr : r2(venda);
   }
@@ -950,7 +969,7 @@ async function salvarMemoria() {
   for (const it of itens) {
     if (!it.cod || !it.ean || !gtinValido(it.ean)) continue;
     const k = calc(it);
-    novo[it.cod] = { div: it.div, ean: it.ean, aux: it.aux || null, desc: it.desc || "", cg: it.cg ?? null, cd: it.cd ?? null, cs: it.cs ?? null, cf: it.cf ?? null, mk: it.mk ?? null, pv: it.pv ?? null, cu: Math.round(k.custoUn * 10000) / 10000, em: new Date().toISOString().slice(0, 10) };
+    novo[it.cod] = { div: it.div, ean: it.ean, aux: it.aux || null, desc: it.desc || "", cg: it.cg ?? null, cd: it.cd ?? null, cs: it.cs ?? null, cf: it.cf ?? null, mk: it.mk ?? it.mkMem ?? null, pv: it.pv ?? null, cu: Math.round(k.custoUn * 10000) / 10000, em: new Date().toISOString().slice(0, 10) };
   }
   const n = Object.keys(novo).length; if (!n) return 0;
   memForn = { ...(memForn || {}), ...novo };
@@ -1019,7 +1038,7 @@ function aplicarCadastro() {
     if (it.tocado || it.m) continue;
     const mm = memForn && it.cod ? memForn[it.cod] : null;
     if (mm && mm.ean) { // já vimos esse código desse fornecedor: repete o que foi feito da última vez
-      Object.assign(it, { div: mm.div || 1, ean: mm.ean, aux: mm.aux || null, cg: mm.cg ?? null, cd: mm.cd ?? null, cs: mm.cs ?? null, cf: mm.cf ?? null, mk: mm.mk ?? null, pv: mm.pv ?? null, mem: mm });
+      Object.assign(it, { div: mm.div || 1, ean: mm.ean, aux: mm.aux || null, cg: mm.cg ?? null, cd: mm.cd ?? null, cs: mm.cs ?? null, cf: mm.cf ?? null, mk: null, pv: null, mkMem: mm.mk != null ? mm.mk : mm.pv > 0 && mm.cu > 0 ? r2((mm.pv / mm.cu - 1) * 100) : null, mem: mm });
       it.desc = it.descTocada ? it.desc : (mm.desc || limparDescricao(it.xprod, it.div)); it.sug = null; continue;
     }
     const existe = buscaEan(it.eanNota);
@@ -1270,9 +1289,9 @@ function atualizarLinha(it) {
   o("custoUn").textContent = br(k.custoUn, 4);
   const iPv = tr.querySelector("[data-c=pv]"), iMk = tr.querySelector("[data-c=mk]");
   if (iPv !== document.activeElement) iPv.value = br(k.venda);
-  if (iMk !== document.activeElement) iMk.value = it.pv != null ? k.acresc.toFixed(1) : (it.mk ?? "");
+  if (iMk !== document.activeElement) iMk.value = it.pv != null ? k.acresc.toFixed(1) : (it.mk ?? ""); iMk.placeholder = it.mkMem != null ? String(it.mkMem) : "";
   iPv.classList.toggle("def", precoDefinido(it)); iPv.classList.toggle("sug", !precoDefinido(it));
-  iPv.title = it.pv != null ? "preço definido por você (apague para voltar ao sugerido)" : it.mk != null ? "preço definido pelo markup que você digitou neste item" : "preço SUGERIDO pelo markup geral do topo — NÃO vai para o Gestão até você digitar o preço (ou aceitar os sugeridos)";
+  iPv.title = it.pv != null ? "preço definido por você (apague para voltar ao sugerido)" : it.mk != null ? "preço definido pelo markup que você digitou neste item" : (it.mkMem != null ? `preço SUGERIDO pelo markup da última nota deste fornecedor (${br(it.mkMem, 1)}%)` : "preço SUGERIDO pelo markup geral do topo") + " — NÃO vai para o Gestão até você digitar o preço";
   if (l2On()) {
     const dst = destino(), q2 = qLojas(it, k)[1], k2 = dst === "duas" ? calcL(it, 2) : null, bruto = dst === "div" ? q2Bruto(it) : q2, interno = !!it.ean && ehInterno(String(principalDe(it)).padStart(13, "0")), c2_ = codLoja(it, 2), p2 = cad2Info && it.ean && c2_ ? cad2Info.get(chave13(c2_)) || (interno ? null : cad2Info.get(chave13(it.ean))) : null, v2 = it.pv2 ?? k.venda;
     o("l2in").style.display = dst === "div" ? "" : "none";
@@ -1312,6 +1331,7 @@ function atualizarLinha(it) {
     const falta = !it.jg && !(it.e1 || it.e2) && faltas.length > 0;
     tr.classList.toggle("falta", falta); tr.classList.toggle("pok", !falta && !it.jg && precoDefinido(it) && k.venda > 0);
     tr.title = falta ? "falta: " + faltas.join(", ") : "";
+    tr.classList.toggle("env", !!(it.e1 || it.e2 || it.jg)); tr.classList.toggle("pdef", precoDefinido(it));
   }
   let h = "";
   if (!it.ean) h = `<span class="chip falta">sem EAN — vai como SEM GTIN</span> <a data-gi="1" style="cursor:pointer;color:#0b57d0" title="cria um código de barras da casa (faixa 040), com numeração única para as duas lojas. Antes era igual ao botão do Gestão (000000000 + número)">gerar código da casa</a>`;
@@ -1332,7 +1352,7 @@ function atualizarLinha(it) {
   if (it.val) h += ` <span class="chip novo">validade ${dataBr(it.val)}</span>`;
   if (it.ec != null) h += ` <span class="chip av">estoque acertado para ${br(it.ec, 0)} antes da entrada</span>`;
   if (it.mem) {
-    h += ` <span class="chip ok" title="divisor, código, categoria e preço repetidos da última nota deste fornecedor (${dataBr(it.mem.em)})">memória do fornecedor</span>`;
+    h += ` <span class="chip ok" title="divisor, código e categoria repetidos da última nota deste fornecedor (${dataBr(it.mem.em)}). O markup da última vez entra só como SUGESTÃO: o preço só vai ao Gestão se você digitar">memória do fornecedor</span>`;
     if (it.mem.cu > 0) { const dv = (k.custoUn / it.mem.cu - 1) * 100; if (Math.abs(dv) >= 1) h += ` <span class="chip ${dv > 0 ? "falta" : "ok"}">custo ${dv > 0 ? "subiu" : "caiu"} ${br(Math.abs(dv), 1)}% desde ${dataBr(it.mem.em)}</span>`; }
   }
   if (!it.ean && it.sug) h += `<div class="sug">parecido no cadastro (confira): <span class="mono">${it.sug.ean}</span> ${it.sug.desc} — <a data-u="1">usar</a></div>`;
@@ -1394,13 +1414,6 @@ async function gerarLoja2(it) {
     msg(`Código ${novo} criado para o item ${rot(it)} na Loja 2. No envio ele é cadastrado lá como produto novo, e fica guardado para as próximas notas.`);
   } finally { gerando2 = false; }
 }
-function aceitarSugeridos() {
-  const lista = itens.filter(i => !i.jg && !i.e1 && !i.e2 && !precoDefinido(i) && calc(i).venda > 0);
-  if (!lista.length) return msg("Nenhum item com preço só sugerido.");
-  if (!confirm(`${lista.length} item(ns) vão ficar com o preço sugerido como preço definido.\n\nConfirmar?`)) return;
-  for (const it of lista) { it.pv = r2(calc(it).venda); atualizarLinha(it); guardar(it); }
-  totais(); msg(`${lista.length} preço(s) definidos.`);
-}
 function usarAuxiliar(it, ePrincipal) {
   if (!it.ean) { it.ean = it.eanNota || ""; const i = document.querySelector(`#l${it.n} [data-c=ean]`); if (i) i.value = it.ean; }
   it.aux = ePrincipal; it.tocado = true;
@@ -1460,7 +1473,15 @@ function desenharDetalhe(it) {
   td.querySelector("[data-val]").addEventListener("change", ev => { it.val = ev.target.value || null; it.tocado = true; atualizarLinha(it); guardar(it); if (!db) { desenharValidades(); alertas(); } });
   td.querySelector("[data-copiar]").addEventListener("click", () => escolherItensParaCategoria(it));
 }
+// filtro da tabela de itens (enviados / falta enviar / com e sem preço digitado)
+function fltContar() {
+  const sel = document.getElementById("fIt"); if (!sel) return;
+  const env = i => !!(i.e1 || i.e2 || i.jg), n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !env(i) && !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length };
+  const rot = { "": "todos os itens", naoenv: "falta enviar ao Gestão", env: "já enviados", sempv: "sem preço digitado", compv: "com preço digitado" };
+  for (const o of sel.options) o.textContent = `${rot[o.value]} (${n[o.value]})`;
+}
 function totais() {
+  try { fltContar(); } catch (e) { }
   let custo = 0, difal = 0, semEan = 0, novos = 0, un = 0;
   for (const it of itens) { const k = calc(it); if (!(duasOn() && it.so2)) { custo += k.custoItem; difal += k.difal; un += k.qtdUn; } if (!it.ean || !gtinValido(it.ean)) semEan++; else if (cad && !it.aux && !buscaEan(it.ean)) novos++; }
   const base = cab.manual ? 0 : cab.vNF, ac = base ? (custo / base - 1) * 100 : 0;
@@ -1768,7 +1789,7 @@ function sqlEntrada(loja) {
 }
 
 // ---------- salvar / reabrir ----------
-const estado = () => ({ chave: cab.chave, manual: cab.manual ? cab.emit : null, gPct: gPct(), gMk: gMk(), itens: itens.map(i => ({ ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean, aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc, pct: i.pct, mk: i.mk, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada })), meta: metaLocal });
+const estado = () => ({ chave: cab.chave, manual: cab.manual ? cab.emit : null, gPct: gPct(), gMk: gMk(), itens: itens.map(i => ({ ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean, aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc, pct: i.pct, mk: i.mk, km: i.mkMem ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada })), meta: metaLocal });
 function guardar(it) {
   if (!db) { try { localStorage.setItem("entradaxml:" + cab.chave, JSON.stringify(estado())); } catch (e) {} return; }
   if (it) agendarItem(it); else agendarCfg();
@@ -1783,7 +1804,7 @@ function restaurar(s) {
 
 // ---------- trabalho compartilhado entre os PCs (página publicada) ----------
 const idItem = n => "i" + String(n).padStart(4, "0");
-const estadoItem = i => ({ bl: i.bl || null, ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean || "", aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc || "", pct: i.pct ?? null, mk: i.mk ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada, rq: i.rq ?? null, rf: i.rf ? 1 : 0 });
+const estadoItem = i => ({ bl: i.bl || null, ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean || "", aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc || "", pct: i.pct ?? null, mk: i.mk ?? null, km: i.mkMem ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada, rq: i.rq ?? null, rf: i.rf ? 1 : 0 });
 // fator dos boletos em meia nota: quanto o valor cheio (com os impostos da parte faturada) é maior que o valor da nota
 function fatorBoletos() {
   if (!cab || cab.manual || !itens.length) return 1;
@@ -1817,7 +1838,7 @@ function aplicarRemoto(g) {
   if (!it && cab.manual && g.m) { it = itemManual(g); Object.assign(it, { e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, an: g.an ? 1 : 0, div: g.div || 1, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, pct: g.pct ?? null, fd: g.fd || 1 }); itens.push(it); itens.sort((a, b) => a.n - b.n); clearTimeout(tDesenha); tDesenha = setTimeout(desenhar, 30); return; }
   if (!it || pend.has(it.n)) return;
   if (it.m) { it.xprod = g.xprod; it.qtd = g.qtd; it.vun = g.vun; it.vprod = r2(g.qtd * g.vun); it.vipi = g.vipi || 0; it.vst = g.vst || 0; }
-  Object.assign(it, { jg: g.jg ? 1 : 0, an: g.an ? 1 : 0, e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, div: g.div, ean: g.ean, aux: g.aux ?? null, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, ncm: g.ncm ?? it.ncm ?? "", cest: g.cest ?? it.cest ?? "", desc: g.desc, pct: g.pct, mk: g.mk, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null, fd: g.fd, tocado: g.tocado, descTocada: g.descTocada, rq: g.rq ?? null, rf: g.rf ? 1 : 0 });
+  Object.assign(it, { jg: g.jg ? 1 : 0, an: g.an ? 1 : 0, e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, div: g.div, ean: g.ean, aux: g.aux ?? null, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, ncm: g.ncm ?? it.ncm ?? "", cest: g.cest ?? it.cest ?? "", desc: g.desc, pct: g.pct, mk: g.mk, mkMem: g.km ?? null, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null, fd: g.fd, tocado: g.tocado, descTocada: g.descTocada, rq: g.rq ?? null, rf: g.rf ? 1 : 0 });
   const tr = document.getElementById("l" + it.n); if (!tr) return;
   for (const inp of tr.querySelectorAll("input")) if (inp !== document.activeElement) { const c = inp.dataset.c; if (c === "rev") { inp.checked = !!it.rev; continue; } inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? ""); }
   tr.classList.toggle("rev", !!it.rev);
@@ -1935,7 +1956,7 @@ async function salvarMeta(chave, patch) {
 }
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 // cada aba vira uma entrada no histórico do navegador (#hoje, #notas…): o botão Voltar volta para a aba anterior em vez de sair do site
-const ABAS_V = ["hoje", "separacao", "ml", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
+const ABAS_V = ["hoje", "separacao", "ml", "margem", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
 window.addEventListener("popstate", e => { const v = (e.state && e.state.v) || location.hash.slice(1) || "entrada"; if (ABAS_V.includes(v) && v !== vista) mostrar(v, true); });
 // abre um destino vindo de notificação: "separacao/<id do pedido>", "boletos"…
 function irDestino(h) {
@@ -1948,12 +1969,13 @@ function mostrar(v, semHist) {
   if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
   if (document.body.classList.contains("perfil-sep")) v = "separacao"; // funcionário da separação só vê esta tela
   vista = v;
-  for (const [id, nome] of [["vSeparacao", "separacao"], ["vMl", "ml"], ["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vSeparacao", "separacao"], ["vMl", "ml"], ["vMargem", "margem"], ["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
   { const b = document.querySelector('nav#abas .aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
   document.body.classList.remove("menu-aberto");
   if (v === "separacao") { sepCarregar(); return; }
   if (v === "ml") { mlDesenhar(); mlCarregar(); if (!ML2.resumo) mlResumo(); return; }
+  if (v === "margem") { mgIniciar(); return; }
   redesenharTudo();
   if (v === "vendas") { vdCarregar(); rvIniciar(); }
   if (v === "orcamentos") orDesenharLista();
@@ -2561,7 +2583,7 @@ async function enviarAoGestao(tipo, comPos) {
     if (faltas.length) return msg("Nenhum item pronto para enviar — " + faltas.slice(0, 4).join("; ") + (faltas.length > 4 ? `; e mais ${faltas.length - 4} item(ns)` : "") + ".");
   }
   const semPreco = itens.filter(i => !i.jg && !i.e1 && !i.e2 && i.ean && gtinValido(i.ean) && calc(i).venda > 0 && !precoDefinido(i)).length;
-  if (!q1 && !q2 && semPreco) return msg(`Nada enviado: ${semPreco} item(ns) estão com o preço de venda só SUGERIDO (cinza). Digite o preço de cada um, ou use "aceitar preços sugeridos" se a sugestão estiver boa.`);
+  if (!q1 && !q2 && semPreco) return msg(`Nada enviado: ${semPreco} item(ns) estão com o preço de venda só SUGERIDO (cinza). Digite o preço de cada um (o sugerido nunca vai ao Gestão).`);
   if (!q1 && !q2) return msg(tipo === "precos" ? "Nenhum item com EAN de unidade válido para subir preço." : "Nenhum item pronto: cada item precisa de código de barras válido, quantidade, custo e preço de venda.");
   if (semPreco && !confirm(`${semPreco} item(ns) estão com o preço de venda só SUGERIDO (cinza) e vão ficar DE FORA deste envio.\n\nEnviar só os itens com preço definido?`)) return;
   if (comPos) { await lerAgente(); for (const [l, q] of [[1, q1], [2, q2]]) if (q && !posPronto(l)) return msg(semPos(l)); }
@@ -3184,7 +3206,7 @@ function desenharRom() {
     ((r.obs || []).length ? `<div style="margin-top:6px"><b>Observações da leitura:</b><ul style="margin:4px 0 0 18px;padding:0">${r.obs.map(o => `<li>${escH(o)}</li>`).join("")}</ul></div>` : "");
 }
 document.getElementById("bRom").addEventListener("click", () => document.getElementById("fRom").click());
-document.getElementById("bAceitarSug").addEventListener("click", ev => { ev.preventDefault(); aceitarSugeridos(); });
+document.getElementById("fIt").addEventListener("change", ev => { for (const v of ["naoenv", "env", "sempv", "compv"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
 document.getElementById("fRom").addEventListener("change", async ev => {
   const fs = [...ev.target.files]; ev.target.value = "";
   try { await entradaPorRomaneio(fs); } catch (e) { msg("Não consegui ler o romaneio: " + (e.message || e)); }
@@ -3955,6 +3977,82 @@ function rvDesenhar() {
 function rvIniciar() { const g = id => document.getElementById(id); if (!g("rvBt")) return;
   g("rvBt").onclick = rvBuscar; g("rvQ").onkeydown = ev => { if (ev.key === "Enter") rvBuscar(); };
   g("rvModo").onchange = () => { const p = g("rvModo").value === "per"; g("rvDe").style.display = g("rvAte").style.display = p ? "" : "none"; }; }
+// ===== Margem das vendas online (menu E-commerce) =====
+// tarifa e frete de cada venda: tabela pedido_margem (ML pela API, Shopee pelo Bling). Custo: custo_produto() = digitado > kit (soma dos componentes) > Bling > Gestão.
+const MG = { aba: "produtos", R: null, ini: null, fim: null, rodando: false, ligado: false };
+const MG_FONTE = { manual: "digitado", kit: "kit", bling: "Bling", loja: "Gestão" };
+async function mgBuscar() {
+  const g = id => document.getElementById(id), [ini, fim] = rvPeriodo(g("mgModo").value, g("mgDe").value, g("mgAte").value), imp = parseFloat(g("mgImp").value) || 0;
+  try { localStorage.setItem("mg:imp", g("mgImp").value); } catch (e) { }
+  g("mgRes").innerHTML = `<div class="orig">Calculando…</div>`;
+  const { data, error } = await supa.rpc("rel_margem", { p_ini: ini, p_fim: fim, p_imposto: imp });
+  if (error) { g("mgRes").innerHTML = `<div style="color:#b42318">Não deu: ${escH(error.message)}</div>`; return; }
+  MG.R = data || {}; MG.ini = ini; MG.fim = fim; mgDesenhar();
+}
+async function mgAtualizar(silencioso) {
+  if (MG.rodando) return; MG.rodando = true; const st = document.getElementById("mgSt"); let novos = 0;
+  try {
+    for (let i = 0; i < 25; i++) {
+      const { data, error } = await supa.rpc("margem_atualizar"); if (error) throw error;
+      const c = data.custos || {}, p = data.pedidos || {}; novos += (c.buscados || 0) + (p.calculados || 0);
+      const falta = (c.faltam || 0) + (p.faltam || 0);
+      st.textContent = falta ? `buscando no ML/Bling… faltam ${falta}` : "";
+      if (!falta || !((c.buscados || 0) + (p.calculados || 0))) break;
+    }
+    st.textContent = novos ? `${novos} atualizado(s)` : silencioso ? "" : "nada novo";
+  } catch (e) { st.textContent = "não consegui atualizar: " + (e.message || e); }
+  finally { MG.rodando = false; }
+  if (novos) mgBuscar();
+}
+function mgDesenhar() {
+  const el = document.getElementById("mgRes"), R = MG.R; if (!R) return;
+  for (const b of document.querySelectorAll(".mg-aba")) b.classList.toggle("sec", b.dataset.a !== MG.aba);
+  const g = id => document.getElementById(id), canal = g("mgCanal").value, neg = g("mgNeg").checked, q = g("mgQ").value.trim().toLowerCase();
+  const rs = v => v == null ? "—" : "R$ " + br(Number(v)), pc = (a, b) => Number(b) ? br(Number(a) / Number(b) * 100, 1) + "%" : "—", dt = s => String(s || "").slice(0, 10).split("-").reverse().join("/");
+  const lc = v => v == null ? `<span class="chip av">sem custo</span>` : `<b style="color:${v < 0 ? "#b42318" : "#0a7a3b"}">${rs(v)}</b>`;
+  const okCanal = c => !canal || (canal === "Shopee" ? /shopee/i.test(c) : !/shopee/i.test(c));
+  const C = (R.canais || []).filter(c => okCanal(c.canal));
+  const cards = C.map(c => `<div class="painel" style="margin:0;padding:8px 12px;min-width:190px;flex:1">
+      <div class="orig" style="font-size:12px">${escH(c.canal)} · ${c.com_custo} de ${c.vendas} vendas com custo</div>
+      <div style="font-size:20px">${lc(c.lucro)} <span class="orig" style="font-size:13px">${pc(c.lucro, c.receita)}</span></div>
+      <div class="orig" style="font-size:12px">receita ${rs(c.receita)} · tarifa ${pc(c.tarifa, c.receita)} · frete ${pc(c.frete, c.receita)}${Number(c.imposto) ? ` · imposto ${pc(c.imposto, c.receita)}` : ""} · custo ${pc(c.custo, c.receita)}${c.prejuizo ? ` · <span style="color:#b42318">${c.prejuizo} no prejuízo</span>` : ""}</div></div>`).join("");
+  let corpo = "";
+  if (MG.aba === "produtos") {
+    const L = (R.produtos || []).filter(x => okCanal(x.canal) && (!neg || x.lucro == null || x.lucro < 0) && (!q || String(x.descricao || "").toLowerCase().includes(q)));
+    corpo = !L.length ? `<div class="orig">Nada nesse filtro.</div>` : `<div style="overflow:auto"><table><thead><tr><th>Produto</th><th class="n">Vendas</th><th class="n">Un.</th><th class="n">Receita</th><th class="n">Tarifa + frete</th><th class="n" title="custo unitário — clique para corrigir">Custo un.</th><th class="n">Lucro</th><th class="n">Margem</th></tr></thead><tbody>
+      ${L.map((x, i) => `<tr><td>${escH(x.descricao || "")}<div class="orig" style="font-size:11px"><span class="sep-canal ${/shopee/i.test(x.canal) ? "sh" : "ml"}">${escH(x.canal)}</span> ${x.fonte ? "custo: " + (MG_FONTE[x.fonte] || x.fonte) : ""}</div></td>
+        <td class="n">${x.vendas}</td><td class="n">${br(Number(x.qtd), 0)}</td><td class="n">${rs(x.receita)}</td><td class="n">${rs(Number(x.tarifa) + Number(x.frete))} <span class="orig">${pc(Number(x.tarifa) + Number(x.frete), x.receita)}</span></td>
+        <td class="n">${x.produto_id ? `<input data-mgc="${i}" inputmode="decimal" value="${x.custo_unit != null && !x.sem_custo ? br(Number(x.custo_unit)) : ""}" placeholder="custo" title="custo unitário deste anúncio (kit = custo do kit inteiro). Digite e saia do campo para gravar; apague para voltar ao automático" style="width:76px;text-align:right${x.fonte === "manual" ? ";background:#e6f6e6" : ""}">` : "—"}</td>
+        <td class="n">${lc(x.lucro)}</td><td class="n">${x.lucro == null ? "" : `<span class="chip ${x.lucro < 0 ? "falta" : x.lucro / x.receita < 0.15 ? "av" : "ok"}">${pc(x.lucro, x.receita)}</span>`}</td></tr>`).join("")}</tbody></table></div>`;
+    MG.L = L;
+  } else {
+    const L = (R.pedidos || []).filter(x => okCanal(x.canal) && (!neg || x.lucro == null || x.lucro < 0) && (!q || (String(x.itens || "") + " " + String(x.cliente || "") + " " + String(x.numero_loja || "")).toLowerCase().includes(q)));
+    corpo = !L.length ? `<div class="orig">Nada nesse filtro.</div>` : `<div style="overflow:auto"><table><thead><tr><th>Data</th><th>Venda</th><th class="n">Receita</th><th class="n">Tarifa</th><th class="n">Frete</th>${L.some(x => Number(x.imposto)) ? `<th class="n">Imposto</th>` : ""}<th class="n">Custo</th><th class="n">Lucro</th></tr></thead><tbody>
+      ${L.map(x => `<tr><td>${dt(x.data)}</td><td><span class="sep-canal ${/shopee/i.test(x.canal) ? "sh" : /full/i.test(x.canal) ? "full" : "ml"}">${escH(x.canal)}</span> <span class="mono">${escH(x.numero_loja || x.numero || "")}</span>${x.cliente ? ` · ${escH(x.cliente)}` : ""}<div class="orig" style="font-size:12px">${escH(x.itens || "")}</div></td>
+        <td class="n">${rs(x.receita)}</td><td class="n">${rs(x.tarifa)}</td><td class="n">${rs(x.frete)}</td>${L.some(y => Number(y.imposto)) ? `<td class="n">${rs(x.imposto)}</td>` : ""}<td class="n">${x.custo == null || !x.ok ? "—" : rs(x.custo)}</td><td class="n">${lc(x.ok ? x.lucro : null)}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+  el.innerHTML = `<div class="orig" style="margin-bottom:6px">${dt(MG.ini)} a ${dt(MG.fim)} · vendas canceladas não entram · a margem dos cartões só conta vendas com custo de todos os itens</div><div class="linha" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">${cards}</div>${corpo}
+    <div class="orig" style="font-size:12px;margin-top:8px">Custo: digitado aqui &gt; kit (soma dos componentes) &gt; preço de custo no Bling &gt; custo do Gestão da loja. Tarifa e frete de cada venda vêm do ML (tarifa de venda + custo do envio) e do Bling (comissão da Shopee); num pedido com vários itens eles são divididos pelo valor de cada item.</div>`;
+  for (const inp of el.querySelectorAll("input[data-mgc]")) inp.onchange = async () => {
+    const x = MG.L[Number(inp.dataset.mgc)], v = inp.value.trim() === "" ? 0 : parseFloat(inp.value.replace(/\./g, "").replace(",", "."));
+    if (!(v >= 0)) return msg("Custo inválido.");
+    const { error } = await supa.rpc("custo_online_definir", { p_pid: x.produto_id, p_custo: v });
+    if (error) return msg("Não gravou: " + error.message);
+    msg(v ? `Custo de ${x.descricao} gravado: R$ ${br(v)}` : `Custo de ${x.descricao} volta ao automático.`); mgBuscar();
+  };
+}
+function mgIniciar() {
+  const g = id => document.getElementById(id);
+  if (!MG.ligado) {
+    MG.ligado = true;
+    try { const v = localStorage.getItem("mg:imp"); if (v != null) g("mgImp").value = v; } catch (e) { }
+    g("mgBt").onclick = mgBuscar; g("mgAtu").onclick = ev => { ev.preventDefault(); mgAtualizar(false); };
+    g("mgModo").onchange = () => { const p = g("mgModo").value === "per"; g("mgDe").style.display = g("mgAte").style.display = p ? "" : "none"; if (!p) mgBuscar(); };
+    g("mgImp").onchange = mgBuscar; g("mgCanal").onchange = mgDesenhar; g("mgNeg").onchange = mgDesenhar; g("mgQ").oninput = mgDesenhar;
+    for (const b of document.querySelectorAll(".mg-aba")) b.onclick = () => { MG.aba = b.dataset.a; mgDesenhar(); };
+  }
+  mgBuscar(); mgAtualizar(true);
+}
 // ===== Mercado Livre (menu E-commerce): perguntas, reclamações, mensagens das vendas e anúncios =====
 // Tudo passa pela função "mercadolivre"; nada vai para o comprador sem o clique em Enviar.
 const ML2 = { aba: "perguntas", perguntas: null, reclamacoes: null, naolidas: null, conversa: null, anuncios: null, aq: "", ast: "active", aoff: 0, rascunho: {} };

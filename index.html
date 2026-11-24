@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="141">
+<meta name="versao" content="142">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3742,7 +3742,7 @@ function ckMontaLinhas(p) {
     else add(it, qi, null); }
   return [...m.values()];
 }
-function ckAbrir() {
+function ckAbrir(pid) {
   let cx = document.getElementById("ckTela"); if (cx) cx.remove();
   cx = document.createElement("div"); cx.id = "ckTela";
   cx.style.cssText = "position:fixed;inset:0;background:var(--bg,#f6f7f9);z-index:9000;overflow:auto;padding:12px";
@@ -3766,6 +3766,7 @@ function ckAbrir() {
   cx.addEventListener("click", ev => { if (!ev.target.closest("input, button, select, a, textarea")) foca(); });
   CK.ped = null; CK.linhas = []; ckDesenha(); foca();
   if (!(SEP.lista || []).length) sepCarregar();
+  const p0 = pid && (SEP.lista || []).find(x => x.id === pid); if (p0) ckAbrePedido(p0);
 }
 function ckAviso(txt, tipo) {
   const el = document.getElementById("ckMsg"); if (!el) return;
@@ -3787,6 +3788,13 @@ function ckLido(txt) {
   if (p) {
     if (CK.ped && p.id === CK.ped.id) return null; // etiqueta do pedido aberto lida de novo: ignora
     if (CK.ped && CK.linhas.some(l => l.lido) && CK.linhas.some(l => l.lido < l.qtd) && !confirm("O pedido aberto ainda não terminou. Trocar para o novo pedido? (o que foi bipado no atual é descartado)")) return null;
+    return ckAbrePedido(p);
+  }
+  ckSom("erro");
+  ckAviso(CK.ped ? `Não é deste pedido: ${txt}` : `Não achei pedido com ${txt}. Confira se ele já chegou do Bling (lista dos últimos 7 dias).`, "erro");
+  return CK.ped ? "NÃO É DESTE PEDIDO" : "pedido não encontrado";
+}
+function ckAbrePedido(p) {
     CK.ped = p; CK.linhas = ckMontaLinhas(p); ckSom("ped");
     const canc = p.ml_status === "cancelled", avisos = [];
     if (canc) avisos.push("CANCELADO — NÃO ENVIAR");
@@ -3795,10 +3803,6 @@ function ckLido(txt) {
     if (canc) ckSom("erro");
     ckAviso(avisos.length ? "Atenção: " + avisos.join(" · ") : `Pedido ${p.numero_loja || p.numero} — bipe os produtos`, avisos.length ? "erro" : "");
     ckDesenha(); return canc ? "CANCELADO" : "pedido " + (p.numero_loja || p.numero);
-  }
-  ckSom("erro");
-  ckAviso(CK.ped ? `Não é deste pedido: ${txt}` : `Não achei pedido com ${txt}. Confira se ele já chegou do Bling (lista dos últimos 7 dias).`, "erro");
-  return CK.ped ? "NÃO É DESTE PEDIDO" : "pedido não encontrado";
 }
 function ckTalvezFim() { if (CK.ped && CK.linhas.length && CK.linhas.every(l => l.lido >= l.qtd)) ckGravar(""); }
 async function ckGravar(falta) {
@@ -4007,7 +4011,7 @@ function sepDesenhar() {
         <button id="sepLoteEnv" ${SEP.sel.size ? "" : "disabled"}>Já foram enviados (${SEP.sel.size})</button>
         <button class="sec" id="sepLoteCanc" ${SEP.sel.size ? "" : "disabled"} title="cancelados no Mercado Livre/Shopee: só saem desta tela">Cancelados — tirar da lista (${SEP.sel.size})</button></div>${SEP.compacto ? "</details>" : "</div>"}`;
     const btSep = p => card(p, cancML(p) ? `<div class="linha" style="gap:12px;align-items:center;flex-wrap:wrap"><button class="sep-bt sec" data-canc="${p.id}">Cancelada no Mercado Livre — tirar da lista</button></div>`
-      : `<div class="sep-acoes"><button class="sep-bt" data-sep="${p.id}">✓ Separei</button>${botoesEnvio(p)}</div><div class="sep-mais"><a href="#" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a> · <a href="#" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
+      : `<div class="sep-acoes"><button class="sep-bt" data-ckabre="${p.id}" title="abre a conferência neste pedido: bipe os produtos">▣ Conferir</button>${botoesEnvio(p)}</div><div class="sep-mais"><a href="#" data-sep="${p.id}" title="marca como separado sem bipar (leitor quebrado, produto sem cadastro…)">separei sem conferir</a> · <a href="#" data-jaenv="${p.id}" title="o pacote já saiu antes: vai direto para despachado e vira Atendido no Bling">já tinha sido enviado</a> · <a href="#" data-canc="${p.id}" title="cancelado no marketplace: só sai desta tela, nada muda no Bling">foi cancelado</a></div>`, true);
     const grupos = []; // canceladas, atrasados, hoje, cada dia seguinte, sem data
     for (const p of vis) { const e = envio(p), k = cancML(p) ? "canc" : !e ? "sem" : e < hojeSP ? "atras" : e; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, l: [] }); g.l.push(p); }
     const ordem = g => g.k === "canc" ? "0" : g.k === "atras" ? "1" : g.k === "sem" ? "z" : "2" + g.k; grupos.sort((a, b) => ordem(a).localeCompare(ordem(b)));
@@ -4038,7 +4042,7 @@ function sepDesenhar() {
       : `<div class="painel"><b style="color:var(--ok)">Nada para separar${SEP.somaProx ? "" : " hoje"}.</b></div>`;
   }
   if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
-    aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""}${p.conferido_em ? ` · <b>${p.conferencia && p.conferencia.falta ? "conferido com falta: " + escH(p.conferencia.falta) : "conferido bipando"}</b>` : ""} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
+    aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""}${p.conferido_em ? ` · <b>${p.conferencia && p.conferencia.falta ? "conferido com falta: " + escH(p.conferencia.falta) : "conferido bipando"}</b>` : ` · <span style="color:#b54708">sem conferência</span>`} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
     : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
   if (SEP.aba === "desp") h += feitos.length ? `<div class="painel"><b>Despachados nos últimos 7 dias (${feitos.length})</b>` + feitos.map(p => `<div data-pid="${p.id}" style="border-top:1px solid var(--borda);padding:6px 0">${canal(p)} <span class="chip">${escH(LG[lg(p)])}</span> ${escH(p.cliente || "")} ${links(p)} <span class="orig">· ${(p.itens || []).map(i => br(i.quantidade, 0) + "× " + escH(i.descricao)).join(", ")}</span><div class="orig" style="font-size:12px">${p.devolvido_em ? "cancelado e devolvido à prateleira " + dh(p.devolvido_em) : `despachado ${dh(p.despachado_em)}${p.despachado_por ? " por " + escH(p.despachado_por) : ""} · ${p.atendido_bling_em ? '<span style="color:var(--ok)">Atendido no Bling ✓</span>' : p.atendido_erro ? `<span style="color:#b42318" title="${escH(p.atendido_erro)}">não virou Atendido no Bling (${escH(String(p.atendido_erro).slice(0, 80))})</span>` : "virando Atendido no Bling (até 2 min)"}`}${p.ml_status ? " · ML: " + escH(ML_ST[p.ml_status] || p.ml_status) : ""}</div></div>`).join("") + `</div>`
     : `<div class="painel"><span class="orig">Nenhum pedido despachado nos últimos 7 dias.</span></div>`;
@@ -4062,7 +4066,8 @@ function sepDesenhar() {
   const acao = async (id, a) => { const { error } = await supa.rpc("pedido_separar", { p_id: Number(id), p_acao: a }); if (error) return msg("Não deu: " + error.message); sepCarregar(); };
   for (const r of el.querySelectorAll("[data-abre]")) r.onclick = ev => { if (ev.target.closest("button, input, a, select")) return; SEP.abertos.add(Number(r.dataset.abre)); sepDesenhar(); };
   for (const a of el.querySelectorAll("[data-fecha]")) a.onclick = ev => { ev.preventDefault(); SEP.abertos.delete(Number(a.dataset.fecha)); sepDesenhar(); };
-  for (const b of el.querySelectorAll("[data-sep]")) b.onclick = () => { b.disabled = true; acao(b.dataset.sep, "separar"); };
+  for (const b of el.querySelectorAll("[data-sep]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Marcar como separado SEM conferir bipando?\n\nFica registrado que não houve conferência.")) acao(b.dataset.sep, "separar"); };
+  for (const b of el.querySelectorAll("[data-ckabre]")) b.onclick = () => ckAbrir(Number(b.dataset.ckabre));
   for (const b of el.querySelectorAll("[data-dev]")) b.onclick = () => { b.disabled = true; acao(b.dataset.dev, "devolvido"); };
   for (const b of el.querySelectorAll("[data-desf]")) b.onclick = ev => { ev.preventDefault(); if (confirm("Voltar este pedido para a lista de separar?")) acao(b.dataset.desf, "desfazer"); };
   for (const b of el.querySelectorAll("[data-desp]")) b.onclick = () => { b.disabled = true; acao(b.dataset.desp, "despachar"); };

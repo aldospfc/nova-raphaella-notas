@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="152">
+<meta name="versao" content="153">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -732,6 +732,14 @@
   <div id="sepLista"></div>
  </div>
  <div id="vVendas" style="display:none">
+  <div class="painel"><b>Vendas por produto</b> <span class="orig">— lojas físicas, Mercado Livre e Shopee juntos; deixe a busca vazia para ver os mais vendidos</span>
+   <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
+    <label class="c" style="flex:1;min-width:200px">Produto (nome ou código de barras)<input type="search" id="rvQ" placeholder="ex.: tekbond, caderno 10 matérias, 7898…" style="width:100%"></label>
+    <label class="c">Período<select id="rvModo"><option value="mes">Este mês</option><option value="mesant">Mês passado</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="ano">Este ano</option><option value="per">Escolher datas</option></select></label>
+    <input type="date" id="rvDe" style="display:none"><input type="date" id="rvAte" style="display:none">
+    <label class="c" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="rvComp"> comparar com o período anterior</label>
+    <button id="rvBt">Ver vendas</button></div>
+   <div id="rvRes" style="margin-top:8px"></div></div>
   <div class="painel linha" style="gap:8px;flex-wrap:wrap"><b>Vendas</b>
    <select id="vdLoja"><option value="0">As duas lojas</option><option value="1">Loja 1</option><option value="2">Loja 2</option></select>
    <select id="vdModo" title="período"><option value="dia">Um dia</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="mes">Este mês</option><option value="mesant">Mês passado</option><option value="ano">Este ano</option><option value="pers">Personalizado</option></select>
@@ -1947,7 +1955,7 @@ function mostrar(v, semHist) {
   if (v === "separacao") { sepCarregar(); return; }
   if (v === "ml") { mlDesenhar(); mlCarregar(); if (!ML2.resumo) mlResumo(); return; }
   redesenharTudo();
-  if (v === "vendas") vdCarregar();
+  if (v === "vendas") { vdCarregar(); rvIniciar(); }
   if (v === "orcamentos") orDesenharLista();
   if (v === "hoje") { hjDesenhar(); hjCarregar(); }
   if (v === "transf") tfDesenharLista();
@@ -3903,6 +3911,50 @@ function ckDesenha() {
   document.getElementById("ckLimpa").onclick = () => { for (const l of CK.linhas) { l.lido = 0; l.manual = 0; } ckDesenha(); };
   document.getElementById("ckFalta").onclick = () => { const r = prompt("O que faltou ou por que vai fechar assim? (fica registrado no pedido)"); if (r && r.trim()) ckGravar(r.trim()); };
 }
+// ===== Relatório de vendas por produto (sem IA): lojas físicas (cupons) + Mercado Livre e Shopee (pedidos online) =====
+const RV = { res: null };
+function rvPeriodo(modo, de, ate) {
+  const hoje = new Date(Date.now() - 3 * 3600e3), iso = d => d.toISOString().slice(0, 10), y = hoje.getUTCFullYear(), m = hoje.getUTCMonth();
+  if (modo === "mes") return [iso(new Date(Date.UTC(y, m, 1))), iso(hoje)];
+  if (modo === "mesant") return [iso(new Date(Date.UTC(y, m - 1, 1))), iso(new Date(Date.UTC(y, m, 0)))];
+  if (modo === "7" || modo === "30") return [iso(new Date(hoje - (Number(modo) - 1) * 864e5)), iso(hoje)];
+  if (modo === "ano") return [iso(new Date(Date.UTC(y, 0, 1))), iso(hoje)];
+  return [de || iso(hoje), ate || iso(hoje)];
+}
+// período anterior do mesmo tamanho (mês contra mês quando o período é um mês)
+function rvAnterior(ini, fim, modo) {
+  const d = s => new Date(s + "T00:00:00Z"), iso = x => x.toISOString().slice(0, 10);
+  if (modo === "mes") { const a = d(ini), f = d(fim); return [iso(new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth() - 1, 1))), iso(new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth() - 1, Math.min(f.getUTCDate(), new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), 0)).getUTCDate()))))]; }
+  if (modo === "mesant") { const a = d(ini); return [iso(new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth() - 1, 1))), iso(new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), 0)))]; }
+  const dias = Math.round((d(fim) - d(ini)) / 864e5) + 1; return [iso(new Date(d(ini) - dias * 864e5)), iso(new Date(d(ini) - 864e5))];
+}
+async function rvBuscar() {
+  const g = id => document.getElementById(id), modo = g("rvModo").value, q = g("rvQ").value.trim(), comp = g("rvComp").checked;
+  const [ini, fim] = rvPeriodo(modo, g("rvDe").value, g("rvAte").value), el = g("rvRes");
+  el.innerHTML = `<div class="orig">Calculando…</div>`;
+  const chama = (a, b) => supa.rpc("rel_vendas_produtos", { p_ini: a, p_fim: b, p_q: q, p_limite: q ? 300 : 100 });
+  const [r, r2] = await Promise.all([chama(ini, fim), comp ? chama(...rvAnterior(ini, fim, modo)) : Promise.resolve(null)]);
+  if (r.error) { el.innerHTML = `<div style="color:#b42318">Não deu: ${escH(r.error.message)}</div>`; return; }
+  RV.res = { L: r.data || [], ant: r2 && !r2.error ? new Map((r2.data || []).map(x => [x.chave, x])) : null, ini, fim, antP: comp ? rvAnterior(ini, fim, modo) : null, q };
+  rvDesenhar();
+}
+function rvDesenhar() {
+  const el = document.getElementById("rvRes"), R = RV.res; if (!R) return;
+  const n = v => v == null ? "" : br(Number(v), Number(v) % 1 ? 2 : 0), rs = v => v == null ? "" : "R$ " + br(Number(v));
+  const dt = s => s.split("-").reverse().join("/"), sum = k => R.L.reduce((s, x) => s + (Number(x[k]) || 0), 0);
+  const delta = (x) => { if (!R.ant) return ""; const a = R.ant.get(x.chave), va = a ? Number(a.tot_qtd) || 0 : 0, vb = Number(x.tot_qtd) || 0;
+    if (!va) return `<span class="sobe" title="não vendeu no período anterior">novo</span>`; const p = (vb / va - 1) * 100; return `<span class="${p >= 0 ? "sobe" : "cai"}" title="antes: ${n(va)} un.">${p >= 0 ? "+" : ""}${br(p, 0)}%</span>`; };
+  if (!R.L.length) { el.innerHTML = `<div class="orig">Nenhuma venda encontrada de ${dt(R.ini)} a ${dt(R.fim)}${R.q ? ` para "${escH(R.q)}"` : ""}.</div>`; return; }
+  el.innerHTML = `<div class="orig" style="margin:6px 0">${R.q ? `"${escH(R.q)}"` : "Mais vendidos"} · ${dt(R.ini)} a ${dt(R.fim)}${R.antP ? ` · comparado com ${dt(R.antP[0])} a ${dt(R.antP[1])}` : ""} · online (ML/Shopee) conta desde 10/11/2026</div>
+    <div class="linha" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">${[["l1", "Loja 1"], ["l2", "Loja 2"], ["ml", "Mercado Livre"], ["sh", "Shopee"]].map(([k, t]) => `<div class="painel" style="margin:0;padding:6px 10px;min-width:110px"><div class="orig" style="font-size:12px">${t}</div><b>${n(sum(k + "_qtd"))} un.</b><div class="orig" style="font-size:12px">${rs(sum(k + "_val"))}</div></div>`).join("")}
+      <div class="painel" style="margin:0;padding:6px 10px;min-width:110px;background:#eef3fb"><div class="orig" style="font-size:12px">Total</div><b>${n(sum("tot_qtd"))} un.</b><div class="orig" style="font-size:12px">${rs(sum("tot_val"))}</div></div></div>
+    <div style="overflow:auto"><table><thead><tr><th>Produto</th><th class="n">Loja 1</th><th class="n">Loja 2</th><th class="n">ML</th><th class="n">Shopee</th><th class="n">Total</th><th class="n">Valor</th>${R.ant ? `<th class="n">vs. antes</th>` : ""}</tr></thead><tbody>
+    ${R.L.map(x => `<tr><td>${escH(x.descricao || "")}<div class="orig mono" style="font-size:11px">${escH(String(x.chave || "").replace(/^cod:/, "SKU "))}</div></td><td class="n">${n(x.l1_qtd)}</td><td class="n">${n(x.l2_qtd)}</td><td class="n">${n(x.ml_qtd)}</td><td class="n">${n(x.sh_qtd)}</td><td class="n"><b>${n(x.tot_qtd)}</b></td><td class="n">${rs(x.tot_val)}</td>${R.ant ? `<td class="n">${delta(x)}</td>` : ""}</tr>`).join("")}</tbody></table></div>
+    <div class="orig" style="font-size:12px;margin-top:6px">Kits do online aparecem como o kit vendido (SKU do kit). Na loja física, cupom cancelado, item cancelado e reemissão de NFC-e não contam.</div>`;
+}
+function rvIniciar() { const g = id => document.getElementById(id); if (!g("rvBt")) return;
+  g("rvBt").onclick = rvBuscar; g("rvQ").onkeydown = ev => { if (ev.key === "Enter") rvBuscar(); };
+  g("rvModo").onchange = () => { const p = g("rvModo").value === "per"; g("rvDe").style.display = g("rvAte").style.display = p ? "" : "none"; }; }
 // ===== Mercado Livre (menu E-commerce): perguntas, reclamações, mensagens das vendas e anúncios =====
 // Tudo passa pela função "mercadolivre"; nada vai para o comprador sem o clique em Enviar.
 const ML2 = { aba: "perguntas", perguntas: null, reclamacoes: null, naolidas: null, conversa: null, anuncios: null, aq: "", ast: "active", aoff: 0, rascunho: {} };

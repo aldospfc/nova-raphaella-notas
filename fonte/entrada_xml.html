@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="139">
+<meta name="versao" content="140">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -419,6 +419,7 @@
   .sep-topo .t { flex: 1; min-width: 0; } .sep-topo .t > b { font-size: 18px; }
   .sep-status { font-size: 12px; color: #5b6576; margin-top: 2px; line-height: 1.35; } .sep-status a { color: var(--azul, #1b2d4b); }
   .sep-ok { color: #1b9e55; font-size: 11px; vertical-align: 1px; }
+  @media (max-width: 700px) { .sep-topo .t { flex: 1 1 100%; } .sep-topo #sepConferir { flex: 1 1 auto; height: 44px; } }
   .sep-ico { width: 44px; height: 44px; padding: 0; font-size: 20px; border-radius: 12px; flex: none; line-height: 1; }
   .sep-som { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; width: 100%; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--borda); }
   .sep-som[hidden] { display: none; }
@@ -3159,15 +3160,22 @@ function carregaZXing() { return new Promise((ok, ko) => { if (window.ZXing) ret
 async function lerCamera(aoLer, op = {}) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return msg("Este navegador não libera a câmera para o site. Abra pelo Chrome ou Safari do celular.");
   const cx = document.createElement("div");
-  cx.style.cssText = "position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center";
-  cx.innerHTML = `<video playsinline autoplay muted style="max-width:100%;max-height:78vh"></video><div style="color:#fff;margin:10px;text-align:center" id="camTxt">Aponte a câmera para o código de barras</div><button id="camX" style="font-size:16px;padding:8px 18px">Fechar</button>`;
-  document.body.appendChild(cx);
+  if (op.alvo) { // dentro de outra tela (conferência): faixa no alto, com a lista visível embaixo
+    cx.style.cssText = "background:#000;border-radius:10px;display:flex;flex-direction:column;align-items:center;padding:6px;margin-top:8px";
+    cx.innerHTML = `<video playsinline autoplay muted style="width:100%;max-height:30vh;object-fit:cover;border-radius:6px"></video><div style="display:flex;gap:8px;align-items:center;width:100%;margin-top:4px"><div style="color:#fff;flex:1;font-size:14px" id="camTxt">Aponte para o código de barras</div><button id="camX" class="sec" style="padding:4px 12px">Fechar câmera</button></div>`;
+    op.alvo.innerHTML = ""; op.alvo.appendChild(cx);
+  } else {
+    cx.style.cssText = "position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center";
+    cx.innerHTML = `<video playsinline autoplay muted style="max-width:100%;max-height:78vh"></video><div style="color:#fff;margin:10px;text-align:center" id="camTxt">Aponte a câmera para o código de barras</div><button id="camX" style="font-size:16px;padding:8px 18px">Fechar</button>`;
+    document.body.appendChild(cx);
+  }
   const video = cx.querySelector("video"); let stream = null, leitor = null, timer = null, fim = false;
-  const fechar = () => { fim = true; clearInterval(timer); try { if (leitor) leitor.reset(); } catch (e) {} try { if (stream) for (const t of stream.getTracks()) t.stop(); } catch (e) {} cx.remove(); };
+  const fechar = () => { fim = true; clearInterval(timer); try { if (leitor) leitor.reset(); } catch (e) {} try { if (stream) for (const t of stream.getTracks()) t.stop(); } catch (e) {} cx.remove(); if (op.aoFechar) op.aoFechar(); };
+  op.fechar = fechar;
   let ultimo = "", ultimoEm = 0;
   const achou = txt => {
     if (op.continuo) { // conferência: a câmera fica aberta e cada leitura vira uma linha de aviso
-      const c = String(txt || "").trim(); if (fim || c.length < 4) return; const ag = Date.now(); if (c === ultimo && ag - ultimoEm < 1500) return; ultimo = c; ultimoEm = ag;
+      const c = String(txt || "").trim(); if (fim || c.length < 4) return; const ag = Date.now(); const rep = c === ultimo && ag - ultimoEm < 1000; ultimoEm = ag; ultimo = c; if (rep) return;
       const r = aoLer(op.bruto ? c : c.replace(/\D/g, "")); if (r) cx.querySelector("#camTxt").textContent = r; return; }
     const c = String(txt || "").replace(/\D/g, ""); if (fim || c.length < 8) return; fechar(); try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {} aoLer(c); };
   cx.querySelector("#camX").onclick = fechar;
@@ -3737,14 +3745,19 @@ function ckAbrir() {
     <div class="linha" style="gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:18px;flex:1">Conferência de pedidos</b>
       <button class="sec" id="ckCam">📷 Câmera</button><button class="sec" id="ckFechar">Fechar</button></div>
     <input id="ckIn" type="text" autocomplete="off" placeholder="bipe a etiqueta de envio (ou digite o nº do pedido e Enter)" style="width:100%;font-size:18px;padding:12px;margin-top:10px;box-sizing:border-box">
+    <div id="ckCamBox"></div>
     <div id="ckMsg" style="margin-top:8px;padding:10px;border-radius:8px;font-size:16px;font-weight:bold;display:none"></div>
     <div id="ckCorpo" style="margin-top:10px"></div></div>`;
   document.body.appendChild(cx);
   const inp = cx.querySelector("#ckIn"), toque = matchMedia("(pointer: coarse)").matches;
   const foca = () => { if (!toque && document.getElementById("ckTela")) inp.focus(); };
   inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const v = inp.value.trim(); inp.value = ""; if (v) ckLido(v); } });
-  cx.querySelector("#ckFechar").onclick = () => { if (CK.ped && CK.linhas.some(l => l.lido < l.qtd) && CK.linhas.some(l => l.lido) && !confirm("Este pedido está pela metade. Fechar mesmo assim? (nada é gravado)")) return; CK.ped = null; cx.remove(); sepCarregar(); };
-  cx.querySelector("#ckCam").onclick = () => lerCamera(c => ckLido(c), { continuo: true, bruto: true });
+  const camBt = cx.querySelector("#ckCam");
+  cx.querySelector("#ckFechar").onclick = () => { if (CK.ped && CK.linhas.some(l => l.lido < l.qtd) && CK.linhas.some(l => l.lido) && !confirm("Este pedido está pela metade. Fechar mesmo assim? (nada é gravado)")) return; if (CK.cam && CK.cam.fechar) CK.cam.fechar(); CK.ped = null; cx.remove(); sepCarregar(); };
+  camBt.onclick = () => {
+    if (CK.cam && CK.cam.fechar) return CK.cam.fechar();
+    CK.cam = { continuo: true, bruto: true, alvo: cx.querySelector("#ckCamBox"), aoFechar: () => { CK.cam = null; camBt.textContent = "📷 Câmera"; } };
+    camBt.textContent = "📷 Desligar câmera"; lerCamera(c => ckLido(c), CK.cam); };
   cx.addEventListener("click", ev => { if (!ev.target.closest("input, button, select, a, textarea")) foca(); });
   CK.ped = null; CK.linhas = []; ckDesenha(); foca();
   if (!(SEP.lista || []).length) sepCarregar();
@@ -3756,7 +3769,6 @@ function ckAviso(txt, tipo) {
 }
 // recebe qualquer leitura (leitor ou câmera) e devolve um texto curto para a tela da câmera
 function ckLido(txt) {
-  const agora = Date.now(); if (txt === CK.ultimo && agora - CK.ultimoEm < 1200) return null; CK.ultimo = txt; CK.ultimoEm = agora;
   const t = ckNorm(txt), d = ckDig(txt);
   // é produto do pedido aberto?
   if (CK.ped) {
@@ -3768,7 +3780,7 @@ function ckLido(txt) {
   }
   const p = ckAchaPedido(txt);
   if (p) {
-    if (CK.ped && p.id === CK.ped.id) { ckAviso("Esse é o pedido que já está aberto.", ""); return "pedido já aberto"; }
+    if (CK.ped && p.id === CK.ped.id) return null; // etiqueta do pedido aberto lida de novo: ignora
     if (CK.ped && CK.linhas.some(l => l.lido) && CK.linhas.some(l => l.lido < l.qtd) && !confirm("O pedido aberto ainda não terminou. Trocar para o novo pedido? (o que foi bipado no atual é descartado)")) return null;
     CK.ped = p; CK.linhas = ckMontaLinhas(p); ckSom("ped");
     const canc = p.ml_status === "cancelled", avisos = [];

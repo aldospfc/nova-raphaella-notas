@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="165">
+<meta name="versao" content="166">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2042,7 +2042,8 @@ const sitNota = n => n.concluida ? ["c", "Concluída em " + dataBr(n.concluida),
 // ----- boletos -----
 function sitBoleto(b) {
   if (b.pago) return ["pago em " + dataBr(b.pago), "ok"];
-  const d = dias(b.venc); if (isNaN(d)) return ["sem vencimento", "av"];
+  const d = dias(b.venc); if (isNaN(d)) return [b.fp === "ent" ? "pagar na entrega" : "sem vencimento", "av"];
+  if (b.fp === "ent" && d >= 0) return [d === 0 ? "pagar na entrega (hoje)" : `pagar na entrega (${dataBr(b.venc)})`, d === 0 ? "falta" : "av"];
   if (d < 0) return [`vencido há ${-d} dia${d === -1 ? "" : "s"}`, "falta"];
   if (d === 0) return ["vence hoje", "falta"];
   if (d <= 7) return [`vence em ${d} dia${d === 1 ? "" : "s"}`, "av"];
@@ -2068,13 +2069,13 @@ function desenharBoletosNota() {
   // sem divisão item a item (nota já lançada, por exemplo), a parte da Loja 2 pode ser informada como um valor total e rateada pelos boletos
   const man = !r2_ && m && m.l2man > 0 && totalBol > 0 ? partesManualL2(m, bs, totalBol) : null, partes = r2_ ? r2_.partes : man;
   if (bs.length && (partes || bs.some(b => b.p2))) agendarPartesL2(cab.chave, partes);
-  p.innerHTML = `<a id="bolSeta" title="clique para esconder ou mostrar a lista de boletos" style="cursor:pointer;color:inherit;font-weight:bold;text-decoration:none">${document.body.classList.contains("semBol") ? "▸" : "▾"} Boletos desta nota</a> <span class="orig">${bs.length ? bs.length + " boleto" + (bs.length > 1 ? "s" : "") + " · total a pagar R$ " + br(bs.reduce((a, b) => a + aPagar(m, b), 0)) + (fbDe(m) > 1 ? ` — meia nota: os boletos da nota estão multiplicados por ${String(fbDe(m)).replace(".", ",")}` : "") : "nenhum boleto lançado"}</span>${r2_ ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><b>Loja 2 paga R$ ${br(r2_.total2)}</b> = R$ ${br(r2_.bol)} dos boletos (${br(r2_.fracao * 100, 1)}%${r2_.porNota ? ", calculado nota por nota" : ""})${r2_.difal2 ? ` + R$ ${br(r2_.difal2)} da parte dela no DIFAL` : ""} · Loja 1 fica com R$ ${br(r2(totalBol - r2_.total2))}${r2_.difal2 ? " dos boletos, já descontado o DIFAL que a Loja 2 devolve" : ""}</div>` : ""}${!r2_ && bs.length ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><label title="use quando a nota já foi lançada sem dividir item a item: informe quanto a Loja 2 deve nesta nota e o valor é rateado pelos boletos na proporção de cada um">Loja 2 me deve nesta nota R$ <input type="text" inputmode="decimal" data-k="l2man" value="${m.l2man > 0 ? br(m.l2man) : ""}" placeholder="0,00" style="width:90px;text-align:right"></label>${man ? ` <span class="orig">= ${br(m.l2man / totalBol * 100, 1)}% dos boletos · Loja 1 fica com R$ ${br(r2(totalBol - m.l2man))}</span>` : ` <span class="orig">(rateio pelos boletos)</span>`}</div>` : ""}<div id="lBol"></div><button class="sec" id="bAddBol" style="margin-top:6px">Adicionar boleto</button>`;
+  p.innerHTML = `<a id="bolSeta" title="clique para esconder ou mostrar a lista de boletos" style="cursor:pointer;color:inherit;font-weight:bold;text-decoration:none">${document.body.classList.contains("semBol") ? "▸" : "▾"} Pagamento desta nota (boletos ou à vista)</a> <span class="orig">${bs.length ? bs.length + " boleto" + (bs.length > 1 ? "s" : "") + " · total a pagar R$ " + br(bs.reduce((a, b) => a + aPagar(m, b), 0)) + (fbDe(m) > 1 ? ` — meia nota: os boletos da nota estão multiplicados por ${String(fbDe(m)).replace(".", ",")}` : "") : "nenhum boleto lançado"}</span>${r2_ ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><b>Loja 2 paga R$ ${br(r2_.total2)}</b> = R$ ${br(r2_.bol)} dos boletos (${br(r2_.fracao * 100, 1)}%${r2_.porNota ? ", calculado nota por nota" : ""})${r2_.difal2 ? ` + R$ ${br(r2_.difal2)} da parte dela no DIFAL` : ""} · Loja 1 fica com R$ ${br(r2(totalBol - r2_.total2))}${r2_.difal2 ? " dos boletos, já descontado o DIFAL que a Loja 2 devolve" : ""}</div>` : ""}${!r2_ && bs.length ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><label title="use quando a nota já foi lançada sem dividir item a item: informe quanto a Loja 2 deve nesta nota e o valor é rateado pelos boletos na proporção de cada um">Loja 2 me deve nesta nota R$ <input type="text" inputmode="decimal" data-k="l2man" value="${m.l2man > 0 ? br(m.l2man) : ""}" placeholder="0,00" style="width:90px;text-align:right"></label>${man ? ` <span class="orig">= ${br(m.l2man / totalBol * 100, 1)}% dos boletos · Loja 1 fica com R$ ${br(r2(totalBol - m.l2man))}</span>` : ` <span class="orig">(rateio pelos boletos)</span>`}</div>` : ""}<div id="lBol"></div><button class="sec" id="bAddBol" style="margin-top:6px">Adicionar boleto</button> <button class="sec" id="bAddAnt" style="margin-top:6px" title="pedido pago antes de chegar (Pix/transferência antecipada): entra já como pago, com a data de hoje">+ À vista antecipado</button> <button class="sec" id="bAddEnt" style="margin-top:6px" title="pedido que você paga quando a mercadoria chega: fica em aberto até você marcar como pago">+ À vista na entrega</button>`;
   { const im = p.querySelector("[data-k=l2man]"); if (im) im.addEventListener("change", ev => { const v = pnum(ev.target.value) || 0; if (v > totalBol + 0.005) { ev.target.value = m.l2man > 0 ? br(m.l2man) : ""; return msg("A parte da Loja 2 não pode passar do total dos boletos (R$ " + br(totalBol) + ")."); } salvarMeta(cab.chave, { l2man: v > 0 ? r2(v) : null }); }); }
   p.querySelector("#bolSeta").addEventListener("click", () => { const g = document.getElementById("gBol"); g.checked = !g.checked; g.dispatchEvent(new Event("change")); });
   const l = p.querySelector("#lBol");
   bs.forEach((b, i) => {
     const [txtS, cls] = sitBoleto(b), e = document.createElement("div"); e.className = "bol";
-    e.innerHTML = `<span style="min-width:70px">${h(b.n || i + 1)}</span><label>vencimento <input type="date" data-k="venc" value="${h(b.venc || "")}"></label><label>${b.nf ? "valor na nota" : "valor"} R$ <input type="text" inputmode="decimal" data-k="valor" value="${b.valor ? br(b.valor) : ""}" style="width:90px;text-align:right"></label>` +
+    e.innerHTML = `<span style="min-width:70px">${h(b.n || i + 1)}</span><label>${b.fp === "ant" ? "pago em" : b.fp === "ent" ? "entrega em" : "vencimento"} <input type="date" data-k="venc" value="${h(b.venc || "")}"></label><label>${b.nf ? "valor na nota" : "valor"} R$ <input type="text" inputmode="decimal" data-k="valor" value="${b.valor ? br(b.valor) : ""}" style="width:90px;text-align:right"></label>` +
       `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${partes && partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="${r2_ ? `parte da Loja ${lojaOutra()} neste boleto, já com a parte dela no DIFAL` : `parte da Loja ${lojaOutra()} neste boleto, rateada pelo valor informado acima`}">Loja ${lojaOutra()} me paga: R$ ${br(partes[i])} · Loja ${lojaPrinc()}: R$ ${br(r2(aPagar(m, b) - partes[i]))}</span><label title="marque quando a outra loja te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec ? " checked" : ""}> Loja 2 já me pagou</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
     e.querySelector("[data-k=venc]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { venc: ev.target.value }));
     e.querySelector("[data-k=valor]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { valor: pnum(ev.target.value) }));
@@ -2084,6 +2085,12 @@ function desenharBoletosNota() {
     l.appendChild(e);
   });
   p.querySelector("#bAddBol").addEventListener("click", () => mudarBoleto(cab.chave, bs.length, { n: String(bs.length + 1).padStart(3, "0"), venc: "", valor: 0, pago: null }));
+  { // à vista: valor = o que falta da nota (já com a meia nota); antecipado entra como pago, na entrega fica em aberto
+    const hojeIso = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+    const resto = () => Math.max(0, r2((cab.manual ? 0 : (cab.vNF || 0) * fbDe(m)) - totalBol));
+    p.querySelector("#bAddAnt").addEventListener("click", () => mudarBoleto(cab.chave, bs.length, { n: "À vista antecip.", fp: "ant", venc: hojeIso(), valor: resto(), pago: new Date().toISOString() }));
+    p.querySelector("#bAddEnt").addEventListener("click", () => mudarBoleto(cab.chave, bs.length, { n: "À vista entrega", fp: "ent", venc: hojeIso(), valor: resto(), pago: null }));
+  }
 }
 function todosBoletos() {
   const out = []; for (const n of fonteNotas()) (n.boletos || []).forEach((b, i) => out.push({ n, i, b }));

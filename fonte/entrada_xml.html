@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="163">
+<meta name="versao" content="164">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2445,6 +2445,8 @@ async function travaAbrir() {
 const AV_CHAVE = "BKqNL4-RrAz9Wb1c21NGmWPuWyDO9n6j0xKnvQKHZkcqOPJya0Njpor3RRscV0WHpWaYHwiHqeVSYq8dg8aD1Mg"; // chave pública (pode ficar no site)
 const AV_TIPOS = {
   venda_mkt: ["Vendas nos marketplaces", "cada venda nova no Mercado Livre, Shopee e demais canais, com o valor"],
+  envio: ["Prazos de envio", "pedido do ML a 4 h do limite de postagem (ou estourado) sem despacho, e despacho que o ML não confirmou 12 h depois"],
+  ml_atend: ["Atendimento do Mercado Livre", "reclamação nova e prazo de resposta (24 h antes), mensagem nova de comprador, pergunta sem resposta há mais de 12 h (das 8h às 22h) e anúncio que ficou sem estoque"],
   carga: ["Envios ao Gestão e aos caixas", "quando uma nota, preço ou ajuste for gravado no Gestão e nos caixas — ou der erro"],
   trava: ["Trava de segurança", "quando um envio ou promoção ficar segurado esperando a sua liberação"],
   boletos: ["Boletos", "às 8h e às 17h30: os que vencem hoje ou já venceram e ainda não estão marcados como pagos"],
@@ -2452,7 +2454,7 @@ const AV_TIPOS = {
 };
 const NTF = { reg: null, erroSw: "", instalar: null };
 // ---------- histórico de notificações (sino) ----------
-const AV_ICO = { venda_mkt: "🛒", carga: "📦", trava: "🔒", boletos: "💳", resumo: "📊", teste: "🧪" };
+const AV_ICO = { venda_mkt: "🛒", envio: "⏰", ml_atend: "💬", carga: "📦", trava: "🔒", boletos: "💳", resumo: "📊", teste: "🧪" };
 const AVH = { n: 0, ultimoId: (() => { try { return Number(localStorage.getItem("av:ult")) || 0; } catch (e) { return 0; } })(), t: null };
 const avGuardarUlt = id => { AVH.ultimoId = Math.max(AVH.ultimoId, id || 0); try { localStorage.setItem("av:ult", String(AVH.ultimoId)); } catch (e) { } };
 function avQuando(d) {

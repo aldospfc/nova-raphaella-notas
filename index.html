@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="171">
+<meta name="versao" content="172">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -513,6 +513,7 @@
   .stat-bar.error { background: #d92d20; } .stat-bar.warning { background: #d98a00; } .stat-bar.one { background: var(--loja1); }
   @media (max-width: 760px) { .stat-row { grid-template-columns: 1fr 1fr; gap: 8px; } .stat-tile strong { font-size: 22px; } }
   .sep-abas { background: #eceff3; border-radius: 9px; }
+  #vMl .sep-abas { display: flex; flex-wrap: wrap; }
   .sep-aba { border-radius: 6px; height: 36px; padding: 0 14px; } .sep-aba.on { color: var(--azul); }
   .sep-ped { border-radius: 10px; }
   @media (min-width: 1000px) {
@@ -524,6 +525,43 @@
     .sep-ped:not(.sep-min) > .sep-bt { grid-column: 2; grid-row: 1 / span 3; align-self: start; margin-top: 0; font-size: 14px; padding: 10px; border-radius: 8px; }
     .sep-it img, .sep-it .semfoto { width: 64px; height: 64px; }
   }
+  /* busca com chips e tabela (Mercado Livre › Anúncios, Fornecedores) */
+  .lv-busca { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 12px; }
+  .lv-sbox { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; background: #fff; border: 1px solid var(--borda); border-radius: 8px; flex: 1; min-width: 220px; color: var(--cinza); }
+  .lv-sbox:focus-within { outline: 2px solid var(--loja1); outline-offset: 1px; }
+  .lv-sbox svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
+  .lv-sbox input { flex: 1; min-width: 0; border: 0 !important; outline: 0; background: transparent; box-shadow: none !important; font-size: 14px; padding: 0; }
+  .lv-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .lv-chip { height: 32px; padding: 0 12px; border: 1px solid var(--borda); border-radius: 16px; background: #fff; font-weight: 700; font-size: 12px; color: var(--cinza); cursor: pointer; box-shadow: none; }
+  .lv-chip:hover { background: var(--muted); color: var(--texto); } .lv-chip.on { background: var(--azul); border-color: var(--azul); color: #fff; }
+  .lv-tab { border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; background: #fff; }
+  .lv-tab-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--borda); } .lv-tab-top strong { font-size: 12px; font-weight: 800; color: var(--azul); }
+  table.lv-dt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.lv-dt th { background: var(--muted); color: var(--cinza); font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--borda); text-align: left; white-space: nowrap; }
+  table.lv-dt td { padding: 10px 12px; border-bottom: 1px solid var(--borda); vertical-align: middle; } table.lv-dt tbody tr:last-child td { border-bottom: 0; } table.lv-dt tbody tr:hover td { background: #f1f7fa; }
+  table.lv-dt .n { text-align: right; white-space: nowrap; }
+  .lv-dt-tit { font-weight: 800; color: var(--azul); text-decoration: none; display: block; max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .lv-dt-tit:hover { color: var(--loja1); }
+  .lv-dt-sub { display: block; font-size: 11px; color: var(--cinza); margin-top: 2px; }
+  @media (max-width: 760px) { .lv-dt-tit { max-width: 46vw; white-space: normal; } table.lv-dt th:nth-child(2), table.lv-dt td:nth-child(2), table.lv-dt th:nth-child(5), table.lv-dt td:nth-child(5) { display: none; } table.lv-dt td, table.lv-dt th { padding: 8px; } }
+  /* Produtos no visual do protótipo: lista à esquerda, produto à direita, um painel por loja */
+  .pr-card.on { border-color: var(--loja1); box-shadow: inset 4px 0 var(--loja1); background: #f1f7fa; }
+  .pr-loja { border-top: 3px solid var(--loja1); background: #fff; margin-top: 10px; } .pr-loja.l2 { border-top-color: var(--loja2); } .pr-loja.vazia { background: var(--muted); }
+  .pr-loja input.pr-pv { font-size: 16px; font-weight: 800; height: 38px; }
+  .pr-loja .linha { align-items: flex-end; }
+  .pr-mg { padding: 2px 0; font-weight: 800; font-size: 20px; color: var(--ok); }
+  .pr-sub { background: #fff; margin-top: 10px; }
+  @media (min-width: 1100px) {
+    .pr-layout:has(#prEd:not([style*="none"])) { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .pr-layout:has(#prEd:not([style*="none"])) #prRes { order: -1; grid-template-columns: 1fr; gap: 0; margin-top: 0; background: #fff; border: 1px solid var(--borda); border-radius: 10px; overflow: hidden auto; position: sticky; top: 66px; max-height: calc(100vh - 86px); }
+    .pr-layout:has(#prEd:not([style*="none"])) #prRes .pr-card { border: 0; border-top: 1px solid var(--borda); border-radius: 0; padding: 10px 12px; gap: 5px; }
+    .pr-layout:has(#prEd:not([style*="none"])) #prRes .pr-card:first-child { border-top: 0; }
+    .pr-layout:has(#prEd:not([style*="none"])) #prRes .pr-card .nm { font-size: 13px; }
+    .pr-layout:has(#prEd:not([style*="none"])) #prRes .pr-card .pv { font-size: 14px; }
+    .pr-layout:has(#prEd:not([style*="none"])) #prRes .pr-card .lj > div { padding: 3px 7px; }
+    .pr-layout:has(#prEd:not([style*="none"])) #prRes .pr-card .lj .mini:not(:first-child) { display: none; }
+    .pr-layout #prEd > .painel { margin-top: 0; }
+  }
+  @media (min-width: 1500px) { .pr-lojas, .pr-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } }
   .pr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 10px; }
   .pr-card { background: #fff; border: 1px solid var(--borda, #dde3ea); border-radius: 12px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; }
   .pr-card:hover { border-color: #3A8DA6; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
@@ -817,10 +855,10 @@
  </div>
  <div id="vProdutos" style="display:none">
   <div class="painel"><b>Produtos das lojas</b> <span class="orig">— consultar e alterar preço, custo, estoque, nome e categoria no Gestão (Loja 1 e Loja 2)</span>
-   <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="nome do produto ou código de barras" style="flex:1;min-width:200px;font-size:16px;padding:6px"><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button></div>
+   <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="Nome, código ou EAN" style="flex:1;min-width:200px;font-size:16px;padding:6px;height:44px"><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button></div>
    <div id="prMsg" class="orig" style="margin-top:4px">Busca nas duas lojas. O cadastro mostrado aqui é a cópia da nuvem, atualizada a cada 5 minutos.</div></div>
-  <div id="prEd" style="display:none"></div>
-  <div id="prRes" class="pr-cards"></div>
+  <div class="pr-layout"><div id="prEd" style="display:none"></div>
+  <div id="prRes" class="pr-cards"></div></div>
   <details class="painel" id="prEcom" style="margin-top:14px"><summary style="cursor:pointer"><b>E-commerce (Bling)</b> <span class="orig">— ligação com o Bling e envio de produto avulso ao estoque unificado</span></summary>
   <div class="painel" id="blPainel" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>E-commerce (Bling)</b><span id="blSt" class="badge neutro">verificando…</span><span id="blInfo" class="orig" style="margin:0"></span><span style="margin-left:auto;display:flex;gap:8px"><button class="sec" id="blTestar">Testar</button><button id="blLigar">Ligar ao Bling</button></span></div>
   <div class="painel" id="avPainel"><b>Mandar produto avulso ao e-commerce</b> <span class="orig">— sem nota: o produto passa a ter estoque unificado (Bling = Gestão da Loja 1). Se não existir no Bling, é criado um cadastro básico.</span>
@@ -912,12 +950,13 @@
  </div>
  <div id="vCompras" style="display:none"><div class="painel"><b>Sugestão de compra</b> <span class="orig">— o que está acabando, pelo ritmo de venda do caixa e o estoque do cadastro; marque os itens e monte o pedido</span><div id="cpPainel" style="margin-top:8px"></div></div></div>
  <div id="vFornec" style="display:none">
+  <div id="foStats"></div>
   <div class="filtros">
     <label class="c">Procurar<input type="text" id="foQ" placeholder="nome, CNPJ ou cidade" style="width:280px" autocomplete="off"></label>
     <label class="c">UF<select id="foUf"><option value="">todas</option></select></label>
     <label class="c">Ordem<select id="foOrd"><option value="ult">última compra</option><option value="nome">nome</option><option value="total">total comprado</option></select></label>
     <button class="sec" id="foAtu" title="lê os XMLs novos que entraram no sistema (isso também acontece sozinho ao abrir esta aba)">Atualizar dos XMLs</button>
-    <div class="kpis" id="foKpis"></div>
+    <div class="kpis" id="foKpis" style="display:none"></div>
   </div>
   <div id="foLista"></div>
   <div class="orig" style="margin-top:8px">Os dados vêm do XML da nota mais recente de cada CNPJ (cada filial é um fornecedor). E-mail, contato e observações você preenche aqui e eles não são apagados quando chega nota nova.</div>
@@ -2936,7 +2975,7 @@ async function prBuscar() {
   const val = x => { const k = chave13(x.ean), vs = [...valDocs.values()].filter(v => v.ean && !v.baixa && chave13(v.ean) === k).map(v => v.val).sort(); return vs.length ? `<span class="chip novo" style="padding:0 4px">validade ${dataBr(vs[0])}${vs.length > 1 ? " +" + (vs.length - 1) : ""}</span>` : ""; };
   const loja = (p, l) => p ? `<div class="${l === 2 ? "l2" : ""}"><div class="mini">Loja ${l}${p.ativo === false ? ' · <span style="color:#b42318">inativo</span>' : ""}</div><div class="pv">R$ ${br(Number(p.preco_venda) || 0)}</div><div class="mini">estoque ${br(Number(p.estoque) || 0, 0)} · custo ${br(Number(p.preco_compra) || 0)}</div><div class="mini" data-hu="${l}"></div></div>`
     : `<div class="${l === 2 ? "l2" : ""}"><div class="mini">Loja ${l}</div><div class="mini" style="margin-top:6px">não tem</div></div>`;
-  res.innerHTML = lista.slice(0, 100).map((x, i) => `<div class="pr-card" data-i="${i}"><div class="nm">${escH((x[1] || x[2]).descricao)}</div><div class="mini mono">${escH(x.ean)} ${val(x)}</div><div class="lj">${loja(x[1], 1)}${loja(x[2], 2)}</div></div>`).join("");
+  res.innerHTML = lista.slice(0, 100).map((x, i) => `<div class="pr-card" data-i="${i}" data-ean="${escH(x.ean)}"><div class="nm">${escH((x[1] || x[2]).descricao)}</div><div class="mini mono">${escH(x.ean)} ${val(x)}</div><div class="lj">${loja(x[1], 1)}${loja(x[2], 2)}</div></div>`).join("");
   for (const c of res.querySelectorAll(".pr-card")) c.addEventListener("click", () => { prAbrir(lista[Number(c.dataset.i)]); document.getElementById("prEd").scrollIntoView({ behavior: "smooth", block: "start" }); });
   // última mudança de preço de cada produto (histórico)
   (async () => { const eans = [...new Set(lista.slice(0, 100).flatMap(x => [x.ean, chave13(x.ean), String(x.ean).replace(/^0+/, "")]))]; if (!eans.length) return;
@@ -2952,15 +2991,15 @@ async function prAbrir(g) {
   for (const l of [1, 2]) { PR.aux[l] = []; if (g[l]) { const a = await supa.from("auxiliares").select("ean_aux").eq("loja_id", l).eq("id_produto", g[l].id_gestao); PR.aux[l] = (a.data || []).map(x => x.ean_aux); } }
   const base = g[1] || g[2]; PR.descIni = base.descricao || ""; PR.ncmIni = String(base.ncm || "").replace(/\D/g, "");
   const difNome = g[1] && g[2] && prTxt(g[1].descricao) !== prTxt(g[2].descricao);
-  const bloco = l => { const p = g[l]; if (!p) return `<div class="painel" style="background:#f6f8fb"><b>Loja ${l}</b>: este código não está cadastrado nesta loja.</div>`;
+  const bloco = l => { const p = g[l]; if (!p) return `<div class="painel pr-loja l${l} vazia"><b>Loja ${l}</b>: este código não está cadastrado nesta loja.</div>`;
     const dep = L[l].D.filter(x => x[2] === p.grupo), ses = L[l].S.filter(x => x[2] === p.departamento);
-    return `<div class="painel" data-l="${l}" style="background:${l === 2 ? "#f3f0ff" : "#f6f8fb"}">
+    return `<div class="painel pr-loja l${l}" data-l="${l}">
       <label style="font-weight:bold"><input type="checkbox" data-f="gravar" checked style="width:18px;height:18px;vertical-align:middle"> Gravar na Loja ${l}</label> <span class="orig">cód. interno ${escH(p.codigo_interno || "")} · estoque hoje ${br(Number(p.estoque) || 0, 0)} · custo médio ${br(Number(p.custo_medio) || 0)}</span> <span data-f="st"></span>
       <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap">
         <label class="c">Custo (R$)<input class="p" type="text" inputmode="decimal" data-f="pc" value="${br(Number(p.preco_compra) || 0, 3)}" style="width:86px"></label>
-        <label class="c">Venda (R$)<input class="p" type="text" inputmode="decimal" data-f="pv" value="${br(Number(p.preco_venda) || 0)}" style="width:86px"></label>
+        <label class="c">Venda (R$)<input class="p pr-pv" type="text" inputmode="decimal" data-f="pv" value="${br(Number(p.preco_venda) || 0)}" style="width:96px"></label>
         <label class="c">Acrésc. % (markup)<input class="p" type="text" inputmode="decimal" data-f="mk" style="width:86px" title="acréscimo sobre o custo. Digite aqui e a venda é calculada; ou digite a venda e ele se ajusta"></label>
-        <label class="c">Margem s/ venda<span data-f="mg" style="padding:6px 0;font-weight:bold"></span></label>
+        <label class="c">Margem s/ venda<span data-f="mg" class="pr-mg"></span></label>
         <label class="c">Estoque novo<input class="p" type="text" inputmode="decimal" data-f="est" placeholder="não mexer" style="width:96px" title="acerto de contagem: em branco não mexe no estoque"></label>
         <label class="c" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-f="ativo" ${p.ativo === false ? "" : "checked"} style="width:18px;height:18px"> Ativo</label>
       </div>
@@ -2979,17 +3018,18 @@ async function prAbrir(g) {
       <label class="c">NCM<input class="p" type="text" inputmode="numeric" id="prNcm" maxlength="8" value="${escH(base.ncm || "")}" style="width:90px"></label>
       <label class="c">CEST<input class="p" type="text" inputmode="numeric" id="prCest" maxlength="7" placeholder="não mexer" style="width:90px" title="em branco não mexe no CEST do cadastro"></label>
     </div>${difNome ? `<div style="margin-top:4px;background:#fff8e1;border-radius:6px;padding:6px 8px">Na Loja 2 o nome hoje é: <b>${escH(g[2].descricao)}</b><br><label style="font-weight:bold"><input type="checkbox" id="prIgualar"> usar o nome acima também na Loja 2</label> <span class="orig">— corrija o nome no campo acima se precisar; marcado, ele é gravado nas lojas que você escolher abaixo</span></div>` : ""}
-    ${bloco(1)}${bloco(2)}
+    <div class="pr-lojas">${bloco(1)}${bloco(2)}</div>
     <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><button id="prGravarPos" title="grava no Gestão e manda preço, custo e nome direto para os caixas da loja, sem a Carga Completa">Gravar no Gestão e enviar ao POS</button><span id="prAviso" class="orig"></span></div>
-    <div class="painel" style="background:#eef3fb;margin-top:10px"><b>Histórico de preços</b> <span class="orig">— custo e venda nas duas lojas; mudanças feitas no Gestão aparecem em até 5 minutos</span><div id="prHist" style="margin-top:6px">carregando…</div></div>
-    <div class="painel" style="background:#fff8e1;margin-top:10px"><b>Validades deste produto</b> <span class="orig">— controle do nosso sistema (abas Validades e Avisos); salva na hora, não depende do botão acima</span>
+    <div class="pr-split"><div class="painel pr-sub"><b>Histórico de preços</b> <span class="orig">— custo e venda nas duas lojas; mudanças feitas no Gestão aparecem em até 5 minutos</span><div id="prHist" style="margin-top:6px">carregando…</div></div>
+    <div class="painel pr-sub"><b>Validades deste produto</b> <span class="orig">— controle do nosso sistema (abas Validades e Avisos); salva na hora, não depende do botão acima</span>
       <div id="prVal" style="margin-top:6px"></div>
       <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <label class="c">Nova validade<input type="date" id="prValData"></label>
         <label class="c">Quantidade<input type="number" id="prValQtd" min="0" step="1" style="width:80px"></label>
         <label class="c">Loja<select id="prValLoja">${g[1] ? "<option>Loja 1</option>" : ""}${g[2] ? "<option>Loja 2</option>" : ""}</select></label>
         <button id="prValOk">Lançar validade</button>
-      </div></div></div>`;
+      </div></div></div></div>`;
+  for (const c of document.querySelectorAll("#prRes .pr-card")) c.classList.toggle("on", c.dataset.ean === String(g.ean));
   histPrecos(base.ean).then(h => { const d = ed.querySelector("#prHist"); if (d) d.innerHTML = histHtml(h); });
   prValidades();
   ed.querySelector("#prValOk").onclick = () => {
@@ -4350,16 +4390,19 @@ function mlDesenhar() {
   if (ML2.aba === "qualidade") h += mlQualHtml();
   if (ML2.aba === "anuncios" && ML2.ed) h += mlEdHtml();
   if (ML2.aba === "anuncios" && !ML2.ed) { const A = ML2.anuncios;
-    h += `<div class="painel"><div class="linha" style="gap:8px;align-items:flex-end;flex-wrap:wrap"><label class="c" style="flex:1;min-width:200px">Buscar anúncio<input type="search" id="mlAq" value="${escH(ML2.aq)}" placeholder="ex.: tekbond, caderno…" style="width:100%"></label>
-      <label class="c">Situação<select id="mlAst">${[["active", "ativos"], ["paused", "pausados"], ["closed", "finalizados"], ["", "todos"]].map(([k, t]) => `<option value="${k}" ${ML2.ast === k ? "selected" : ""}>${t}</option>`).join("")}</select></label><button id="mlAbt">Buscar</button></div></div>`;
-    h += est(A) || (!A ? "" : `<div class="orig" style="margin:6px 2px">${A.total} anúncio(s)${A.total > 50 ? ` · mostrando ${ML2.aoff + 1}–${Math.min(ML2.aoff + 50, A.total)}` : ""}</div>` + (A.itens || []).map(i => `<div class="painel" style="margin-top:6px;padding:8px 10px;display:flex;gap:10px;align-items:center">
-      ${i.thumbnail ? `<img src="${escH(i.thumbnail.replace(/^http:/, "https:"))}" style="width:48px;height:48px;object-fit:contain;border-radius:6px;background:#fff" loading="lazy">` : ""}
-      <div style="flex:1;min-width:0"><a href="${escH(i.permalink || "#")}" target="_blank" rel="noopener" style="font-weight:600">${escH(i.title || i.id)}</a><div class="orig" style="font-size:12px">${escH(i.id)}${i.seller_custom_field ? " · SKU " + escH(i.seller_custom_field) : ""} · ${i.listing_type_id === "gold_pro" ? "Premium" : i.listing_type_id === "gold_special" ? "Clássico" : escH(i.listing_type_id || "")}${i.status !== "active" ? " · " + escH(i.status) : ""}</div></div>
-      <div style="text-align:right;min-width:90px"><b>${mlBrl(i.price)}</b><div class="orig" style="font-size:12px">estoque ${i.available_quantity ?? "?"} · ${i.sold_quantity ?? 0} vendidos</div></div><button class="sec" data-mled="${escH(i.id)}">Editar</button></div>`).join("")
+    h += `<div class="lv-busca"><div class="lv-sbox"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="mlAq" value="${escH(ML2.aq)}" placeholder="Buscar por nome, SKU ou código MLB"></div>
+      <select id="mlAst" style="display:none">${[["active", "ativos"], ["paused", "pausados"], ["closed", "finalizados"], ["", "todos"]].map(([k, t]) => `<option value="${k}" ${ML2.ast === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+      <div class="lv-chips">${[["active", "Ativos"], ["paused", "Pausados"], ["closed", "Finalizados"], ["", "Todos"]].map(([k, t]) => `<button type="button" class="lv-chip${ML2.ast === k ? " on" : ""}" data-mlast="${k}">${t}</button>`).join("")}</div><button id="mlAbt">Buscar</button></div>`;
+    h += est(A) || (!A ? "" : `<div class="lv-tab"><div class="lv-tab-top"><strong>${A.total} anúncio(s)${A.total > 50 ? ` · mostrando ${ML2.aoff + 1}–${Math.min(ML2.aoff + 50, A.total)}` : ""}</strong><span class="orig" style="font-size:11px">estoque baixo em destaque</span></div><div style="overflow:auto"><table class="lv-dt"><thead><tr><th>Anúncio</th><th>Tipo</th><th class="n">Preço</th><th class="n">Estoque</th><th class="n">Vendidos</th><th></th></tr></thead><tbody>` + (A.itens || []).map(i => { const eq = i.available_quantity, tp = i.listing_type_id === "gold_pro" ? "Premium" : i.listing_type_id === "gold_special" ? "Clássico" : (i.listing_type_id || "");
+      return `<tr><td><div style="display:flex;align-items:center;gap:10px;min-width:0">${i.thumbnail ? `<img src="${escH(i.thumbnail.replace(/^http:/, "https:"))}" style="width:40px;height:40px;object-fit:contain;border-radius:7px;background:#fff;border:1px solid var(--borda);flex:none" loading="lazy">` : `<span style="width:40px;height:40px;border-radius:7px;background:var(--muted);flex:none"></span>`}
+        <div style="min-width:0"><a href="${escH(i.permalink || "#")}" target="_blank" rel="noopener" class="lv-dt-tit" title="abrir no Mercado Livre">${escH(i.title || i.id)}</a><span class="lv-dt-sub">${escH(i.id)}${i.seller_custom_field ? " · SKU " + escH(i.seller_custom_field) : ""}${i.status !== "active" ? " · " + escH(i.status === "paused" ? "pausado" : i.status === "closed" ? "finalizado" : i.status) : ""}</span></div></div></td>
+        <td><span class="chip ${tp === "Premium" ? "novo" : ""}" style="${tp === "Premium" ? "" : "background:var(--muted);color:var(--cinza)"}">${escH(tp)}</span></td><td class="n"><b>${mlBrl(i.price)}</b></td>
+        <td class="n">${eq != null && eq <= 5 ? `<span class="chip ${eq === 0 ? "falta" : "av"}">⚠ ${eq}</span>` : (eq ?? "?")}</td><td class="n">${i.sold_quantity ?? 0}</td><td class="n"><button class="sec" data-mled="${escH(i.id)}">Editar</button></td></tr>`; }).join("") + `</tbody></table></div></div>`
       + (A.total > 50 ? `<div class="linha" style="gap:8px;margin-top:8px;justify-content:center">${ML2.aoff > 0 ? `<button class="sec" id="mlAprev">← anteriores</button>` : ""}${ML2.aoff + 50 < A.total ? `<button class="sec" id="mlAnext">próximos →</button>` : ""}</div>` : "")); }
   el.innerHTML = h;
   for (const b of el.querySelectorAll("[data-mla]")) b.onclick = () => { ML2.aba = b.dataset.mla; ML2.ed = null; mlDesenhar(); mlCarregar(); };
   for (const b of el.querySelectorAll("[data-mled]")) b.onclick = () => mlEdAbrir(b.dataset.mled);
+  for (const b of el.querySelectorAll("[data-mlast]")) b.onclick = () => { const sl = document.getElementById("mlAst"); if (!sl) return; sl.value = b.dataset.mlast; if (sl.onchange) sl.onchange(); };
   if (ML2.ed) mlEdLigar(el);
   if (ML2.aba === "promocoes") mlPromosLigar(el);
   if (ML2.aba === "qualidade") mlQualLigar(el);
@@ -6421,6 +6464,9 @@ function foDesenhar() {
   let l = FO.lista.filter(f => (!uf || f.uf === uf) && (!q || semAcento([f.razao, f.fantasia, f.municipio, f.contato].join(" ").toLowerCase()).includes(q) || (qd.length >= 3 && String(f.cnpj).includes(qd))));
   l.sort((x, y) => ord === "nome" ? String(x.razao).localeCompare(String(y.razao)) : ord === "total" ? (Number(y.total_comprado) - Number(x.total_comprado)) : String(y.ultima_nota || "").localeCompare(String(x.ultima_nota || "")));
   const tot = FO.lista.reduce((s_, f) => s_ + Number(f.total_comprado || 0), 0);
+  { const d90 = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10), n90 = FO.notas.filter(n => String(n.emissao || "") >= d90), parados = FO.lista.filter(f => f.ultima_nota && String(f.ultima_nota).slice(0, 10) < d90).length;
+    document.getElementById("foStats").innerHTML = `<div class="stat-row">${[["Fornecedores", FO.lista.length, "one"], ["Compras em 90 dias", orBrl(n90.reduce((a, n) => a + Number(n.vnf || 0), 0)), ""], ["Notas em 90 dias", n90.length, "warning"], ["Sem compra há 90 dias", parados, "error"]]
+      .map(([l, v, c]) => `<div class="stat-tile"><span class="stat-bar ${c}"></span><span class="eyebrow">${l}</span><strong>${v}</strong></div>`).join("")}</div>`; }
   document.getElementById("foKpis").innerHTML = `<div class="kpi"><small>Fornecedores</small><b>${FO.lista.length}</b></div><div class="kpi"><small>Notas lidas</small><b>${FO.notas.length}</b></div><div class="kpi"><small>Total em notas</small><b>${orBrl(tot)}</b></div>`;
   if (!l.length) { el.innerHTML = `<div class="painel orig">${FO.lista.length ? "Nenhum fornecedor com esse filtro." : "Nenhum fornecedor ainda: eles aparecem aqui conforme as notas (XML) entram no sistema."}</div>`; return; }
   el.innerHTML = `<div class="rolagem" style="max-height:none"><table class="tab-dados fo-tab"><thead><tr><th>Fornecedor</th><th>CNPJ</th><th>IE</th><th>Cidade/UF</th><th>Telefone</th><th class="n">Notas</th><th class="n">Total comprado</th><th>Última nota</th></tr></thead><tbody>` +

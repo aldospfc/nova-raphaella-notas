@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="190">
+<meta name="versao" content="191">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -22,7 +22,13 @@
   * { box-sizing: border-box; }
   body { font-family: Nunito, Arial, Helvetica, sans-serif; font-size: 13px; margin: 0; color: var(--texto); background: var(--fundo); -webkit-font-smoothing: antialiased; }
   header { position: sticky; top: 0; z-index: 35; height: 52px; background: #fff; color: var(--texto); border-bottom: 1px solid var(--borda); padding: 0 20px 0 12px; display: flex; gap: 12px; align-items: center; }
-  header h1 { font-size: 15px; margin: 0; font-weight: 800; color: var(--azul); white-space: nowrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 800; color: var(--azul); white-space: nowrap; display: flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; overflow: hidden; }
+  header h1 .cam-p { overflow: hidden; text-overflow: ellipsis; min-width: 0; } header h1 .cam-sec { color: var(--cinza); font-weight: 700; flex: none; } header h1 .cam-sep { color: var(--cinza); font-weight: 400; flex: none; }
+  header h1 a.cam-p { cursor: pointer; color: #0b57d0; text-decoration: none; flex: none; } header h1 a.cam-p:hover { text-decoration: underline; }
+  header h1 .cam-fim { flex: 0 1 auto; max-width: 46vw; }
+  header h1 a.cam-volta { cursor: pointer; flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--borda); display: grid; place-items: center; font-size: 20px; line-height: 1; color: var(--azul); text-decoration: none; background: #fff; }
+  header h1 a.cam-volta:hover { background: var(--muted, #eef0f3); }
+  @media (max-width: 760px) { header h1 .cam-sec, header h1 .cam-sec + .cam-sep { display: none; } header h1 .cam-fim { max-width: 38vw; } }
   header .hver { font-size: 10px; border: 1px solid var(--borda); border-radius: 4px; padding: 1px 5px; color: var(--cinza); white-space: nowrap; }
   main { padding: 20px 24px 60px; }
   .painel { background: #fff; border: 1px solid var(--borda); border-radius: 7px; padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--sombra); }
@@ -2351,6 +2357,44 @@ function funcLoja() { const l = window.__loja; if (!l) return;
   { const e = document.getElementById("fValLoja"); if (e) { e.value = String(l); e.disabled = true; } } }
 function tProd() { return ehFunc() ? "produtos_func" : "produtos"; }
 function tAux() { return ehFunc() ? "auxiliares_func" : "auxiliares"; }
+// ---------- caminho no topo (como a barra de endereço do explorador de arquivos): Seção › Tela › o que está aberto ----------
+// Cada trecho antes do último é um link: clicar volta para aquele nível (fecha a nota, o produto, o anúncio… sem recarregar a página).
+async function fecharNotaAberta() {
+  if (!cab) return;
+  const chave = cab.chave;
+  if (db) { const ps = []; for (const [n, p] of pend) if (p.timer) { clearTimeout(p.timer); const it = itens.find(x => x.n === n); if (it) ps.push(gravarItem(it, chave)); } try { await Promise.all(ps); } catch (e) { } } // grava o que ainda estava na fila
+  if (unsubItens) unsubItens(); if (unsubNota) unsubNota(); unsubItens = unsubNota = null; pend.clear();
+  cab = null; itens = []; xmlTexto = ""; doc = null; NT.mostrar = null; abertos.clear();
+  document.getElementById("app").style.display = "none"; { const b = document.getElementById("busca"); if (b) b.style.display = "none"; }
+  try { msg(""); redesenharTudo(); lvRodape(); } catch (e) { }
+  caminhoDesenhar(); window.scrollTo({ top: 0 });
+}
+function caminhoPartes() {
+  const v = vista, bt = document.querySelector('nav#abas .aba[data-v="' + (v === "etiquetas" ? "produtos" : v) + '"]');
+  const nome = bt ? bt.querySelector("span").textContent : "Nova Raphaella", ps = [];
+  if (bt && !ehFunc()) { let e = bt.previousElementSibling; while (e && !e.classList.contains("nav-label")) e = e.previousElementSibling; if (e) ps.push({ t: e.textContent, sec: 1 }); }
+  const raiz = { t: nome }; ps.push(raiz);
+  try {
+    if (v === "entrada" && cab) { raiz.f = fecharNotaAberta; raiz.dica = "voltar para a escolha da nota"; ps.push({ t: (cab.emit || "entrada") + (cab.manual ? "" : " · NF " + cab.nnf) }); }
+    else if (v === "etiquetas") { raiz.f = () => mostrar("produtos"); ps.push({ t: "Etiquetas" }); }
+    else if (v === "produtos") { const ed = document.getElementById("prEd"); if (PR.grupo && ed && ed.style.display !== "none" && ed.innerHTML && !ehFunc()) { raiz.f = () => { ed.style.display = "none"; PR.grupo = null; caminhoDesenhar(); }; raiz.dica = "fechar o produto e voltar para a busca"; const g = PR.grupo, b = g[1] || g[2] || {}; ps.push({ t: b.descricao || g.ean || "produto" }); } }
+    else if (v === "ml") { const ab = { perguntas: "Perguntas", reclamacoes: "Reclamações", mensagens: "Mensagens das vendas", anuncios: "Anúncios", promocoes: "Promoções", qualidade: "Qualidade" }[ML2.aba] || "", fundo = ML2.ed ? (ML2.ed.titulo || "anúncio") : ML2.camp && ML2.aba === "promocoes" ? (ML2.camp.nome || "campanha") : ML2.conversa && ML2.aba === "mensagens" ? "conversa" : "";
+      if (ab) ps.push({ t: ab, f: fundo ? () => { ML2.ed = null; ML2.camp = null; ML2.conversa = null; mlDesenhar(); caminhoDesenhar(); } : null, dica: "voltar para a lista" }); if (fundo) ps.push({ t: fundo }); }
+    else if (v === "orcamentos" && OR.atual) { raiz.f = () => { orFechar(); caminhoDesenhar(); }; raiz.dica = "fechar o orçamento e voltar para a lista"; ps.push({ t: OR.atual.cliente || "orçamento" }); }
+    else if (v === "transf" && TF.atual) { raiz.f = () => { const b = document.getElementById("tfFecharB"); if (b) b.click(); caminhoDesenhar(); }; raiz.dica = "fechar a transferência e voltar para a lista"; ps.push({ t: `Loja ${TF.atual.origem || 1} → Loja ${TF.atual.destino || 2}` }); }
+    else if (v === "fornec" && FO.aberto) { const f = (FO.lista || []).find(x => x.cnpj === FO.aberto); raiz.f = () => { FO.aberto = null; foDesenhar(); caminhoDesenhar(); }; raiz.dica = "fechar o fornecedor"; ps.push({ t: (f && (f.fantasia || f.razao)) || "fornecedor" }); }
+  } catch (e) { }
+  return ps;
+}
+let caminhoUlt = "";
+function caminhoDesenhar() {
+  const h = document.getElementById("hTitulo"); if (!h || !document.body.classList.contains("logado")) return;
+  const ps = caminhoPartes(), chave = ps.map(p => (p.f ? "*" : "") + p.t).join("›"); if (chave === caminhoUlt && h.firstChild) return; caminhoUlt = chave;
+  const volta = [...ps].reverse().find((p, i) => i > 0 && p.f); // nível de cima mais próximo: é para onde a seta leva
+  h.innerHTML = (volta ? `<a class="cam-volta" data-cam="${ps.indexOf(volta)}" title="${escH(volta.dica || "voltar")}">‹</a>` : "") + ps.map((p, i) => `${i ? '<span class="cam-sep">›</span>' : ""}${p.f && i < ps.length - 1 ? `<a class="cam-p${p.sec ? " cam-sec" : ""}" data-cam="${i}" title="${escH(p.dica || "voltar para " + p.t)}">${escH(p.t)}</a>` : `<span class="cam-p${p.sec ? " cam-sec" : ""}${i === ps.length - 1 ? " cam-fim" : ""}">${escH(p.t)}</span>`}`).join("");
+  for (const a of h.querySelectorAll("[data-cam]")) a.onclick = ev => { ev.preventDefault(); const p = ps[Number(a.dataset.cam)]; if (p && p.f) p.f(); };
+}
+setInterval(() => { try { caminhoDesenhar(); } catch (e) { } }, 700); // acompanha o que abre e fecha em qualquer tela
 function mostrar(v, semHist) {
   if (ehFunc() && !ABAS_FUNC.includes(v)) v = "separacao"; // funcionário só vê as telas liberadas
   if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
@@ -2358,7 +2402,7 @@ function mostrar(v, semHist) {
   for (const [id, nome] of [["vSeparacao", "separacao"], ["vMl", "ml"], ["vMargem", "margem"], ["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v || (v === "etiquetas" && b.dataset.v === "produtos"));
   etConta();
-  { const b = document.querySelector('nav#abas .aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
+  caminhoDesenhar();
   document.body.classList.remove("menu-aberto");
   if (v === "separacao") { sepCarregar(); return; }
   if (v === "ml") { mlDesenhar(); mlCarregar(); if (!ML2.resumo) mlResumo(); return; }
@@ -5248,7 +5292,7 @@ function sepDesenhar() {
 }
 function mostrarLogin(sim) {
   document.body.classList.toggle("logado", !sim);
-  { const a = document.querySelector(".aba.ativa span"), h = document.getElementById("hTitulo"); if (h) h.textContent = sim || !a ? "Nova Raphaella" : a.textContent; }
+  { const a = document.querySelector(".aba.ativa span"), h = document.getElementById("hTitulo"); if (h) h.textContent = sim || !a ? "Nova Raphaella" : a.textContent; caminhoUlt = ""; if (!sim) caminhoDesenhar(); }
   document.getElementById("login").style.display = sim ? "" : "none";
   document.getElementById("abas").style.display = sim ? "none" : "";
   document.getElementById("principal").style.display = sim ? "none" : "";

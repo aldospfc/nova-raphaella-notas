@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="172">
+<meta name="versao" content="173">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -714,6 +714,7 @@
    <div class="nav-label">Dia a dia</div>
    <button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span><i class="nav-count" id="nc_hoje"></i></button>
    <button class="aba ativa" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span><i class="nav-count" id="nc_entrada"></i></button>
+   <button class="aba" data-v="produtos" title="Produtos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Produtos</span><i class="nav-count" id="nc_produtos"></i></button>
    <button class="aba" data-v="notas" title="Notas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span>Notas</span><i class="nav-count" id="nc_notas"></i></button>
    <button class="aba" data-v="fornec" title="Fornecedores"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><span>Fornecedores</span><i class="nav-count" id="nc_fornec"></i></button>
    <div class="nav-label">E-commerce</div>
@@ -724,7 +725,6 @@
    <button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span><i class="nav-count" id="nc_vendas"></i></button>
    <button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span><i class="nav-count" id="nc_boletos"></i></button>
    <div class="nav-label">Estoque</div>
-   <button class="aba" data-v="produtos" title="Produtos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Produtos</span><i class="nav-count" id="nc_produtos"></i></button>
    <button class="aba" data-v="validades" title="Validades"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 2v3"/><path d="M17 15.5v1.7l1 .625"/><path d="M21 8.936V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h3.935"/><path d="M3 9h9.873"/><path d="M8 2v3"/><circle cx="17" cy="17" r="5"/></svg><span>Validades</span><i class="nav-count" id="nc_validades"></i></button>
    <button class="aba" data-v="transf" title="Transferências"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg><span>Transferências</span><i class="nav-count" id="nc_transf"></i></button>
    <button class="aba" data-v="compras" title="Compras"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2.05 2.05 1.099-.028a1 1 0 0 1 1.008.815l2.69 14.347A1 1 0 0 0 7.83 18H18"/><path d="M4.563 5h16.435a1 1 0 0 1 .981 1.204l-1.026 6.226A2 2 0 0 1 18.962 14H6.25"/><circle cx="18" cy="20" r="2"/><circle cx="8" cy="20" r="2"/></svg><span>Compras</span><i class="nav-count" id="nc_compras"></i></button>
@@ -855,7 +855,7 @@
  </div>
  <div id="vProdutos" style="display:none">
   <div class="painel"><b>Produtos das lojas</b> <span class="orig">— consultar e alterar preço, custo, estoque, nome e categoria no Gestão (Loja 1 e Loja 2)</span>
-   <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="Nome, código ou EAN" style="flex:1;min-width:200px;font-size:16px;padding:6px;height:44px"><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button></div>
+   <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="Nome, código ou EAN" style="flex:1;min-width:200px;font-size:16px;padding:6px;height:44px"><select id="prLoja" title="em qual loja procurar" style="height:44px"><option value="">nas duas lojas</option><option value="1">só Loja 1</option><option value="2">só Loja 2</option></select><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button><button id="prAvulsa" class="sec" title="entrada completa sem nota, como no Gestão: cadastra produto novo (ou acha um que já existe), dá entrada no estoque e grava custo e venda">＋ Entrada avulsa</button></div>
    <div id="prMsg" class="orig" style="margin-top:4px">Busca nas duas lojas. O cadastro mostrado aqui é a cópia da nuvem, atualizada a cada 5 minutos.</div></div>
   <div class="pr-layout"><div id="prEd" style="display:none"></div>
   <div id="prRes" class="pr-cards"></div></div>
@@ -1945,6 +1945,19 @@ function conciliarEnvios() {
     totais();
   }, 1200);
 }
+// INSERT de produto novo no Gestão (o mesmo da entrada de nota; também usado para clonar o cadastro entre as lojas). Não grava se o código já existir.
+function sqlNovoProduto(loja, cod, desc, custo, venda, margem, c, fam, ncm, cest) {
+  return `INSERT INTO PRODUTOS (CODIGO_INTERNO, CODIGO_BARRAS, DESCRICAO, DESCRICAO_RESUMIDA, UNIDADE, PRECO_COMPRA, CUSTO_MEDIO, PRECO_VENDA1, MARGEM, GRUPO, DEPARTAMENTO, SESSAO, FAMILIA, S_NCM, S_CEST, ESTOQUE_ATUAL, DATA_INCLUSAO, ULT_ALT_PRECO, ULT_ALTERACAO, ` +
+      `ATIVO, ALT_ETIQUETA, ALT_BALANCA, ALT_PDV, PRECO_ATUALIZADO, B_EXPORTA_PDV, B_EXP_TABLET, B_ALT_DELIVERY, B_PARTICIPA_COTACAO, ALIQUOTA, ICMS, IPI, ST, S_ORIGEM_ST_SAIDA, NUM_IMPRESSORA, CASAS_DECIMAIS, PASTA_CAIXA, GONDULAS, VALIDADE, UNIDADES_CAIXA, I_TIPO_ATU_NCM, ` +
+      `S_COD_CST_PIS_ENTRADA, S_COD_CST_PIS_SAIDA, S_COD_CST_COFINS_ENTRADA, S_COD_CST_COFINS_SAIDA, ` +
+      `COMPOSICAO, PROMOCAO, PERMITIR_DESC, SEMELHANTE, PESADO, B_OUTRAS_EMB, B_UTILIZA_GRADE, B_SERVICO, B_COMBUSTIVEL, B_BEBIDA_ALCOOLICA, B_PRODUTO_TRANSFORMACAO, B_EMB_OBRIGATORIA, B_DECRETO_40016, B_INGREDIENTE, B_COMPLETA_DESC, B_EMITE_ETIQUETA, B_CONTROLA_VALIDADE, B_FABRICACAO, B_DESONERADO, B_IS, B_SERVICE_DELIVERY, B_IGNORAR_ATU_SAC_FISCAL, I_COD_TIPO_ITEM, I_AUX1, ` +
+      `PRECO_VENDA2, PRECO_VENDA3, PRECO_CUSTO, PRECO_PROMOCAO, ${loja === 1 ? "PRECO_VENDA_PIX, " : ""}PRECO_CONCORRENTE, PRECO_CONCORRENTE_MENOR, PORCENTAGEM_PROMOCAO, COMISSAO, QUANTIDADE_CLIENTE, ESTOQUE_MIN, ESTOQUE_MAX, ESTOQUE_ATUAL_INICIO_DIA, F_ESTOQUE_PRODUCAO, F_MVA_ST, F_AUX1, F_AUX2, F_AUX3, F_AUX4, F_PRECO_PROG, F_PRECO_PROG2, F_PRECO_PROG3, F_BCSTRET, F_VICMSSTRET, F_ALIQNAC_MUN) ` +
+      `SELECT (SELECT CAST(MAX(CAST(P2.CODIGO_INTERNO AS INTEGER)) + 1 AS VARCHAR(6)) FROM PRODUTOS P2), ${aspas(cod)}, ${aspas(desc)}, ${aspas(desc.slice(0, 30))}, 'Un', ${custo.toFixed(3)}, ${custo.toFixed(3)}, ${venda.toFixed(2)}, ${margem.toFixed(2)}, ${c.g}, ${c.d}, ${c.s}, ${fam ?? "NULL"}, ${ncm ? aspas(ncm) : "NULL"}, ${cest ? aspas(cest) : "NULL"}, 0, CURRENT_DATE, CURRENT_DATE, CURRENT_DATE, ` +
+      `1, 1, 1, 0, 0, 1, 1, 1, 1, 3, 18, 10, '000', '0', 'N', 2, 1, 1, 3, 1, 1, '50', '01', '50', '01', ` +
+      `0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ` +
+      `${loja === 1 ? "0, " : ""}0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ` +
+      `FROM RDB$DATABASE WHERE NOT EXISTS (SELECT 1 FROM PRODUTOS WHERE CODIGO_BARRAS = ${aspas(cod)});`;
+}
 function sqlEntrada(loja) {
   loja = loja || 1; itensDoEnvio[loja] = []; posDoEnvio[loja] = [];
   const mapa = new Map(), auxs = [];
@@ -1979,16 +1992,7 @@ function sqlEntrada(loja) {
     const c = loja === 2 ? c2 : { g: it.cg ?? 1, d: it.cd ?? 1, s: it.cs ?? 1 }, fam = loja === 2 ? c2.f : (it.cf ?? null);
     eans.push(cod);
     // CODIGO_INTERNO vai explícito (maior + 1), como o Gestão faz na tela dele; o gerador do banco está defasado e repetia números de produtos antigos
-    linhas.push(`INSERT INTO PRODUTOS (CODIGO_INTERNO, CODIGO_BARRAS, DESCRICAO, DESCRICAO_RESUMIDA, UNIDADE, PRECO_COMPRA, CUSTO_MEDIO, PRECO_VENDA1, MARGEM, GRUPO, DEPARTAMENTO, SESSAO, FAMILIA, S_NCM, S_CEST, ESTOQUE_ATUAL, DATA_INCLUSAO, ULT_ALT_PRECO, ULT_ALTERACAO, ` +
-      `ATIVO, ALT_ETIQUETA, ALT_BALANCA, ALT_PDV, PRECO_ATUALIZADO, B_EXPORTA_PDV, B_EXP_TABLET, B_ALT_DELIVERY, B_PARTICIPA_COTACAO, ALIQUOTA, ICMS, IPI, ST, S_ORIGEM_ST_SAIDA, NUM_IMPRESSORA, CASAS_DECIMAIS, PASTA_CAIXA, GONDULAS, VALIDADE, UNIDADES_CAIXA, I_TIPO_ATU_NCM, ` +
-      `S_COD_CST_PIS_ENTRADA, S_COD_CST_PIS_SAIDA, S_COD_CST_COFINS_ENTRADA, S_COD_CST_COFINS_SAIDA, ` +
-      `COMPOSICAO, PROMOCAO, PERMITIR_DESC, SEMELHANTE, PESADO, B_OUTRAS_EMB, B_UTILIZA_GRADE, B_SERVICO, B_COMBUSTIVEL, B_BEBIDA_ALCOOLICA, B_PRODUTO_TRANSFORMACAO, B_EMB_OBRIGATORIA, B_DECRETO_40016, B_INGREDIENTE, B_COMPLETA_DESC, B_EMITE_ETIQUETA, B_CONTROLA_VALIDADE, B_FABRICACAO, B_DESONERADO, B_IS, B_SERVICE_DELIVERY, B_IGNORAR_ATU_SAC_FISCAL, I_COD_TIPO_ITEM, I_AUX1, ` +
-      `PRECO_VENDA2, PRECO_VENDA3, PRECO_CUSTO, PRECO_PROMOCAO, ${loja === 1 ? "PRECO_VENDA_PIX, " : ""}PRECO_CONCORRENTE, PRECO_CONCORRENTE_MENOR, PORCENTAGEM_PROMOCAO, COMISSAO, QUANTIDADE_CLIENTE, ESTOQUE_MIN, ESTOQUE_MAX, ESTOQUE_ATUAL_INICIO_DIA, F_ESTOQUE_PRODUCAO, F_MVA_ST, F_AUX1, F_AUX2, F_AUX3, F_AUX4, F_PRECO_PROG, F_PRECO_PROG2, F_PRECO_PROG3, F_BCSTRET, F_VICMSSTRET, F_ALIQNAC_MUN) ` +
-      `SELECT (SELECT CAST(MAX(CAST(P2.CODIGO_INTERNO AS INTEGER)) + 1 AS VARCHAR(6)) FROM PRODUTOS P2), ${aspas(cod)}, ${aspas(desc)}, ${aspas(desc.slice(0, 30))}, 'Un', ${custo.toFixed(3)}, ${custo.toFixed(3)}, ${a.venda.toFixed(2)}, ${margem.toFixed(2)}, ${c.g}, ${c.d}, ${c.s}, ${fam ?? "NULL"}, ${it.ncm ? aspas(it.ncm) : "NULL"}, ${cest ? aspas(cest) : "NULL"}, 0, CURRENT_DATE, CURRENT_DATE, CURRENT_DATE, ` +
-      `1, 1, 1, 0, 0, 1, 1, 1, 1, 3, 18, 10, '000', '0', 'N', 2, 1, 1, 3, 1, 1, '50', '01', '50', '01', ` +
-      `0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ` +
-      `${loja === 1 ? "0, " : ""}0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ` +
-      `FROM RDB$DATABASE WHERE NOT EXISTS (SELECT 1 FROM PRODUTOS WHERE CODIGO_BARRAS = ${aspas(cod)});`);
+    linhas.push(sqlNovoProduto(loja, cod, desc, custo, a.venda, margem, c, fam, it.ncm, cest));
     if (a.ec != null) { // acerto do estoque contado, registrado como o Gestão registra uma alteração manual de estoque
       linhas.push(`INSERT INTO HIST_ALT_ESTOQUE_MANUAL (ID_PRODUTO, F_ESTOQUE_ANTERIOR, F_ESTOQUE_NOVO, DH_OPERACAO, ID_USUARIO, ID_SUPERVISOR, ID_LOJA, S_ESTACAO) SELECT ID, ESTOQUE_ATUAL, ${a.ec}, CURRENT_TIMESTAMP, 1, 0, 0, 'ENTRADA-NOTAS' FROM PRODUTOS WHERE CODIGO_BARRAS = ${aspas(cod)} AND ESTOQUE_ATUAL <> ${a.ec};`);
       linhas.push(`update PRODUTOS set ESTOQUE_ATUAL = ${a.ec} where CODIGO_BARRAS = ${aspas(cod)};`);
@@ -2953,19 +2957,22 @@ async function prBuscar() {
   if (!supa) return;
   const txt = document.getElementById("prQ").value.trim(), res = document.getElementById("prRes"), st = document.getElementById("prMsg");
   if (txt.length < 3) { st.textContent = "Digite pelo menos 3 letras ou o código de barras."; return; }
-  st.textContent = "Buscando…"; let rows = [];
+  st.textContent = "Buscando…"; let rows = []; const fl = Number((document.getElementById("prLoja") || {}).value) || 0; // 0 = as duas
   if (/^\d{4,14}$/.test(txt)) {
     const cands = [...new Set([txt, txt.padStart(13, "0"), txt.replace(/^0+/, "") || "0"])];
     const r = await supa.from("produtos").select(PR_COLS).in("ean", cands); rows = r.data || [];
     const a = await supa.from("auxiliares").select("loja_id, id_produto").in("ean_aux", cands);
     for (const x of a.data || []) { const r2 = await supa.from("produtos").select(PR_COLS).eq("loja_id", x.loja_id).eq("id_gestao", x.id_produto); rows.push(...(r2.data || [])); }
     const eans = [...new Set(rows.map(p => p.ean))]; // completa com o mesmo produto na outra loja
-    if (eans.length) { const r3 = await supa.from("produtos").select(PR_COLS).in("ean", eans); for (const p of r3.data || []) if (!rows.some(x => x.loja_id === p.loja_id && x.id_gestao === p.id_gestao)) rows.push(p); }
+    if (fl) { const ok = new Set(rows.filter(p => p.loja_id === fl).map(p => chave13(p.ean))); rows = rows.filter(p => ok.has(chave13(p.ean))); }
+    if (eans.length) { const r3 = await supa.from("produtos").select(PR_COLS).in("ean", eans); for (const p of r3.data || []) if (!rows.some(x => x.loja_id === p.loja_id && x.id_gestao === p.id_gestao) && (!fl || rows.some(x => chave13(x.ean) === chave13(p.ean)))) rows.push(p); }
   } else {
     const ws = semAcento(txt.toUpperCase()).replace(/[%_,()]/g, " ").split(/\s+/).filter(w => w.length > 1).slice(0, 6);
-    let q = supa.from("produtos").select(PR_COLS); for (const w of ws) q = q.ilike("descricao", `%${w}%`);
+    let q = supa.from("produtos").select(PR_COLS); for (const w of ws) q = q.ilike("descricao", `%${w}%`); if (fl) q = q.eq("loja_id", fl);
     const r = await q.order("descricao").limit(200); rows = r.data || [];
     if (r.error) { st.textContent = "Não consegui buscar: " + r.error.message; return; }
+    if (fl && rows.length) { // achou na loja escolhida: traz o mesmo produto da outra loja para comparar (e poder clonar)
+      const eans = [...new Set(rows.map(p => p.ean))]; for (let i = 0; i < eans.length; i += 100) { const r3 = await supa.from("produtos").select(PR_COLS).in("ean", eans.slice(i, i + 100)).neq("loja_id", fl); rows.push(...(r3.data || [])); } }
   }
   const g = new Map();
   for (const p of rows) { const k = chave13(p.ean); if (!g.has(k)) g.set(k, { ean: p.ean }); if (!g.get(k)[p.loja_id]) g.get(k)[p.loja_id] = p; }
@@ -2991,10 +2998,10 @@ async function prAbrir(g) {
   for (const l of [1, 2]) { PR.aux[l] = []; if (g[l]) { const a = await supa.from("auxiliares").select("ean_aux").eq("loja_id", l).eq("id_produto", g[l].id_gestao); PR.aux[l] = (a.data || []).map(x => x.ean_aux); } }
   const base = g[1] || g[2]; PR.descIni = base.descricao || ""; PR.ncmIni = String(base.ncm || "").replace(/\D/g, "");
   const difNome = g[1] && g[2] && prTxt(g[1].descricao) !== prTxt(g[2].descricao);
-  const bloco = l => { const p = g[l]; if (!p) return `<div class="painel pr-loja l${l} vazia"><b>Loja ${l}</b>: este código não está cadastrado nesta loja.</div>`;
+  const bloco = l => { const p = g[l]; if (!p) return `<div class="painel pr-loja l${l} vazia"><b>Loja ${l}</b>: este código não está cadastrado nesta loja.<div style="margin-top:8px"><button type="button" class="sec" data-clonar="${l}" title="cria o cadastro deste produto no Gestão da Loja ${l} com o mesmo código de barras, nome, NCM, custo e preço da Loja ${l === 1 ? 2 : 1}. Entra com estoque zero">Clonar o cadastro da Loja ${l === 1 ? 2 : 1} para a Loja ${l}</button> <span data-f="stclone"></span></div></div>`;
     const dep = L[l].D.filter(x => x[2] === p.grupo), ses = L[l].S.filter(x => x[2] === p.departamento);
     return `<div class="painel pr-loja l${l}" data-l="${l}">
-      <label style="font-weight:bold"><input type="checkbox" data-f="gravar" checked style="width:18px;height:18px;vertical-align:middle"> Gravar na Loja ${l}</label> <span class="orig">cód. interno ${escH(p.codigo_interno || "")} · estoque hoje ${br(Number(p.estoque) || 0, 0)} · custo médio ${br(Number(p.custo_medio) || 0)}</span> <span data-f="st"></span>
+      <label style="font-weight:bold"><input type="checkbox" data-f="gravar" checked style="width:18px;height:18px;vertical-align:middle"> Gravar na Loja ${l}</label> <span class="orig">cód. interno ${escH(p.codigo_interno || "")} · estoque hoje ${br(Number(p.estoque) || 0, 0)} · custo médio ${br(Number(p.custo_medio) || 0)}</span> <a data-entrada="${l}" style="cursor:pointer;color:#0b57d0;font-size:12px;white-space:nowrap" title="abre uma entrada sem nota com este produto: você informa a quantidade e o custo e envia ao Gestão (soma no estoque)">＋ dar entrada de estoque</a> <span data-f="st"></span>
       <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap">
         <label class="c">Custo (R$)<input class="p" type="text" inputmode="decimal" data-f="pc" value="${br(Number(p.preco_compra) || 0, 3)}" style="width:86px"></label>
         <label class="c">Venda (R$)<input class="p pr-pv" type="text" inputmode="decimal" data-f="pv" value="${br(Number(p.preco_venda) || 0)}" style="width:96px"></label>
@@ -3030,6 +3037,9 @@ async function prAbrir(g) {
         <button id="prValOk">Lançar validade</button>
       </div></div></div></div>`;
   for (const c of document.querySelectorAll("#prRes .pr-card")) c.classList.toggle("on", c.dataset.ean === String(g.ean));
+  for (const a of ed.querySelectorAll("[data-entrada]")) a.onclick = () => { const l = Number(a.dataset.entrada), p = g[l];
+    novaEntradaManual(`Entrada avulsa ${new Date().toLocaleDateString("pt-BR")} - ${String(p.descricao || "").slice(0, 30)}`, [{ desc: p.descricao, qtd: 0, custo: Number(p.preco_compra) || 0, ean: p.ean, venda: Number(p.preco_venda) || 0 }], l).catch(e => msg("Não consegui abrir a entrada: " + (e.message || e))); };
+  for (const b of ed.querySelectorAll("[data-clonar]")) b.onclick = () => prClonar(Number(b.dataset.clonar), b);
   histPrecos(base.ean).then(h => { const d = ed.querySelector("#prHist"); if (d) d.innerHTML = histHtml(h); });
   prValidades();
   ed.querySelector("#prValOk").onclick = () => {
@@ -3135,6 +3145,23 @@ async function prGravar(comPos) {
   }
   av.textContent = "";
 }
+// clona o cadastro de um produto da outra loja (mesmo código de barras, nome, NCM, custo e venda; estoque zero; categoria padrão)
+async function prClonar(l, bt) {
+  const g = PR.grupo, o = g && g[l === 1 ? 2 : 1], st = bt.parentElement.querySelector("[data-f=stclone]"); if (!o) return;
+  const cod = String(o.ean || "").replace(/\D/g, "").padStart(13, "0"), desc = prTxt(o.descricao) || "PRODUTO", custo = Math.round((Number(o.preco_compra) || 0) * 1000) / 1000, venda = Number(o.preco_venda) || 0;
+  if (!gtinValido(String(o.ean || "")) && !/^\d{1,14}$/.test(String(o.ean || ""))) return msg("Este produto não tem um código de barras que dê para clonar.");
+  if (!(venda > 0)) return msg("O produto está sem preço de venda na outra loja; acerte lá antes de clonar.");
+  const ncm = String(o.ncm || "").replace(/\D/g, ""), margem = custo > 0 ? Math.floor((venda / custo - 1) * 10000 + 1e-6) / 100 : 0;
+  if (!confirm(`Criar o cadastro na Loja ${l}?\n\n${desc}\ncódigo ${cod}\ncusto R$ ${br(custo, 3)} · venda R$ ${br(venda)}${ncm ? " · NCM " + ncm : " · SEM NCM"}\n\nEntra com estoque ZERO e sem categoria (grupo/departamento padrão) — depois você ajusta aqui mesmo. Para dar estoque, use "dar entrada de estoque".`)) return;
+  const sql = [`/* CLONE-CADASTRO LOJA ${l} (copiado da Loja ${l === 1 ? 2 : 1}) - ${cod} - ${desc.replace(/\*\//g, " ")} */`,
+    sqlNovoProduto(l, cod, desc, custo, venda, margem, { g: 1, d: 1, s: 1 }, null, ncm.length === 8 ? ncm : "", ncm.length === 8 ? (cestDe(ncm) || "") : ""),
+    "UPDATE DATAS SET T_ALT_PRODUTOS = CURRENT_TIMESTAMP;", "COMMIT;",
+    `SELECT CODIGO_INTERNO, CODIGO_BARRAS, SUBSTRING(DESCRICAO FROM 1 FOR 40) AS DESCRICAO, ESTOQUE_ATUAL, PRECO_COMPRA, PRECO_VENDA1 FROM PRODUTOS WHERE CODIGO_BARRAS = ${aspas(cod)};`, ""].join("\r\n");
+  bt.disabled = true;
+  const { data, error } = await supa.from("fila").insert({ loja_id: l, tipo: "ajuste", titulo: (`Clonar cadastro ${cod} - ${desc}`).slice(0, 110), conteudo: sql, status: "pendente" }).select("id").single();
+  if (error) { bt.disabled = false; st.innerHTML = `<span class="chip falta">não enviou: ${escH(error.message)}</span>`; return; }
+  st.innerHTML = `<span class="chip av">enviado — aguardando o PC da Loja ${l}… (aparece aqui em até 5 minutos depois de gravar)</span>`; prAcompanhar(data.id, l, st);
+}
 function prAcompanhar(id, l, st) {
   const ini = Date.now();
   const t = setInterval(async () => {
@@ -3147,6 +3174,8 @@ function prAcompanhar(id, l, st) {
   }, 3000);
 }
 document.getElementById("prBuscar").addEventListener("click", prBuscar);
+document.getElementById("prLoja").addEventListener("change", () => { if (document.getElementById("prQ").value.trim().length >= 3) prBuscar(); });
+document.getElementById("prAvulsa").addEventListener("click", () => { mostrar("entrada"); document.getElementById("nomeManual").value = "Entrada avulsa " + new Date().toLocaleDateString("pt-BR"); novaManual().catch(e => msg("Não consegui abrir a entrada: " + (e.message || e))); });
 document.getElementById("prQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); prBuscar(); } });
 // ---------- aba Vendas: totais por hora e por forma de pagamento que o PC de cada loja sobe do Gestão a cada 5 minutos ----------
 const VD = { vh: [], pg: [], dia: null, t: null, cp: [], cpBusca: null, abertos: new Set() };

@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="177">
+<meta name="versao" content="178">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -73,7 +73,9 @@
   body.modoCartao #tb tr.it.achado > td { animation: none; box-shadow: none; }
   body.f-naoenv #tb tr.it.env, body.f-naoenv #tb tr.it.env + tr, body.f-env #tb tr.it:not(.env), body.f-env #tb tr.it:not(.env) + tr,
   body.f-sempv #tb tr.it.pdef, body.f-sempv #tb tr.it.pdef + tr,
-  body.f-compv #tb tr.it:not(.pdef), body.f-compv #tb tr.it:not(.pdef) + tr { display: none !important; }
+  body.f-compv #tb tr.it:not(.pdef), body.f-compv #tb tr.it:not(.pdef) + tr,
+  body.f-l1 #tb tr.it:not(.dl1), body.f-l1 #tb tr.it:not(.dl1) + tr, body.f-l2 #tb tr.it:not(.dl2), body.f-l2 #tb tr.it:not(.dl2) + tr { display: none !important; }
+  .chip.lj { font-weight: 800; letter-spacing: .02em; } .chip.lj.a { background: var(--loja1, #1f3a5f); color: #fff; } .chip.lj.b { background: #4b3fa3; color: #fff; } .chip.lj.ab { background: linear-gradient(90deg, var(--loja1, #1f3a5f) 50%, #4b3fa3 50%); color: #fff; }
   body.semCod .cc { display: none; }
   body.semBol #lBol, body.semBol #bAddBol, body.semBol #bAddAnt, body.semBol #bAddEnt { display: none; }
   td.cc { font-size: 13px; white-space: nowrap; }
@@ -832,8 +834,8 @@
     <div id="recResumo" class="painel"></div>
     <div id="lvTopo">
       <div class="lv-scan" title="bipe (ou digite e Enter) o código de barras de um produto: o sistema acha o item na nota. Se o item estiver com o código da caixa, o código bipado entra no lugar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M16 7v10"/></svg><input id="bipIt" type="text" maxlength="60" placeholder="Bipe o código de barras ou digite o nome do produto e aperte Enter"><a id="bipCam" title="ler com a câmera do celular">📷</a></div>
-      <select id="fIt" style="display:none"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option></select>
-      <div class="lv-tabs" id="fItTabs" role="tablist"><button type="button" data-f="" class="on">Todos <span></span></button><button type="button" data-f="naoenv">Falta enviar <span></span></button><button type="button" data-f="env">Já enviados <span></span></button><button type="button" data-f="sempv">Sem preço <span></span></button><button type="button" data-f="compv">Com preço <span></span></button></div>
+      <select id="fIt" style="display:none"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option><option value="l1">itens da Loja 1</option><option value="l2">itens da Loja 2</option></select>
+      <div class="lv-tabs" id="fItTabs" role="tablist"><button type="button" data-f="" class="on">Todos <span></span></button><button type="button" data-f="naoenv">Falta enviar <span></span></button><button type="button" data-f="env">Já enviados <span></span></button><button type="button" data-f="sempv">Sem preço <span></span></button><button type="button" data-f="compv">Com preço <span></span></button><button type="button" data-f="l1" class="tl1" style="display:none">Loja 1 <span></span></button><button type="button" data-f="l2" class="tl2" style="display:none">Loja 2 <span></span></button></div>
     </div>
     <div id="vistaItens">
       <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="lv" title="um cartão enxuto por item; o resto aparece em Detalhes">Compacto</a><a data-iv="cartao" title="cartão com todos os campos à mostra">Cartões</a><a data-iv="tabela">Tabela</a></span>
@@ -863,6 +865,7 @@
   <div class="filtros">
     <label class="c">Procurar<input type="text" id="fNotaTxt" placeholder="fornecedor ou número" style="width:260px"></label>
     <label class="c">Situação<select id="fNotaSit"><option value="">todas</option><option value="a">em andamento</option><option value="e">enviadas ao Gestão</option><option value="c">concluídas</option></select></label>
+    <label class="c">Loja<select id="fNotaLoja"><option value="">todas</option><option value="1">Loja 1</option><option value="2">Loja 2</option><option value="12">das duas lojas</option></select></label>
     <div class="kpis" id="resNotas"></div>
   </div>
   <div class="rolagem"><table class="tab-dados"><thead><tr><th>Criada em</th><th>Fornecedor</th><th>Nota</th><th class="n">Itens</th><th class="n">Valor</th><th>Situação</th><th>Boletos</th><th></th></tr></thead><tbody id="tbNotas"></tbody></table></div>
@@ -1517,8 +1520,9 @@ function atualizarLinha(it) {
     const falta = !it.jg && !(it.e1 || it.e2) && faltas.length > 0;
     tr.classList.toggle("falta", falta); tr.classList.toggle("pok", !falta && !it.jg && precoDefinido(it) && k.venda > 0);
     tr.title = falta ? "falta: " + faltas.join(", ") : "";
-    tr.classList.toggle("env", !!(it.e1 || it.e2 || it.jg)); tr.classList.toggle("pdef", precoDefinido(it));
-    tr.classList.toggle("cadok", !!(it.e1 || it.e2) && precoDefinido(it));
+    tr.classList.toggle("env", envTudo(it)); tr.classList.toggle("pdef", precoDefinido(it)); // "enviado" = enviado a TODAS as lojas do item
+    tr.classList.toggle("cadok", !it.jg && envTudo(it) && precoDefinido(it));
+    { const lj = lojasItem(it); tr.classList.toggle("dl1", lj[0]); tr.classList.toggle("dl2", lj[1]); }
     const ie = tr.querySelector("[data-c=ean]"); if (ie) ie.classList.toggle("cx", !(it.e1 || it.e2 || it.jg) && !!eanUnidadeDeCaixa(it.ean));
   }
   let h = "";
@@ -1547,7 +1551,8 @@ function atualizarLinha(it) {
     if (it.mem.cu > 0) { const dv = (k.custoUn / it.mem.cu - 1) * 100; if (Math.abs(dv) >= 1) h += ` <span class="chip ${dv > 0 ? "falta" : "ok"}">custo ${dv > 0 ? "subiu" : "caiu"} ${br(Math.abs(dv), 1)}% desde ${dataBr(it.mem.em)}</span>`; }
   }
   if (!it.ean && it.sug) h += `<div class="sug">parecido no cadastro (confira): <span class="mono">${it.sug.ean}</span> ${it.sug.desc} — <a data-u="1">usar</a></div>`;
-  if (it.e1 || it.e2) h = (precoDefinido(it) ? `<span class="chip cad" title="este item já está com preço definido e já foi enviado ao Gestão">JÁ CADASTRADO</span> ` : `<span class="chip falta" title="o item já foi enviado ao Gestão, mas o preço de venda não foi digitado: digite e use 'Enviar só preços e categorias'">enviado SEM preço digitado</span> `) + `<span class="chip ok" title="este item já foi gravado no Gestão por um envio daqui; não entra de novo no próximo envio">enviado${it.e1 ? " à Loja 1 em " + dataBr(it.e1) : ""}${it.e1 && it.e2 ? " e" : ""}${it.e2 ? " à Loja 2 em " + dataBr(it.e2) : ""}</span> <a data-re="1" style="cursor:pointer;color:#667;font-size:11px" title="apaga a marca de enviado: o item volta a entrar no próximo envio (soma o estoque de novo)">enviar de novo</a> ` + h;
+  if (it.e1 || it.e2) h = (faltaLoja(it).length ? `<span class="chip falta" title="este item também é da Loja ${faltaLoja(it).join(" e ")} e ainda não foi enviado para lá">FALTA ENVIAR À LOJA ${faltaLoja(it).join(" E ")}</span> ` : precoDefinido(it) ? `<span class="chip cad" title="este item já está com preço definido e já foi enviado ao Gestão">JÁ CADASTRADO</span> ` : `<span class="chip falta" title="o item já foi enviado ao Gestão, mas o preço de venda não foi digitado: digite e use 'Enviar só preços e categorias'">enviado SEM preço digitado</span> `) + `<span class="chip ok" title="este item já foi gravado no Gestão por um envio daqui; não entra de novo no próximo envio">enviado${it.e1 ? " à Loja 1 em " + dataBr(it.e1) : ""}${it.e1 && it.e2 ? " e" : ""}${it.e2 ? " à Loja 2 em " + dataBr(it.e2) : ""}</span> <a data-re="1" style="cursor:pointer;color:#667;font-size:11px" title="apaga a marca de enviado: o item volta a entrar no próximo envio (soma o estoque de novo)">enviar de novo</a> ` + h;
+  if (variasLojas()) { const lj = lojasItem(it); if (lj[0] || lj[1]) h = `<span class="chip lj ${lj[0] && lj[1] ? "ab" : lj[0] ? "a" : "b"}" title="de qual loja é este item nesta entrada">${(() => { let q = [0, 0]; try { q = qLojas(it, k); } catch (e) { } return lj[0] && lj[1] ? `LOJA 1: ${br(q[0], 0)} un · LOJA 2: ${br(q[1], 0)} un` : lj[0] ? "SÓ LOJA 1" : "SÓ LOJA 2"; })()}</span> ` + h; }
   if (it.jg) h = `<span class="chip ok" title="este item já foi lançado no Gestão antes de vir para o sistema; fica aqui só para conferência e não entra no envio">já lançado no Gestão — fora do envio</span> <a data-jg="1" style="cursor:pointer;color:#0b57d0;font-size:11px">incluir no envio</a> ` + h;
   if (!it.jg) h += ` <div><a data-mjg="1" style="cursor:pointer;color:#667;font-size:11px" title="use quando este item já foi lançado no Gestão por fora do sistema: ele continua na nota (custo, boletos), mas não entra no envio">já lancei este item no Gestão</a></div>`;
   if (!it.ean && !it.jg && it.sugs && it.sugs.length) h += `<div class="sug sugs">parecidos no cadastro (confira):` + it.sugs.map((x, i) => `<div><span class="mono">${x[1]}</span> ${escH(x[2])} — <a data-us="${i}">usar</a></div>`).join("") + `</div>`;
@@ -1716,11 +1721,17 @@ function bipMostrar(it) {
   if (tr.offsetParent === null) { const f = document.getElementById("fIt"); if (f && f.value) { f.value = ""; f.dispatchEvent(new Event("change")); } }
   tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.remove("achado"); void tr.offsetWidth; tr.classList.add("achado"); clearTimeout(tr._tAch); tr._tAch = setTimeout(() => tr.classList.remove("achado"), 7000);
 }
+// de quais lojas é o item (pelo destino da nota) e em quais delas ainda falta enviar
+function lojasItem(it) { const d = destino(); if (d === "duas") return [!it.so2, !!(it.so2 || it.b)]; if (d === "1") return [true, false]; if (d === "2") return [false, true]; if (d === "ambas") return [true, true]; let q; try { q = qLojas(it, calc(it)); } catch (e) { q = [1, 0]; } return [q[0] > 0, q[1] > 0]; }
+const faltaLoja = it => it.jg ? [] : lojasItem(it).map((t, i) => t && !it["e" + (i + 1)] ? i + 1 : 0).filter(Boolean);
+const envTudo = it => !!it.jg || (!!(it.e1 || it.e2) && !faltaLoja(it).length);
+const variasLojas = () => !["1", "2"].includes(destino());
 // filtro da tabela de itens (enviados / falta enviar / com e sem preço digitado)
 function fltContar() {
   const sel = document.getElementById("fIt"); if (!sel) return;
-  const env = i => !!(i.e1 || i.e2 || i.jg), n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length };
-  const rot = { "": "todos os itens", naoenv: "falta enviar ao Gestão", env: "já enviados", sempv: "sem preço digitado", compv: "com preço digitado" };
+  const env = envTudo, n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length, l1: itens.filter(i => lojasItem(i)[0]).length, l2: itens.filter(i => lojasItem(i)[1]).length };
+  const rot = { "": "todos os itens", naoenv: "falta enviar ao Gestão", env: "já enviados", sempv: "sem preço digitado", compv: "com preço digitado", l1: "itens da Loja 1", l2: "itens da Loja 2" };
+  { const v = variasLojas(); for (const b of document.querySelectorAll("#fItTabs button[data-f=l1], #fItTabs button[data-f=l2]")) b.style.display = v ? "" : "none"; if (!v && (sel.value === "l1" || sel.value === "l2")) { sel.value = ""; sel.dispatchEvent(new Event("change")); } }
   for (const o of sel.options) o.textContent = `${rot[o.value]} (${n[o.value]})`;
   for (const b of document.querySelectorAll("#fItTabs button")) { b.querySelector("span").textContent = n[b.dataset.f]; b.classList.toggle("on", b.dataset.f === sel.value); }
 }
@@ -2386,11 +2397,15 @@ function desenharBoletos() {
   }
 }
 
+// de qual loja é a nota (pelo "Entrada em" gravado nela)
+const lojasNota = n => { const d = (n.cfg && n.cfg.gDest) || "1"; return d === "2" || d === "div21" ? [2, d === "div21" ? 1 : 0] : d === "ambas" || d === "duas" ? [1, 2] : [1, d === "div" ? 2 : 0]; };
+const chipLojaNota = n => { const d = (n.cfg && n.cfg.gDest) || "1", t = { "1": ["a", "Loja 1"], div: ["a", "Loja 1 ÷ L2"], "2": ["b", "Loja 2"], div21: ["b", "Loja 2 ÷ L1"], ambas: ["ab", "Lojas 1 e 2"], duas: ["ab", "Lojas 1 e 2"] }[d] || ["a", "Loja 1"]; return `<span class="chip lj ${t[0]}">${t[1]}</span>`; };
+const notaDaLoja = (n, l) => !l || (l === "12" ? ["ambas", "duas"].includes((n.cfg && n.cfg.gDest) || "1") : lojasNota(n)[0] === Number(l) || ["ambas", "duas"].includes((n.cfg && n.cfg.gDest) || "1"));
 // ----- gerência de notas -----
 function desenharGerencia() {
   if (vista !== "notas") return;
-  const q = semAcento(document.getElementById("fNotaTxt").value.toLowerCase()), sit = document.getElementById("fNotaSit").value;
-  const todas = [...fonteNotas()].sort((a, b) => (b.criado || "").localeCompare(a.criado || ""));
+  const q = semAcento(document.getElementById("fNotaTxt").value.toLowerCase()), sit = document.getElementById("fNotaSit").value, lj = document.getElementById("fNotaLoja").value;
+  const todas = [...fonteNotas()].filter(n => notaDaLoja(n, lj)).sort((a, b) => (b.criado || "").localeCompare(a.criado || ""));
   const conta = k => todas.filter(n => sitNota(n)[0] === k).length;
   document.getElementById("resNotas").innerHTML = `<div class="kpi"><small>Em andamento</small><b>${conta("a")}</b></div><div class="kpi"><small>Enviadas ao Gestão</small><b>${conta("e")}</b></div><div class="kpi"><small>Concluídas</small><b>${conta("c")}</b></div>`;
   const tb = document.getElementById("tbNotas"); tb.innerHTML = "";
@@ -2399,7 +2414,7 @@ function desenharGerencia() {
   for (const n of lista) {
     const [k, txtS, cls] = sitNota(n), bs = n.boletos || [], pagos = bs.filter(b => b.pago).length, tr = document.createElement("tr");
     const prox = bs.filter(b => !b.pago && b.venc).map(b => b.venc).sort()[0];
-    tr.innerHTML = `<td data-l="Criada em">${dataBr(n.criado)}</td><td class="cab-l"><span class="forn">${h(n.emit)}</span></td><td data-l="Nota">${h(rotNota(n))}</td><td class="n" data-l="Itens">${n.itens || "-"}</td><td class="n" data-l="Valor"><b>${n.vNF ? br(n.vNF) : "-"}</b></td><td><span class="chip ${cls}">${txtS}</span></td><td data-l="Boletos">${bs.length ? pagos + " de " + bs.length + " pagos" + (prox ? `<span class="sub">próximo ${dataBr(prox)}</span>` : "") : "-"}</td>` +
+    tr.innerHTML = `<td data-l="Criada em">${dataBr(n.criado)}</td><td class="cab-l"><span class="forn">${h(n.emit)}</span></td><td data-l="Nota">${h(rotNota(n))} ${chipLojaNota(n)}</td><td class="n" data-l="Itens">${n.itens || "-"}</td><td class="n" data-l="Valor"><b>${n.vNF ? br(n.vNF) : "-"}</b></td><td><span class="chip ${cls}">${txtS}</span></td><td data-l="Boletos">${bs.length ? pagos + " de " + bs.length + " pagos" + (prox ? `<span class="sub">próximo ${dataBr(prox)}</span>` : "") : "-"}</td>` +
       `<td><span class="acoes-lin"><a data-a="abrir">abrir</a><a data-a="forn" title="corrigir o nome do fornecedor">fornecedor</a><a data-a="concl">${n.concluida ? "reabrir" : "concluir"}</a><a data-a="excl" class="perigo">excluir</a></span></td>`;
     tr.querySelector("[data-a=abrir]").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(n.id); });
     tr.querySelector("[data-a=concl]").addEventListener("click", () => salvarMeta(n.id, { concluida: n.concluida ? null : new Date().toISOString() }));
@@ -3632,7 +3647,7 @@ document.getElementById("bipIt").addEventListener("keydown", ev => { if (ev.key 
 document.getElementById("bipCam").addEventListener("click", () => lerCamera(c => bipAchar(c)));
 lvRodapeIniciar();
 for (const b of document.querySelectorAll("#fItTabs button")) b.addEventListener("click", () => { const f = document.getElementById("fIt"); f.value = b.dataset.f; f.dispatchEvent(new Event("change")); });
-document.getElementById("fIt").addEventListener("change", ev => { for (const b of document.querySelectorAll("#fItTabs button")) b.classList.toggle("on", b.dataset.f === ev.target.value); for (const v of ["naoenv", "env", "sempv", "compv"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
+document.getElementById("fIt").addEventListener("change", ev => { for (const b of document.querySelectorAll("#fItTabs button")) b.classList.toggle("on", b.dataset.f === ev.target.value); for (const v of ["naoenv", "env", "sempv", "compv", "l1", "l2"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
 document.getElementById("fRom").addEventListener("change", async ev => {
   const fs = [...ev.target.files]; ev.target.value = "";
   try { await entradaPorRomaneio(fs); } catch (e) { msg("Não consegui ler o romaneio: " + (e.message || e)); }
@@ -3851,14 +3866,15 @@ function desenharNotas() {
   const todasAb = listaNotas.filter(n => !n.concluida).sort((x, y) => (y.criado || "").localeCompare(x.criado || ""));
   const d = document.getElementById("notas"), foco = document.activeElement && document.activeElement.id === "ntQ"; d.innerHTML = ""; if (!todasAb.length) return;
   const ntSit = n => sitNota(n)[0] === "e" ? "e" : "a", ntQ = semAcento(String(NT.q || "").toLowerCase().trim());
-  const abertas = todasAb.filter(n => (!NT.st || ntSit(n) === NT.st) && (!ntQ || semAcento(((n.emit || "") + " " + (n.nnf || "")).toLowerCase()).includes(ntQ)));
+  const abertas = todasAb.filter(n => (!NT.st || ntSit(n) === NT.st) && notaDaLoja(n, NT.lj) && (!ntQ || semAcento(((n.emit || "") + " " + (n.nnf || "")).toLowerCase()).includes(ntQ)));
   const atual = cab ? todasAb.find(n => n.id === cab.chave) : null, mostra = NT.mostrar != null ? NT.mostrar : !cab;
   const topo = document.createElement("div"); topo.className = "nt-cab";
   topo.innerHTML = `<b>Notas em andamento</b><span class="badge neutro">${todasAb.length}</span>${atual ? `<span class="orig" style="margin:0">· aberta agora: <b style="font-size:12px">${escH(atual.emit || "")}</b></span>` : ""}<a class="nt-tog">${mostra ? "ocultar lista" : "mostrar todas"}</a>`;
   topo.querySelector(".nt-tog").onclick = () => { NT.mostrar = !mostra; desenharNotas(); };
   d.appendChild(topo); if (!mostra) return;
-  if (todasAb.length > 3 || NT.q || NT.st) { const f = document.createElement("div"); f.className = "lv-busca"; f.style.margin = "8px 0";
-    f.innerHTML = `<div class="lv-sbox"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="ntQ" placeholder="Buscar fornecedor ou nº da nota" value="${escH(NT.q || "")}"></div><div class="lv-chips">${[["", "Todas", todasAb.length], ["a", "Em andamento", todasAb.filter(n => ntSit(n) === "a").length], ["e", "Enviada ao Gestão", todasAb.filter(n => ntSit(n) === "e").length]].map(([k, t, n]) => `<button type="button" class="lv-chip${(NT.st || "") === k ? " on" : ""}" data-nst="${k}">${t} <span style="opacity:.8;font-size:10px">${n}</span></button>`).join("")}</div>`;
+  if (todasAb.length > 3 || NT.q || NT.st || NT.lj) { const f = document.createElement("div"); f.className = "lv-busca"; f.style.margin = "8px 0";
+    f.innerHTML = `<div class="lv-sbox"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="ntQ" placeholder="Buscar fornecedor ou nº da nota" value="${escH(NT.q || "")}"></div><div class="lv-chips">${[["", "Todas", todasAb.length], ["a", "Em andamento", todasAb.filter(n => ntSit(n) === "a").length], ["e", "Enviada ao Gestão", todasAb.filter(n => ntSit(n) === "e").length]].map(([k, t, n]) => `<button type="button" class="lv-chip${(NT.st || "") === k ? " on" : ""}" data-nst="${k}">${t} <span style="opacity:.8;font-size:10px">${n}</span></button>`).join("")}<span style="width:8px"></span>${[["1", "Loja 1"], ["2", "Loja 2"]].map(([k, t]) => `<button type="button" class="lv-chip${NT.lj === k ? " on" : ""}" data-nlj="${k}">${t} <span style="opacity:.8;font-size:10px">${todasAb.filter(n => notaDaLoja(n, k)).length}</span></button>`).join("")}</div>`;
+    for (const b of f.querySelectorAll("[data-nlj]")) b.onclick = () => { NT.lj = NT.lj === b.dataset.nlj ? "" : b.dataset.nlj; desenharNotas(); };
     const q = f.querySelector("#ntQ"); q.oninput = () => { NT.q = q.value; desenharNotas(); };
     for (const b of f.querySelectorAll("[data-nst]")) b.onclick = () => { NT.st = b.dataset.nst; desenharNotas(); };
     d.appendChild(f); if (foco) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) { } } }
@@ -3868,7 +3884,7 @@ function desenharNotas() {
     const [, txt0, cls] = sitNota(n), txt = txt0.replace(/ em \d{2}\/\d{2}\/\d{4}$/, "").replace("Erro ao gravar no Gestão", "Erro no envio"), ehAtual = atual && atual.id === n.id, c = document.createElement("div");
     c.className = "nt-card" + (ehAtual ? " atual" : ""); c.title = (n.id.startsWith("M") ? "Entrada sem nota" : "NF " + (n.nnf || "")) + " — " + (n.emit || "");
     c.innerHTML = `<div class="nt-topo"><span class="nt-num">${n.id.startsWith("M") ? "SEM NOTA" : "NF " + escH(n.nnf || "")}</span><span class="chip ${cls}" title="${escH(txt0)}">${escH(txt)}</span></div>
-      <div class="nt-forn">${escH(n.emit || "")}</div>
+      <div class="nt-forn">${escH(n.emit || "")}</div><div style="margin:2px 0">${chipLojaNota(n)}</div>
       <div class="nt-det">${[n.itens ? n.itens + " itens" : "", n.vNF ? orBrl(n.vNF) : "", n.criado ? "criada " + dataBr(n.criado) : ""].filter(Boolean).join(" · ") || "&nbsp;"}</div>
       <div class="nt-pe"><button class="${ehAtual ? "sec" : ""}">${ehAtual ? "Aberta" : "Abrir"}</button><a class="nt-x">excluir</a></div>`;
     c.addEventListener("click", ev => { if (ev.target.closest(".nt-x")) return; NT.mostrar = null; abrirNota(n.id); });
@@ -7120,7 +7136,7 @@ const ehCel = () => window.matchMedia("(max-width: 760px)").matches;
 document.getElementById("bMenuMob").addEventListener("click", () => document.body.classList.toggle("menu-aberto"));
 document.getElementById("veu").addEventListener("click", () => document.body.classList.remove("menu-aberto"));
 document.getElementById("bMenu").addEventListener("click", () => { if (ehCel()) { document.body.classList.toggle("menu-aberto"); return; } const c = document.body.classList.toggle("menu-curto"); try { localStorage.setItem("entradaxml:menuCurto", c ? "1" : "0"); } catch (e) {} });
-for (const id of ["fNotaTxt", "fNotaSit"]) document.getElementById(id).addEventListener("input", desenharGerencia);
+for (const id of ["fNotaTxt", "fNotaSit", "fNotaLoja"]) document.getElementById(id).addEventListener("input", desenharGerencia);
 document.getElementById("fBolPagos").addEventListener("change", desenharBoletos);
 document.getElementById("fValBaixa").addEventListener("change", desenharValidades);
 for (const id of ["fValPer", "fValLoja", "fValForn", "fValOrd"]) document.getElementById(id).addEventListener("change", desenharValidades);

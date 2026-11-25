@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="167">
+<meta name="versao" content="168">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -236,17 +236,18 @@
   #progEnt .pe-barra i { display: block; height: 100%; background: var(--ok); transition: width .2s; }
   #progEnt .pe-msg { margin-top: 6px; font-size: 12px; font-weight: 700; }
   /* cartão compacto: fechado mostra OK, descrição, EAN, quantidade, custo e venda; "detalhes" abre o cartão completo */
-  body.modoCartao.modoLv #tb tr.it { border-left-width: 1px; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
-  body.modoCartao.modoLv #tb tr.it.falta { border-color: #f0b4ab; } body.modoCartao.modoLv #tb tr.it.rev { border-color: #8fc7a6; background: #f6fbf7; } body.modoCartao.modoLv #tb tr.it.pok { background: #fff; }
+  body.modoCartao.modoLv #tb tr.it { border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
   body.modoCartao.modoLv #tb tr.it.cadok { background: #ffd84d; border-color: #b45309; }
-  body.modoCartao.modoLv #tb tr.it.aberto { border-left-width: 5px; box-shadow: 0 2px 10px rgba(27,45,75,.12); }
-  body.modoCartao.modoLv #tb tr.it:not(.aberto) { grid-template-columns: 30px minmax(0, 1fr) 250px 80px 86px 104px 92px; align-items: start; gap: 6px 12px; }
+  body.modoCartao.modoLv #tb tr.it.aberto { box-shadow: 0 2px 10px rgba(27,45,75,.12); }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) { grid-template-columns: 30px minmax(0, 1fr) 90px 96px 112px 96px; align-items: start; gap: 6px 12px; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(3), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(5), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(6), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(7),
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(8), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(11), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(12), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(13),
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(15), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(17), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(18) { display: none !important; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(1) { grid-column: auto; order: 1; align-self: center; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(4) { grid-column: auto; order: 2; }
-  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) { grid-column: auto; order: 3; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) { grid-column: 2 / -1; order: 8; margin-top: -4px; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10)::before, body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) > input, body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) > a.sug { display: none; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) .chip { margin-top: 0; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(9) { grid-column: auto; order: 4; font-weight: 800; font-size: 15px; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(14) { grid-column: auto; order: 5; font-weight: 800; font-size: 15px; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(16) { grid-column: auto; order: 6; }
@@ -254,15 +255,13 @@
   body.modoCartao.modoLv #tb tr.it > td:nth-child(16) input.p { font-size: 16px; font-weight: 800; height: 36px; text-align: right; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.desc { font-size: 14px; font-weight: 800; border-color: transparent; background: transparent; padding: 4px 6px; margin-left: -6px; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.desc:focus { background: #fff; border-color: var(--borda); }
-  body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.ean { width: 150px; }
   @media (max-width: 900px) {
     body.modoCartao.modoLv #tb tr.it:not(.aberto) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
     body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(1) { grid-column: span 1; }
     body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(4) { grid-column: span 5; }
-    body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) { grid-column: 1 / -1; }
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) { grid-column: 1 / -1; order: 3; margin-top: 0; }
     body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(9), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(14), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(16) { grid-column: span 2; }
     body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(2) { grid-column: 1 / -1; }
-    body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.ean { width: 62%; }
   }
   /* entrada de nota em cartões (várias linhas por item, estilo Gestão) — escolha em "Ver: Tabela / Cartões" */
   body.modoCartao #rolItens { overflow: visible; max-height: none; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
@@ -721,7 +720,7 @@
     </div>
     <div id="recResumo" class="painel"></div>
     <div id="lvTopo">
-      <div class="lv-scan" title="bipe (ou digite e Enter) o código de barras de um produto: o sistema acha o item na nota. Se o item estiver com o código da caixa, o código bipado entra no lugar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M16 7v10"/></svg><input id="bipIt" type="text" inputmode="numeric" maxlength="14" placeholder="Bipe o código de barras do produto para achar o item na nota"><a id="bipCam" title="ler com a câmera do celular">📷</a></div>
+      <div class="lv-scan" title="bipe (ou digite e Enter) o código de barras de um produto: o sistema acha o item na nota. Se o item estiver com o código da caixa, o código bipado entra no lugar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M16 7v10"/></svg><input id="bipIt" type="text" maxlength="60" placeholder="Bipe o código de barras ou digite o nome do produto e aperte Enter"><a id="bipCam" title="ler com a câmera do celular">📷</a></div>
       <select id="fIt" style="display:none"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option></select>
       <div class="lv-tabs" id="fItTabs" role="tablist"><button type="button" data-f="" class="on">Todos <span></span></button><button type="button" data-f="naoenv">Falta enviar <span></span></button><button type="button" data-f="env">Já enviados <span></span></button><button type="button" data-f="sempv">Sem preço <span></span></button><button type="button" data-f="compv">Com preço <span></span></button></div>
     </div>
@@ -1552,16 +1551,28 @@ function desenharDetalhe(it) {
 }
 // "Bipar produto": acha o item da nota pelo código bipado; item que está com o código da CAIXA recebe o código da unidade bipado
 function bipAchar(cod) {
-  const c = chave13(String(cod || "").replace(/\D/g, "")); if (c.length < 8) return msg("Código muito curto.");
-  const k = e => chave13(String(e || "").replace(/\D/g, ""));
-  let it = itens.find(i => k(i.ean) === c), troca = false;
+  const txt = String(cod || "").trim(), k = e => chave13(String(e || "").replace(/\D/g, ""));
+  let it = null, troca = false, c = "";
+  if (/[a-zA-ZÀ-ú]/.test(txt)) { // digitou nome (ou código do fornecedor): acha pelo texto
+    const ws = semAcento(txt.toLowerCase()).split(/\s+/).filter(Boolean), alvo = i => semAcento(((i.desc || "") + " " + (i.xprod || "") + " " + (i.cod || "")).toLowerCase());
+    const ach = itens.filter(i => ws.every(w => alvo(i).includes(w))); it = ach.find(i => !i.e1 && !i.e2 && !i.jg) || ach[0];
+    if (!it) return msg(`Não achei "${txt}" nesta nota.`);
+    msg(`Item ${rot(it)}: ${it.desc || it.xprod}${ach.length > 1 ? ` (e mais ${ach.length - 1} com esse nome — digite mais para afinar)` : ""}.`);
+    return bipMostrar(it);
+  }
+  c = chave13(txt.replace(/\D/g, "")); if (c.length < 8) { it = itens.find(i => String(i.cod || "").replace(/\D/g, "") === c && c); if (!it) return msg("Código muito curto."); msg(`Item ${rot(it)}: ${it.desc || it.xprod}.`); return bipMostrar(it); }
+  it = itens.find(i => k(i.ean) === c);
   if (!it) { const cx = itens.filter(i => k(eanUnidadeDeCaixa(i.ean) || eanUnidadeDeCaixa(i.eanNota)) === c || (i.eanNota && k(i.eanNota).length === 14 && k(i.eanNota).slice(1, 13) === c.slice(0, 12)));
     it = cx.find(i => !i.e1 && !i.e2 && !i.jg) || cx[0]; troca = !!it && !it.e1 && !it.e2 && !it.jg; }
   if (!it) it = itens.find(i => k(i.eanNota) === c);
   if (!it) return msg(`Não achei o código ${c} nesta nota. Se for um item que veio sem código, clique no campo EAN do item e bipe lá.`);
   if (troca) { usarEan(it, c); msg(`Item ${rot(it)}: estava com o código da CAIXA — troquei pelo código bipado (${c}). Confira o divisor (quantas unidades vêm na caixa)${it.div > 1 ? `: está ${it.div}` : ": está 1"}.`); }
   else msg(`Item ${rot(it)}: ${it.desc || it.xprod}${it.e1 || it.e2 ? " — já enviado ao Gestão" : ""}.`);
+  bipMostrar(it);
+}
+function bipMostrar(it) {
   let tr = document.getElementById("l" + it.n); if (!tr) return;
+  if (!abertos.has(it.n)) { const a = tr.querySelector("[data-d]"); if (a) a.click(); } // abre os detalhes do item achado
   if (tr.offsetParent === null) { const f = document.getElementById("fIt"); if (f && f.value) { f.value = ""; f.dispatchEvent(new Event("change")); } }
   tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("achado"); setTimeout(() => tr.classList.remove("achado"), 4000);
 }

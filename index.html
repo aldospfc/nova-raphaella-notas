@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="175">
+<meta name="versao" content="176">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -6584,7 +6584,7 @@ async function foCarregar(atualizar) {
 function foDesenhar() {
   const el = document.getElementById("foLista"); if (!el || vista !== "fornec") return;
   const q = semAcento(document.getElementById("foQ").value.toLowerCase().trim()), qd = q.replace(/\D/g, ""), uf = document.getElementById("foUf").value, ord = document.getElementById("foOrd").value;
-  let l = FO.lista.filter(f => (!uf || f.uf === uf) && (!q || semAcento([f.razao, f.fantasia, f.municipio, f.contato].join(" ").toLowerCase()).includes(q) || (qd.length >= 3 && String(f.cnpj).includes(qd))));
+  let l = FO.lista.filter(f => (!uf || f.uf === uf) && (!q || semAcento([f.razao, f.fantasia, f.municipio, f.contato, f.whats].join(" ").toLowerCase()).includes(q) || (qd.length >= 3 && String(f.cnpj).includes(qd))));
   l.sort((x, y) => ord === "nome" ? String(x.razao).localeCompare(String(y.razao)) : ord === "total" ? (Number(y.total_comprado) - Number(x.total_comprado)) : String(y.ultima_nota || "").localeCompare(String(x.ultima_nota || "")));
   const tot = FO.lista.reduce((s_, f) => s_ + Number(f.total_comprado || 0), 0);
   { const d90 = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10), n90 = FO.notas.filter(n => String(n.emissao || "") >= d90), parados = FO.lista.filter(f => f.ultima_nota && String(f.ultima_nota).slice(0, 10) < d90).length;
@@ -6592,8 +6592,8 @@ function foDesenhar() {
       .map(([l, v, c]) => `<div class="stat-tile"><span class="stat-bar ${c}"></span><span class="eyebrow">${l}</span><strong>${v}</strong></div>`).join("")}</div>`; }
   document.getElementById("foKpis").innerHTML = `<div class="kpi"><small>Fornecedores</small><b>${FO.lista.length}</b></div><div class="kpi"><small>Notas lidas</small><b>${FO.notas.length}</b></div><div class="kpi"><small>Total em notas</small><b>${orBrl(tot)}</b></div>`;
   if (!l.length) { el.innerHTML = `<div class="painel orig">${FO.lista.length ? "Nenhum fornecedor com esse filtro." : "Nenhum fornecedor ainda: eles aparecem aqui conforme as notas (XML) entram no sistema."}</div>`; return; }
-  el.innerHTML = `<div class="rolagem" style="max-height:none"><table class="tab-dados fo-tab"><thead><tr><th>Fornecedor</th><th>CNPJ</th><th>IE</th><th>Cidade/UF</th><th>Telefone</th><th class="n">Notas</th><th class="n">Total comprado</th><th>Última nota</th></tr></thead><tbody>` +
-    l.map(f => `<tr data-c="${foA(f.cnpj)}" class="${FO.aberto === f.cnpj ? "aberto" : ""}"><td class="cab-l"><span class="forn">${escH(f.razao || "")}</span>${f.fantasia && f.fantasia !== f.razao ? `<span class="sub">${escH(f.fantasia)}</span>` : ""}</td><td class="mono" data-l="CNPJ">${foCnpj(f.cnpj)}</td><td class="mono" data-l="IE">${escH(f.ie || "")}</td><td data-l="Cidade">${escH(f.municipio || "")}${f.uf ? "/" + f.uf : ""}</td><td style="white-space:nowrap" data-l="Telefone">${foFone(f.fone)}</td><td class="n" data-l="Notas">${f.qtd_notas}</td><td class="n" data-l="Total comprado"><b>${orBrl(f.total_comprado)}</b></td><td data-l="Última nota">${dataBr(f.ultima_nota)}</td></tr>` +
+  el.innerHTML = `<div class="rolagem" style="max-height:none"><table class="tab-dados fo-tab"><thead><tr><th>Fornecedor</th><th>CNPJ</th><th>Representante</th><th>Cidade/UF</th><th>Telefone</th><th class="n">Notas</th><th class="n">Total comprado</th><th>Última nota</th></tr></thead><tbody>` +
+    l.map(f => `<tr data-c="${foA(f.cnpj)}" class="${FO.aberto === f.cnpj ? "aberto" : ""}"><td class="cab-l"><span class="forn">${escH(f.razao || "")}</span>${f.fantasia && f.fantasia !== f.razao ? `<span class="sub">${escH(f.fantasia)}</span>` : ""}</td><td class="mono" data-l="CNPJ">${foCnpj(f.cnpj)}</td><td data-l="Representante">${f.contato || f.whats ? `${escH(f.contato || "")}${f.whats ? `<span class="sub" style="display:block;font-size:11px;color:var(--cinza)">${escH(foWhats(f.whats))}</span>` : ""}` : `<span class="orig">—</span>`}</td><td data-l="Cidade">${escH(f.municipio || "")}${f.uf ? "/" + f.uf : ""}</td><td style="white-space:nowrap" data-l="Telefone">${foFone(f.fone)}</td><td class="n" data-l="Notas">${f.qtd_notas}</td><td class="n" data-l="Total comprado"><b>${orBrl(f.total_comprado)}</b></td><td data-l="Última nota">${dataBr(f.ultima_nota)}</td></tr>` +
       (FO.aberto === f.cnpj ? `<tr class="det"><td colspan="8">${foDetalhe(f)}</td></tr>` : "")).join("") + `</tbody></table></div>`;
   for (const tr of el.querySelectorAll("tr[data-c]")) tr.addEventListener("click", () => { FO.aberto = FO.aberto === tr.dataset.c ? null : tr.dataset.c; foDesenhar(); });
   const det = el.querySelector("tr.det"); if (det) foLigarDetalhe(det, FO.lista.find(f => f.cnpj === FO.aberto));
@@ -6609,10 +6609,15 @@ function foDetalhe(f) {
       <div class="fo-notas"><b>Notas deste fornecedor (${ns.length})</b><div style="margin-top:4px">${ns.slice(0, 30).map(n => `<div>${dataBr(n.emissao)} · NF ${escH(n.nnf || "")}${n.chave.endsWith("#2") ? ` <span class="badge l2">Loja 2</span>` : ""} · ${orBrl(n.vnf)} · <a data-abrir="${foA(n.chave.replace(/#2$/, ""))}">abrir</a></div>`).join("") || `<span class="orig">—</span>`}</div></div>
     </div>
     <div class="fo-edit"><label class="c">E-mail<input type="email" data-ed="email" value="${foA(f.email)}" placeholder="para mandar a nota de devolução"></label>
-      <label class="c">Contato (vendedor, representante, WhatsApp)<input type="text" data-ed="contato" value="${foA(f.contato)}"></label>
+      <label class="c">Representante (nome)<input type="text" data-ed="contato" value="${foA(f.contato)}" placeholder="nome do vendedor ou representante"></label>
+      <label class="c">WhatsApp do representante<input type="tel" inputmode="tel" data-ed="whats" value="${foA(f.whats)}" placeholder="(11) 91234-5678"></label>
+      <div class="linha" style="gap:8px;flex-wrap:wrap"><button type="button" class="sec" data-zapshare title="abre o WhatsApp para você escolher para quem mandar o contato do representante, com o nome da empresa">Compartilhar contato no WhatsApp</button><button type="button" class="sec" data-zapabrir title="abre a conversa com o representante no WhatsApp">Abrir conversa</button></div>
       <label class="c">Observações<textarea data-ed="obs" rows="4" placeholder="condições, prazos, como pedir devolução…">${escH(f.obs || "")}</textarea></label>
       <div class="linha" style="gap:8px;align-items:center"><button data-salvar>Salvar</button><span class="orig" data-st></span></div></div></div>`;
 }
+// WhatsApp do representante: só dígitos com DDI 55 (para o link) e formato para mostrar
+const foZap = v => { let d = String(v || "").replace(/\D/g, "").replace(/^0+/, ""); if (!d) return ""; if (d.length <= 11) d = "55" + d; return d; };
+const foWhats = v => { const d = foZap(v).replace(/^55/, ""); return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : String(v || ""); };
 const ICO_COPIAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 function foLigarDetalhe(det, f) {
   if (!f) return;
@@ -6620,6 +6625,13 @@ function foLigarDetalhe(det, f) {
   det.querySelector("[data-copiar]").addEventListener("click", () => copiar(foTexto(f), "Dados do fornecedor copiados — é só colar."));
   det.querySelector("[data-copiarcnpj]").addEventListener("click", () => copiar(foCnpj(f.cnpj), "CNPJ copiado."));
   for (const a of det.querySelectorAll("[data-abrir]")) a.addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(a.dataset.abrir); });
+  { const v = k => det.querySelector(`[data-ed=${k}]`).value.trim(), emp = f.fantasia && f.fantasia !== f.razao ? f.fantasia : (f.razao || "");
+    det.querySelector("[data-zapshare]").addEventListener("click", () => { const nome = v("contato"), z = foZap(v("whats"));
+      if (!nome && !z) return msg("Preencha o nome e o WhatsApp do representante antes de compartilhar.");
+      if (!z) return msg("Falta o WhatsApp do representante.");
+      const txt = `Contato do representante da ${emp}:\n${nome || "(sem nome)"}\nWhatsApp: ${foWhats(z)}\nhttps://wa.me/${z}`;
+      window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank", "noopener"); });
+    det.querySelector("[data-zapabrir]").addEventListener("click", () => { const z = foZap(v("whats")); if (!z) return msg("Falta o WhatsApp do representante."); window.open("https://wa.me/" + z, "_blank", "noopener"); }); }
   det.querySelector("[data-salvar]").addEventListener("click", async () => {
     const p = {}; for (const i of det.querySelectorAll("[data-ed]")) p[i.dataset.ed] = i.value.trim() || null;
     const st = det.querySelector("[data-st]"); st.textContent = "salvando…";

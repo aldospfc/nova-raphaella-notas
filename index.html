@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="169">
+<meta name="versao" content="170">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -66,8 +66,11 @@
   body.modoCartao #tb tr.it.cadok { background: #ffd84d; border-left-color: #b45309; }
   .chip.cad { background: #b45309; color: #fff; font-size: 12px; letter-spacing: .03em; }
   input.ean.cx { border: 2px solid #dc2626 !important; background: #fff1f0 !important; }
-  tr.it.achado > td { box-shadow: inset 0 3px 0 #1d4ed8, inset 0 -3px 0 #1d4ed8; }
-  body.modoCartao #tb tr.it.achado { outline: 3px solid #1d4ed8; }
+  @keyframes piscaAchado { 0%, 100% { outline-color: #f97316; box-shadow: 0 0 0 6px rgba(249,115,22,.35); } 50% { outline-color: transparent; box-shadow: 0 0 0 0 rgba(249,115,22,0); } }
+  @keyframes piscaAchadoTd { 0%, 100% { box-shadow: inset 0 4px 0 #f97316, inset 0 -4px 0 #f97316; } 50% { box-shadow: none; } }
+  tr.it.achado > td { animation: piscaAchadoTd .5s ease-in-out 8; box-shadow: inset 0 4px 0 #f97316, inset 0 -4px 0 #f97316; }
+  body.modoCartao #tb tr.it.achado { outline: 4px solid #f97316; outline-offset: 1px; animation: piscaAchado .5s ease-in-out 8; }
+  body.modoCartao #tb tr.it.achado > td { animation: none; box-shadow: none; }
   body.f-naoenv #tb tr.it.env, body.f-naoenv #tb tr.it.env + tr, body.f-env #tb tr.it:not(.env), body.f-env #tb tr.it:not(.env) + tr,
   body.f-sempv #tb tr.it.pdef, body.f-sempv #tb tr.it.pdef + tr,
   body.f-compv #tb tr.it:not(.pdef), body.f-compv #tb tr.it:not(.pdef) + tr { display: none !important; }
@@ -1622,7 +1625,7 @@ function bipMostrar(it) {
   let tr = document.getElementById("l" + it.n); if (!tr) return;
   if (!abertos.has(it.n)) { const a = tr.querySelector("[data-d]"); if (a) a.click(); } // abre os detalhes do item achado
   if (tr.offsetParent === null) { const f = document.getElementById("fIt"); if (f && f.value) { f.value = ""; f.dispatchEvent(new Event("change")); } }
-  tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("achado"); setTimeout(() => tr.classList.remove("achado"), 4000);
+  tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.remove("achado"); void tr.offsetWidth; tr.classList.add("achado"); clearTimeout(tr._tAch); tr._tAch = setTimeout(() => tr.classList.remove("achado"), 7000);
 }
 // filtro da tabela de itens (enviados / falta enviar / com e sem preço digitado)
 function fltContar() {

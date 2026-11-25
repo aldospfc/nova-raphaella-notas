@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="170">
+<meta name="versao" content="171">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -504,6 +504,26 @@
   @media (max-width: 700px) { .sep-topo .t { flex: 1 1 100%; } .sep-topo #sepConferir { flex: 1 1 auto; height: 44px; } }
   .sep-etqtit { margin: 12px 0 6px; padding: 6px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 600; display: flex; justify-content: space-between; }
   .sep-etqtit.falta { background: #fff4e5; color: #b54708; } .sep-etqtit.ok { background: #e3f6ea; color: #1b7248; }
+  /* Pedidos online no visual do protótipo: números no topo, abas segmentadas e ações à direita do pedido */
+  .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 4px 0 14px; }
+  .stat-tile { position: relative; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 12px 14px 12px 20px; box-shadow: var(--sombra); overflow: hidden; }
+  .stat-tile .eyebrow { font-size: 10px; text-transform: uppercase; font-weight: 800; color: var(--cinza); letter-spacing: 1px; display: block; }
+  .stat-tile strong { display: block; font-size: 26px; font-weight: 800; color: var(--azul); margin-top: 2px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .stat-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cinza); }
+  .stat-bar.error { background: #d92d20; } .stat-bar.warning { background: #d98a00; } .stat-bar.one { background: var(--loja1); }
+  @media (max-width: 760px) { .stat-row { grid-template-columns: 1fr 1fr; gap: 8px; } .stat-tile strong { font-size: 22px; } }
+  .sep-abas { background: #eceff3; border-radius: 9px; }
+  .sep-aba { border-radius: 6px; height: 36px; padding: 0 14px; } .sep-aba.on { color: var(--azul); }
+  .sep-ped { border-radius: 10px; }
+  @media (min-width: 1000px) {
+    .sep-ped:not(.sep-min) { display: grid; grid-template-columns: minmax(0, 1fr) 236px; column-gap: 20px; }
+    .sep-ped:not(.sep-min) > * { grid-column: 1; }
+    .sep-ped:not(.sep-min) > .sep-acoes { grid-column: 2; grid-row: 1 / span 3; align-self: start; margin-top: 0; flex-direction: column; flex-wrap: nowrap; }
+    .sep-ped:not(.sep-min) > .sep-acoes > button { flex: none; padding: 10px; font-size: 14px; border-radius: 8px; }
+    .sep-ped:not(.sep-min) > .sep-mais { grid-column: 2; grid-row: 4 / span 4; align-self: start; text-align: left; line-height: 1.9; }
+    .sep-ped:not(.sep-min) > .sep-bt { grid-column: 2; grid-row: 1 / span 3; align-self: start; margin-top: 0; font-size: 14px; padding: 10px; border-radius: 8px; }
+    .sep-it img, .sep-it .semfoto { width: 64px; height: 64px; }
+  }
   .pr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 10px; }
   .pr-card { background: #fff; border: 1px solid var(--borda, #dde3ea); border-radius: 12px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; }
   .pr-card:hover { border-color: #3A8DA6; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
@@ -4695,6 +4715,9 @@ function sepDesenhar() {
     if (!p) setTimeout(() => msg("Esse pedido não está mais na lista da separação (despachado há mais de 7 dias, cancelado ou ainda não chegou do Bling)."), 50);
     else { SEP.aba = devolver.includes(p) ? SEP.aba : feitos.includes(p) ? "desp" : aguard.includes(p) ? "sep" : daAba("prox").includes(p) ? "prox" : "hoje"; SEP.lg = null; SEP.sub = null; SEP.abertos.add(f); SEP.focoAgora = f; } }
   if (!SEP.aba) SEP.aba = "hoje";
+  { const nEtq = pendT.filter(p => !cancML(p) && temEtiqueta(p) && p.ml_substatus !== "printed" && !p.etiqueta_em).length, nFull = pend.filter(p => lg(p) === "full").length;
+    h += `<div class="stat-row">${[["Enviar hoje", daAba("hoje").length, "error", "hoje"], ["Próximos dias", daAba("prox").length, "warning", "prox"], ["Etiquetas para imprimir", nEtq, "one", "hoje"], nFull ? ["Full · no centro do ML", nFull, "", ""] : ["Separados, aguardando despacho", aguard.length, "", "sep"]]
+      .map(([l, v, c, a]) => `<div class="stat-tile"${a ? ` data-aba="${a}" style="cursor:pointer"` : ""}><span class="stat-bar ${c}"></span><span class="eyebrow">${l}</span><strong>${v}</strong></div>`).join("")}</div>`; }
   h += `<div class="sep-abas">${abas.map(([k, t, n]) => `<button class="sep-aba${SEP.aba === k ? " on" : ""}" data-aba="${k}">${t} <span class="sep-n${k === "hoje" && n ? " q" : ""}">${n}</span></button>`).join("")}</div>`;
   if (devolver.length) h += `<div class="painel" style="border-color:#b42318"><b style="color:#b42318">Cancelados depois de separar — devolver à prateleira (${devolver.length})</b></div>` + devolver.map(p => card(p, `<button class="sep-bt sec" data-dev="${p.id}">Devolvi à prateleira</button>`)).join("");
   const dh = d => escH(new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));

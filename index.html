@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="188">
+<meta name="versao" content="189">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -511,6 +511,7 @@
   .pr-valbox #prVal:empty { display: none; } .pr-valbox #prVal input { height: 32px; }
   .pr-etq { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; background: var(--muted, #f3f5f8); border: 1px solid var(--borda); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; } .pr-etq label { display: inline-flex; align-items: center; gap: 5px; color: var(--cinza); font-weight: 700; } .pr-etq label { max-width: 100%; min-width: 0; } .pr-etq select { max-width: 100%; min-width: 0; flex: 1 1 auto; width: auto; font-size: 13px; } .pr-etq select, .pr-etq input { height: 34px; } .pr-etq button { padding: 6px 12px; }
   .pr-card { position: relative; } .pr-card .pr-et { position: absolute; top: 8px; right: 8px; width: auto; padding: 4px 9px; font-size: 12px; z-index: 1; } .pr-card .nm { padding-right: 96px; }
+  .us-ap { margin-top: 6px; font-size: 12px; } .us-apl { margin: 6px 0 0 12px; padding-left: 8px; border-left: 2px solid var(--borda); }
   #nfProg { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; width: min(720px, calc(100vw - 20px)); z-index: 9500; background: #fff; border: 1px solid var(--borda); border-left: 5px solid var(--azul); border-radius: 12px; box-shadow: 0 10px 30px #0003; padding: 10px 12px; font-size: 13px; }
   #nfProg.fim { border-left-color: var(--ok); } #nfProg.fim.ruim { border-left-color: #b42318; }
   #nfProg .nfp-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } #nfProg .nfp-n { font-weight: 800; font-size: 12px; color: var(--cinza); } #nfProg .nfp-n.ok { color: var(--ok); } #nfProg .nfp-n.ruim { color: #b42318; }
@@ -2768,12 +2769,13 @@ const AV_TIPOS = {
   ml_atend: ["Atendimento do Mercado Livre", "reclamação nova e prazo de resposta (24 h antes), mensagem nova de comprador, pergunta sem resposta há mais de 12 h (das 8h às 22h) e anúncio que ficou sem estoque"],
   carga: ["Envios ao Gestão e aos caixas", "quando uma nota, preço ou ajuste for gravado no Gestão e nos caixas — ou der erro"],
   trava: ["Trava de segurança", "quando um envio ou promoção ficar segurado esperando a sua liberação"],
+  acesso: ["Aparelho novo numa conta", "quando qualquer conta for aberta num aparelho (navegador) em que nunca tinha entrado"],
   boletos: ["Boletos", "às 8h e às 17h30: os que vencem hoje ou já venceram e ainda não estão marcados como pagos"],
   resumo: ["Resumo das vendas do dia", "às 21h: Loja 1, Loja 2 e online, comparando com a mesma data da semana passada"]
 };
 const NTF = { reg: null, erroSw: "", instalar: null };
 // ---------- histórico de notificações (sino) ----------
-const AV_ICO = { venda_mkt: "🛒", envio: "⏰", ml_atend: "💬", carga: "📦", trava: "🔒", boletos: "💳", resumo: "📊", teste: "🧪" };
+const AV_ICO = { venda_mkt: "🛒", envio: "⏰", ml_atend: "💬", carga: "📦", trava: "🔒", acesso: "🔐", boletos: "💳", resumo: "📊", teste: "🧪" };
 const AVH = { n: 0, ultimoId: (() => { try { return Number(localStorage.getItem("av:ult")) || 0; } catch (e) { return 0; } })(), t: null };
 const avGuardarUlt = id => { AVH.ultimoId = Math.max(AVH.ultimoId, id || 0); try { localStorage.setItem("av:ult", String(AVH.ultimoId)); } catch (e) { } };
 function avQuando(d) {
@@ -2858,6 +2860,10 @@ function avNomeAparelho() {
   const nav = /Edg\//.test(ua) ? "Edge" : /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "navegador";
   return so + " · " + nav + (avInstalado() ? " (app)" : "");
 }
+// identidade deste aparelho (na prática, deste navegador): um código sorteado e guardado aqui; serve para o registro de acessos
+function dispId() { let d = ""; try { d = localStorage.getItem("nr:disp") || ""; } catch (e) {} if (!/^[A-Za-z0-9-]{8,64}$/.test(d)) { d = (crypto.randomUUID ? crypto.randomUUID() : "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 12)); try { localStorage.setItem("nr:disp", d); } catch (e) {} } return d; }
+function acessoRegistrar() { if (!supa) return; supa.rpc("acesso_registrar", { p_disp: dispId(), p_nome: avNomeAparelho(), p_ua: navigator.userAgent }).then(() => {}, () => {}); }
+function acessoIniciar() { acessoRegistrar(); setInterval(() => { if (document.visibilityState === "visible") acessoRegistrar(); }, 30 * 60000); }
 async function avisosIniciar() {
   window.addEventListener("beforeinstallprompt", ev => { ev.preventDefault(); NTF.instalar = ev; });
   if (!("serviceWorker" in navigator)) return;
@@ -2895,7 +2901,8 @@ async function avisosAbrir() {
   const [r, hr] = await Promise.all([supa.rpc("avisos_minhas"), supa.rpc("avisos_historico", { p_dias: 14 })]); const M = r.data || { permitidos: [], tipos: [], aparelhos: [] };
   const H = (hr.data && hr.data.itens) || [];
   const sub = NTF.reg && NTF.reg.pushManager ? await NTF.reg.pushManager.getSubscription().catch(() => null) : null;
-  const ativoAqui = !!(sub && Notification.permission === "granted" && (M.aparelhos || []).some(x => x.endpoint === sub.endpoint));
+  const meuAp = sub && Notification.permission === "granted" ? (M.aparelhos || []).find(x => x.endpoint === sub.endpoint) : null, ativoAqui = !!meuAp;
+  const tiposAqui = meuAp && meuAp.tipos ? meuAp.tipos : (M.tipos || []); // o que ESTE aparelho recebe (se nunca foi ajustado, segue o padrão da conta)
   const hm = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "ainda nenhum";
   let estado;
   if (!avSuporta()) estado = avIOS() && !avInstalado()
@@ -2909,11 +2916,12 @@ async function avisosAbrir() {
     <details style="margin-top:10px" ${ativoAqui ? "" : "open"}><summary style="cursor:pointer;font-weight:700">Configurar avisos no celular</summary>
     <div style="margin-top:8px">${estado}</div>
     ${NTF.instalar && !avInstalado() ? `<div style="margin-top:8px"><button class="sec" id="avInst">Instalar o app neste aparelho</button> <span class="orig">ícone na tela inicial, abre em tela cheia</span></div>` : ""}
-    <div style="margin-top:12px;font-weight:700">O que avisar</div>
-    ${(M.permitidos || []).map(t => `<label class="av-tipo"><input type="checkbox" data-avt="${t}" ${(M.tipos || []).includes(t) ? "checked" : ""}><span>${escH((AV_TIPOS[t] || [t])[0])}<small>${escH((AV_TIPOS[t] || ["", ""])[1])}</small></span></label>`).join("")}
+    <div style="margin-top:12px;font-weight:700">${ativoAqui ? "O que avisar NESTE aparelho" : "O que avisar"}</div>
+    <div class="orig" style="margin:2px 0 4px">${ativoAqui ? `Vale só para este aparelho${meuAp.rotulo ? " (" + escH(meuAp.rotulo) + ")" : ""}; os outros aparelhos da conta não mudam. <a href="#" id="avApNome">${meuAp.rotulo ? "trocar o nome" : "dar um nome a este aparelho"}</a>` : "Ative as notificações neste aparelho para escolher o que ele recebe. Enquanto isso, o que marcar aqui vale como padrão dos aparelhos que você ainda não ajustou."}</div>
+    ${(M.permitidos || []).map(t => `<label class="av-tipo"><input type="checkbox" data-avt="${t}" ${tiposAqui.includes(t) ? "checked" : ""}><span>${escH((AV_TIPOS[t] || [t])[0])}<small>${escH((AV_TIPOS[t] || ["", ""])[1])}</small></span></label>`).join("")}
     <div class="linha" style="gap:8px;margin-top:10px"><button class="sec" id="avTeste" ${ativoAqui ? "" : "disabled"}>Enviar um teste</button><span id="avMsg" class="orig" style="align-self:center"></span></div>
     <div style="margin-top:12px;font-weight:700">Aparelhos que recebem</div>
-    ${(M.aparelhos || []).length ? M.aparelhos.map(x => `<div style="font-size:12px;margin-top:4px">${escH(x.nome || "aparelho")}${sub && x.endpoint === sub.endpoint ? " <b>(este)</b>" : ""} · último aviso: ${hm(x.ultimo_ok)} · <a href="#" data-avr="${x.id}">remover</a></div>`).join("") : `<div class="orig">nenhum ainda</div>`}
+    ${(M.aparelhos || []).length ? M.aparelhos.map(x => `<div style="font-size:12px;margin-top:6px"><b>${escH(x.rotulo || x.nome || "aparelho")}</b>${x.rotulo ? ` <span class="orig">${escH(x.nome || "")}</span>` : ""}${sub && x.endpoint === sub.endpoint ? " <b>(este)</b>" : ""}<br><span class="orig">recebe: ${escH((x.tipos || M.tipos || []).map(t => (AV_TIPOS[t] || [t])[0]).join(", ") || "nada")}${x.tipos ? "" : " (padrão da conta)"} · último aviso: ${hm(x.ultimo_ok)}</span> · <a href="#" data-avn="${x.id}">nome</a> · <a href="#" data-avr="${x.id}">remover</a></div>`).join("") : `<div class="orig">nenhum ainda</div>`}
     </details>`;
   for (const el of b.querySelectorAll("[data-avi]")) { const it = H.find(x => x.id === Number(el.dataset.avi)), v = it && avAba(it); if (v) el.onclick = ev => { if (ev.target.closest("[data-avx]")) return; b.style.display = "none"; irDestino(v); }; }
   const vazio = () => { const l = b.querySelector("#avLista"); if (l && !l.querySelector("[data-avi]")) { l.innerHTML = `<div class="orig" style="padding:8px 0">Nenhuma notificação.</div>`; const lp = b.querySelector("#avLimpar"); if (lp) lp.remove(); } };
@@ -2927,8 +2935,12 @@ async function avisosAbrir() {
   const ins = b.querySelector("#avInst"); if (ins) ins.onclick = async () => { const p = NTF.instalar; NTF.instalar = null; p.prompt(); await p.userChoice.catch(() => {}); avisosAbrir(); };
   for (const c of b.querySelectorAll("[data-avt]")) c.onchange = async () => {
     const tipos = [...b.querySelectorAll("[data-avt]")].filter(x => x.checked).map(x => x.dataset.avt);
-    const s = await supa.rpc("avisos_salvar", { p_tipos: tipos }); m.textContent = s.error ? "Erro: " + s.error.message : "salvo";
+    const s = meuAp ? await supa.rpc("avisos_aparelho_salvar", { p_id: meuAp.id, p_tipos: tipos }) : await supa.rpc("avisos_salvar", { p_tipos: tipos });
+    m.textContent = s.error ? "Erro: " + s.error.message : meuAp ? "salvo — só neste aparelho" : "salvo";
   };
+  const renomear = async id => { const a = (M.aparelhos || []).find(x => x.id === id); if (!a) return; const v = prompt("Nome deste aparelho (ex.: PC do despacho, Celular do Aldo):", a.rotulo || ""); if (v == null) return; const s = await supa.rpc("avisos_aparelho_salvar", { p_id: id, p_rotulo: v }); if (s.error) return msg("Não consegui salvar o nome: " + s.error.message); avisosAbrir(); };
+  { const an = b.querySelector("#avApNome"); if (an) an.onclick = ev => { ev.preventDefault(); renomear(meuAp.id); }; }
+  for (const x of b.querySelectorAll("[data-avn]")) x.onclick = ev => { ev.preventDefault(); renomear(Number(x.dataset.avn)); };
   b.querySelector("#avTeste").onclick = async () => { const s = await supa.rpc("avisos_teste"); m.textContent = s.error ? "Erro: " + s.error.message : "enviado — chega em até 1 minuto"; };
   for (const x of b.querySelectorAll("[data-avr]")) x.onclick = async ev => { ev.preventDefault(); await supa.rpc("avisos_remover", { p_id: Number(x.dataset.avr) }); if (sub && M.aparelhos.some(a => a.id === Number(x.dataset.avr) && a.endpoint === sub.endpoint)) await sub.unsubscribe().catch(() => {}); avisosAbrir(); };
 }
@@ -4023,7 +4035,7 @@ async function entrarNoSistema(sessao) {
   window.__email = sessao.user.email; window.__admin = !!r.data.admin; window.__loja = r.data.perfil === "separacao" && [1, 2].includes(Number(r.data.loja)) ? Number(r.data.loja) : null;
   const u = document.getElementById("usuario"); u.innerHTML = ""; u.append(sessao.user.email); const a = document.createElement("a"); a.textContent = "sair"; a.onclick = async () => { await supa.auth.signOut(); location.reload(); }; u.appendChild(a);
   { const av = document.createElement("a"); av.id = "avSino"; av.textContent = "🔔 avisos"; av.title = "notificações recebidas e configuração dos avisos"; av.onclick = avisosAbrir; u.insertBefore(av, a); }
-  avisosIniciar(); avHistoricoIniciar(); vnIniciar();
+  avisosIniciar(); avHistoricoIniciar(); vnIniciar(); acessoIniciar();
   if (r.data.perfil === "separacao") { // funcionário: só a tela de separação, sem cadastro, vendas, notas…
     document.body.classList.add("perfil-sep"); { const [hv, harg] = location.hash.slice(1).split("/"); if (hv === "separacao" && harg) SEP.foco = Number(harg) || null; } sepIniciar();
     db = dbSupabase(supa); // funcionário: só validades e o ajuste das etiquetas (o banco não entrega mais nada)
@@ -4066,7 +4078,9 @@ async function usuariosCarregar() {
   const { data, error } = await supa.rpc("usuarios_listar");
   const el = document.getElementById("usLista"); if (!el) return;
   if (error) { el.textContent = "Não consegui ler os usuários: " + error.message; return; }
-  US.lista = data || []; el.classList.remove("orig"); usuariosDesenhar();
+  US.lista = data || []; el.classList.remove("orig");
+  { const a = await supa.rpc("acessos_listar"); US.aparelhos = a.error ? [] : (a.data || []); }
+  usuariosDesenhar();
 }
 function usuariosDesenhar() {
   const el = document.getElementById("usLista"); if (!el) return;
@@ -4090,9 +4104,17 @@ function usuariosDesenhar() {
     <div class="us-l2"><span>${escH(ACESSO[u.perfil] || u.perfil)}${u.perfil !== "completo" ? ` · <b>${u.loja ? "Loja " + u.loja : "as duas lojas"}</b>` : ""}</span>
       ${u.tem_conta ? `<span>último acesso: ${u.ultimo_acesso ? escH(dh(u.ultimo_acesso)) : "nunca entrou"}</span>` : '<span class="chip falta" title="a pessoa ainda precisa tocar em Criar conta na tela de entrada">ainda não criou a conta</span>'}
       ${u.perfil === "completo" ? (u.tem_2fa ? '<span style="color:var(--ok)">duas etapas ✓</span>' : u.exige_2fa ? '<span class="chip">vai cadastrar as duas etapas ao entrar</span>' : '<span class="chip falta">sem verificação em duas etapas</span>') : ""}</div>
-    <div class="us-bts"><a href="#" data-used="${i}">editar</a> · <a href="#" data-ussenha="${i}">${u.tem_conta ? "trocar senha" : "criar conta com senha"}</a>${u.tem_2fa && !u.eu ? ` · <a href="#" data-us2fa="${i}" title="para quem perdeu ou trocou de celular">zerar duas etapas</a>` : ""}${!u.eu ? ` · <a href="#" data-usrm="${i}" style="color:#b42318">remover acesso</a>` : ""}</div></div>`).join("");
+    <div class="us-bts"><a href="#" data-used="${i}">editar</a> · <a href="#" data-ussenha="${i}">${u.tem_conta ? "trocar senha" : "criar conta com senha"}</a>${u.tem_2fa && !u.eu ? ` · <a href="#" data-us2fa="${i}" title="para quem perdeu ou trocou de celular">zerar duas etapas</a>` : ""}${!u.eu ? ` · <a href="#" data-usrm="${i}" style="color:#b42318">remover acesso</a>` : ""}</div>
+    ${(() => { const ap = (US.aparelhos || []).filter(a => a.email === u.email), novo = a => Date.now() - new Date(a.primeiro_em).getTime() < 48 * 3600e3, aberto = US.verAp === u.email;
+      return `<div class="us-ap"><a href="#" data-usap="${i}">${aberto ? "▾" : "▸"} aparelhos que acessaram: <b>${ap.length}</b></a>${ap.some(novo) ? ' <span class="chip av">tem aparelho novo</span>' : ""}
+        ${aberto ? (ap.length ? ap.map(a => `<div class="us-apl"><b>${escH(a.rotulo || a.nome || "aparelho")}</b>${a.rotulo ? ` <span class="orig">${escH(a.nome || "")}</span>` : ""}${a.disp === dispId() && u.eu ? " <b>(este)</b>" : ""}${novo(a) ? ' <span class="chip av">novo</span>' : ""}
+          <br><span class="orig">primeiro acesso ${escH(dh(a.primeiro_em))} · último ${escH(dh(a.ultimo_em))} · ${a.acessos} acesso${a.acessos === 1 ? "" : "s"}${a.ip ? " · IP " + escH(a.ip) : ""}</span>
+          · <a href="#" data-usapn="${escH(a.email)}|${escH(a.disp)}">dar nome</a> · <a href="#" data-usapx="${escH(a.email)}|${escH(a.disp)}">esquecer</a></div>`).join("") : `<div class="orig us-apl">Nenhum registrado ainda — aparece no próximo acesso dessa conta (a partir da versão 189).</div>`) : ""}</div>`; })()}</div>`).join("");
   el.innerHTML = h || "Nenhum usuário.";
   const m = t => { const x = document.getElementById("usMsg"); if (x) x.textContent = t; };
+  for (const a of el.querySelectorAll("[data-usap]")) a.onclick = ev => { ev.preventDefault(); const e = US.lista[Number(a.dataset.usap)].email; US.verAp = US.verAp === e ? null : e; usuariosDesenhar(); };
+  for (const a of el.querySelectorAll("[data-usapn]")) a.onclick = async ev => { ev.preventDefault(); const [e, d] = a.dataset.usapn.split("|"), at = (US.aparelhos || []).find(x => x.email === e && x.disp === d); const v = prompt("Nome deste aparelho (ex.: Celular do Eduardo, PC do caixa):", (at && at.rotulo) || ""); if (v == null) return; const r = await supa.rpc("acesso_rotular", { p_email: e, p_disp: d, p_rotulo: v }); if (r.error) return msg("Não consegui salvar: " + r.error.message); usuariosCarregar(); };
+  for (const a of el.querySelectorAll("[data-usapx]")) a.onclick = async ev => { ev.preventDefault(); const [e, d] = a.dataset.usapx.split("|"); if (!confirm("Tirar este aparelho da lista? Se ele entrar de novo, volta a aparecer como aparelho novo.")) return; const r = await supa.rpc("acesso_esquecer", { p_email: e, p_disp: d }); if (r.error) return msg("Não consegui: " + r.error.message); usuariosCarregar(); };
   for (const a of el.querySelectorAll("[data-used]")) a.onclick = ev => { ev.preventDefault(); US.edit = US.lista[Number(a.dataset.used)].email; usuariosDesenhar(); };
   for (const a of el.querySelectorAll("[data-usrm]")) a.onclick = async ev => { ev.preventDefault(); const u = US.lista[Number(a.dataset.usrm)];
     if (!confirm(`Remover o acesso de ${u.nome || u.email}?\n\nA pessoa deixa de entrar no sistema na hora (a conta dela continua existindo; se incluir de novo, ela volta a entrar com a mesma senha).`)) return;

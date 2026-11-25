@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="185">
+<meta name="versao" content="186">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -508,6 +508,7 @@
   .sub-abas button { border: 0; background: transparent; color: var(--cinza); font-weight: 800; font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
   .sub-abas button.on { background: #fff; color: var(--texto); box-shadow: 0 1px 2px #0002; }
   .sub-abas .etN:not(:empty) { display: inline-block; background: var(--azul); color: #fff; border-radius: 99px; padding: 0 7px; font-size: 11px; margin-left: 4px; }
+  .pr-etq { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; background: var(--muted, #f3f5f8); border: 1px solid var(--borda); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; } .pr-etq label { display: inline-flex; align-items: center; gap: 5px; color: var(--cinza); font-weight: 700; } .pr-etq label { max-width: 100%; min-width: 0; } .pr-etq select { max-width: 100%; min-width: 0; flex: 1 1 auto; width: auto; font-size: 13px; } .pr-etq select, .pr-etq input { height: 34px; } .pr-etq button { padding: 6px 12px; }
   .pr-card { position: relative; } .pr-card .pr-et { position: absolute; top: 8px; right: 8px; width: auto; padding: 4px 9px; font-size: 12px; z-index: 1; } .pr-card .nm { padding-right: 96px; }
   #nfProg { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; width: min(720px, calc(100vw - 20px)); z-index: 9500; background: #fff; border: 1px solid var(--borda); border-left: 5px solid var(--azul); border-radius: 12px; box-shadow: 0 10px 30px #0003; padding: 10px 12px; font-size: 13px; }
   #nfProg.fim { border-left-color: var(--ok); } #nfProg.fim.ruim { border-left-color: #b42318; }
@@ -3088,7 +3089,9 @@ async function prBuscar() {
     : `<div class="${l === 2 ? "l2" : ""}"><div class="mini">Loja ${l}</div><div class="mini" style="margin-top:6px">não tem</div></div>`;
   res.innerHTML = lista.slice(0, 100).map((x, i) => `<div class="pr-card" data-i="${i}" data-ean="${escH(x.ean)}"><button type="button" class="sec pr-et" data-pret="${i}" title="pôr este produto na lista de etiquetas">＋ etiqueta</button><div class="nm">${escH((x[1] || x[2]).descricao)}</div><div class="mini mono">${escH(x.ean)} ${val(x)}</div><div class="lj">${loja(x[1], 1)}${loja(x[2], 2)}</div></div>`).join("");
   for (const b of res.querySelectorAll("[data-pret]")) b.addEventListener("click", ev => { ev.stopPropagation(); prEtiqueta(lista[Number(b.dataset.pret)], b); });
-  if (fn) { for (const c of res.querySelectorAll(".pr-card")) c.style.cursor = "default"; return; } // funcionário: só consulta
+  if (fn) { for (const c of res.querySelectorAll(".pr-card")) c.style.cursor = "default"; // funcionário: só consulta
+    if (lista.length === 1) { res.insertAdjacentHTML("beforeend", prEtqBox(lista[0])); prEtqLigar(res, lista[0]); } // bipou um produto: já oferece a etiqueta
+    return; }
   for (const c of res.querySelectorAll(".pr-card")) c.addEventListener("click", () => { prAbrir(lista[Number(c.dataset.i)]); document.getElementById("prEd").scrollIntoView({ behavior: "smooth", block: "start" }); });
   // última mudança de preço de cada produto (histórico)
   (async () => { const eans = [...new Set(lista.slice(0, 100).flatMap(x => [x.ean, chave13(x.ean), String(x.ean).replace(/^0+/, "")]))]; if (!eans.length) return;
@@ -3126,6 +3129,7 @@ async function prAbrir(g) {
         <input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-f="auxNovo" placeholder="novo código auxiliar" style="width:150px"> <a data-f="auxAdd" style="cursor:pointer;color:#0b57d0">incluir</a></div>
     </div>`; };
   ed.innerHTML = `<div class="painel"><b>${escH(base.descricao)}</b> <span class="mono orig">${escH(g.ean)}</span> <a id="prFechar" style="cursor:pointer;color:#0b57d0;float:right">fechar</a>
+    ${prEtqBox(g)}
     <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap">
       <label class="c" style="flex:1;min-width:240px">Descrição (até 60)<input class="desc" type="text" id="prDesc" maxlength="60" value="${escH(base.descricao || "").replace(/"/g, "&quot;")}" style="width:100%"></label>
       <label class="c">NCM<input class="p" type="text" inputmode="numeric" id="prNcm" maxlength="8" value="${escH(base.ncm || "")}" style="width:90px"></label>
@@ -3142,6 +3146,7 @@ async function prAbrir(g) {
         <label class="c">Loja<select id="prValLoja">${g[1] ? "<option>Loja 1</option>" : ""}${g[2] ? "<option>Loja 2</option>" : ""}</select></label>
         <button id="prValOk">Lançar validade</button>
       </div></div></div></div>`;
+  prEtqLigar(ed, g);
   for (const c of document.querySelectorAll("#prRes .pr-card")) c.classList.toggle("on", c.dataset.ean === String(g.ean));
   for (const a of ed.querySelectorAll("[data-entrada]")) a.onclick = () => { const l = Number(a.dataset.entrada), p = g[l];
     novaEntradaManual(`Entrada avulsa ${new Date().toLocaleDateString("pt-BR")} - ${String(p.descricao || "").slice(0, 30)}`, [{ desc: p.descricao, qtd: 0, custo: Number(p.preco_compra) || 0, ean: p.ean, venda: Number(p.preco_venda) || 0 }], l).catch(e => msg("Não consegui abrir a entrada: " + (e.message || e))); };
@@ -6954,6 +6959,25 @@ async function etAdicionarEans(lista, loja) {
 // contador da sub-aba Etiquetas (dentro de Produtos) e troca entre as duas sub-abas
 function etConta() { let n = 0; try { n = ET.itens.length; } catch (e) { } for (const e of document.querySelectorAll(".etN")) e.textContent = n ? String(n) : ""; }
 document.addEventListener("click", ev => { const b = ev.target.closest && ev.target.closest("[data-prsub]"); if (b) mostrar(b.dataset.prsub); });
+// Caixa "Etiqueta" do produto aberto/bipado em Produtos: imprime na hora (loja, modelo e quantidade) ou põe na lista
+function prEtqBox(x) {
+  const ljs = [1, 2].filter(l => x[l] && (!window.__loja || window.__loja === l)); if (!ljs.length) return "";
+  const l0 = ljs.includes(ET.loja) ? ET.loja : ljs[0], mds = ET_MODELOS.filter(m => ["gondola", "casa", "adesivo"].includes(m[0])), md0 = mds.some(m => m[0] === ET.modelo) ? ET.modelo : "gondola";
+  return `<div class="pr-etq" data-etq><b>🏷 Etiqueta</b>
+    <label>Loja <select data-eq="loja"${ljs.length < 2 ? " disabled" : ""}>${ljs.map(l => `<option value="${l}"${l === l0 ? " selected" : ""}>Loja ${l} · R$ ${br(Number(x[l].preco_venda) || 0)}</option>`).join("")}</select></label>
+    <label>Modelo <select data-eq="md">${mds.map(([k, t]) => `<option value="${k}"${md0 === k ? " selected" : ""}>${escH(t)}</option>`).join("")}</select></label>
+    <label>Qtd <input data-eq="qtd" type="number" min="1" max="200" value="1" inputmode="numeric" style="width:64px;text-align:right"></label>
+    <button type="button" data-eq="imp">Imprimir agora</button><button type="button" class="sec" data-eq="lista">＋ pôr na lista</button></div>`;
+}
+function prEtqLigar(raiz, x) {
+  const c = raiz && raiz.querySelector("[data-etq]"); if (!c) return; const q = k => c.querySelector(`[data-eq=${k}]`);
+  q("imp").addEventListener("click", () => { const l = Number(q("loja").value), p = x[l], n = Math.max(1, Math.min(200, Math.floor(Number(q("qtd").value) || 1)));
+    const ljAnt = ET.loja, mdAnt = ET.modelo; ET.loja = l; ET.modelo = q("md").value;
+    try { etEnviar([{ ean: p.ean, desc: p.descricao, descOrig: p.descricao, cod: p.codigo_interno || "", preco: r2(Number(p.preco_venda) || 0), qtd: n }]); } finally { ET.loja = ljAnt; ET.modelo = mdAnt; } });
+  q("lista").addEventListener("click", async () => { const l = Number(q("loja").value), n = Math.max(1, Math.floor(Number(q("qtd").value) || 1));
+    if (ET.itens.length && ET.loja !== l) return msg(`A lista de etiquetas está na Loja ${ET.loja}. Imprima ou limpe a lista antes de pôr produto da Loja ${l}.`);
+    ET.loja = l; await etAdicionarEans([{ ean: x[l].ean, qtd: n }], l); etConta(); msg(`Na lista de etiquetas (${ET.itens.length}) — Loja ${l}.`); });
+}
 // "+ etiqueta" no resultado da busca de Produtos: põe o produto na lista de etiquetas sem sair da tela
 async function prEtiqueta(x, bt) {
   const lj = window.__loja || (ET.itens.length ? ET.loja : (x[ET.loja] ? ET.loja : x[1] ? 1 : 2));
@@ -7034,14 +7058,16 @@ async function etBuscar(txt, enter) {
   for (const d of res.querySelectorAll("[data-i]")) d.addEventListener("click", () => add(ET.busca[Number(d.dataset.i)]));
 }
 async function etFila(tipo, conteudo, titulo) {
-  const c = etCfg(), imp = ET.loja === 2 ? c.impressora2 : c.impressora1, st = document.getElementById("etStatus");
+  const lj = ET.loja, c = etCfg(), imp = lj === 2 ? c.impressora2 : c.impressora1;
+  // resposta na tela de Etiquetas e, se o pedido saiu de outra tela (caixa "Etiqueta" em Produtos), também no aviso geral
+  const diz = (t, cls) => { const st = document.getElementById("etStatus"); if (st) st.innerHTML = cls ? `<span class="chip ${cls}">${cls === "ok" ? "pronto" : "erro"}</span> <span style="white-space:pre-wrap">${escH(t)}</span>` : escH(t); if (vista !== "etiquetas") msg((cls === "ok" ? "Etiqueta: pronto. " : cls ? "Etiqueta: erro. " : "") + t); };
   const corpo = (imp ? "--IMPRESSORA " + imp + "\n" : "") + conteudo;
-  const { data, error } = await supa.from("fila").insert({ loja_id: ET.loja, tipo, titulo, conteudo: corpo, status: "pendente" }).select("id").single();
-  if (error) { st.textContent = "Não consegui enviar: " + error.message; return; }
-  st.textContent = "Enviado para o PC da Loja " + ET.loja + "; aguardando…";
+  const { data, error } = await supa.from("fila").insert({ loja_id: lj, tipo, titulo, conteudo: corpo, status: "pendente" }).select("id").single();
+  if (error) { diz("Não consegui enviar: " + error.message); return; }
+  diz("Enviado para o PC da Loja " + lj + "; aguardando…");
   const t0 = Date.now(), tm = setInterval(async () => { const r = await supa.from("fila").select("status,resultado").eq("id", data.id).single(); const f = r.data; if (!f) return;
-    if (f.status === "aplicado" || f.status === "erro") { clearInterval(tm); const s2 = document.getElementById("etStatus"); if (s2) s2.innerHTML = `<span class="chip ${f.status === "aplicado" ? "ok" : "falta"}">${f.status === "aplicado" ? "pronto" : "erro"}</span> <span style="white-space:pre-wrap">${escH(f.resultado || "")}</span>`; }
-    else if (Date.now() - t0 > 180000) { clearInterval(tm); const s2 = document.getElementById("etStatus"); if (s2) s2.textContent = "O PC da loja ainda não pegou o pedido (está ligado?). Ele imprime assim que ligar."; } }, 3000);
+    if (f.status === "aplicado" || f.status === "erro") { clearInterval(tm); diz(f.resultado || "", f.status === "aplicado" ? "ok" : "falta"); }
+    else if (Date.now() - t0 > 180000) { clearInterval(tm); diz("O PC da loja ainda não pegou o pedido (está ligado?). Ele imprime assim que ligar."); } }, 3000);
 }
 function etEnviar(lista, teste) {
   if (!lista.length) return msg("Nenhuma etiqueta com quantidade.");

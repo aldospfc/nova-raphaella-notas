@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="183">
+<meta name="versao" content="184">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2295,6 +2295,12 @@ function sitBoleto(b) {
   if (d <= 7) return [`vence em ${d} dia${d === 1 ? "" : "s"}`, "av"];
   return [`vence em ${d} dias`, "novo"];
 }
+// parte da outra loja num boleto: quanto ela já acertou (recv guarda o valor na hora em que marcou "já me pagou") e quanto ainda falta.
+// Se a divisão muda depois (mais itens para a outra loja), a diferença volta a aparecer como "falta".
+const l2Pago = b => b && b.rec ? (b.recv != null ? Number(b.recv) || 0 : Number(b.p2) || 0) : 0;
+const l2Falta = b => { const f = r2((Number(b && b.p2) || 0) - l2Pago(b)); return f > 0.009 ? f : 0; };
+const l2Txt = b => b.rec && l2Falta(b) ? ` <span style="color:#b42318;font-weight:700">já pagou R$ ${br(l2Pago(b))} · falta R$ ${br(l2Falta(b))}</span>` : "";
+const recPatch = (marcado, p2) => marcado ? { rec: new Date().toISOString(), recv: r2(Number(p2) || 0) } : { rec: null, recv: null };
 function mudarBoleto(chave, i, patch) {
   const m = metaDe(chave); if (!m) return;
   const bs = (m.boletos || []).map(x => ({ ...x }));
@@ -2322,11 +2328,11 @@ function desenharBoletosNota() {
   bs.forEach((b, i) => {
     const [txtS, cls] = sitBoleto(b), e = document.createElement("div"); e.className = "bol";
     e.innerHTML = `<span style="min-width:70px">${h(b.n || i + 1)}</span><label>${b.fp === "ant" ? "pago em" : b.fp === "ent" ? "entrega em" : "vencimento"} <input type="date" data-k="venc" value="${h(b.venc || "")}"></label><label>${b.nf ? "valor na nota" : "valor"} R$ <input type="text" inputmode="decimal" data-k="valor" value="${b.valor ? br(b.valor) : ""}" style="width:90px;text-align:right"></label>` +
-      `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${partes && partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="${r2_ ? `parte da Loja ${lojaOutra()} neste boleto, já com a parte dela no DIFAL` : `parte da Loja ${lojaOutra()} neste boleto, rateada pelo valor informado acima`}">Loja ${lojaOutra()} me paga: R$ ${br(partes[i])} · Loja ${lojaPrinc()}: R$ ${br(r2(aPagar(m, b) - partes[i]))}</span><label title="marque quando a outra loja te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec ? " checked" : ""}> Loja 2 já me pagou</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
+      `${b.nf && fbDe(m) > 1 ? `<b>a pagar R$ ${br(aPagar(m, b))}</b>` : ""}<label><input type="checkbox" data-k="pago"${b.pago ? " checked" : ""}> pago</label><span class="chip ${cls}">${txtS}</span>${bs.some(x => x.l2) ? `<span class="chip" style="background:#f3f0ff">${b.l2 ? "Loja 2" : "Loja 1"}</span>` : ""}${partes && partes[i] > 0 ? `<span class="chip" style="background:#f3f0ff" title="${r2_ ? `parte da Loja ${lojaOutra()} neste boleto, já com a parte dela no DIFAL` : `parte da Loja ${lojaOutra()} neste boleto, rateada pelo valor informado acima`}">Loja ${lojaOutra()} me paga: R$ ${br(partes[i])} · Loja ${lojaPrinc()}: R$ ${br(r2(aPagar(m, b) - partes[i]))}</span>${l2Txt({ ...b, p2: partes[i] })}<label title="marque quando a outra loja te pagar a parte dela deste boleto"><input type="checkbox" data-k="rec"${b.rec && !l2Falta({ ...b, p2: partes[i] }) ? " checked" : ""}> Loja ${lojaOutra()} já me pagou${b.rec && l2Falta({ ...b, p2: partes[i] }) ? " o resto" : ""}</label>` : ""}<a data-x="1" style="cursor:pointer;color:#b91c1c">remover</a>`;
     e.querySelector("[data-k=venc]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { venc: ev.target.value }));
     e.querySelector("[data-k=valor]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { valor: pnum(ev.target.value) }));
     e.querySelector("[data-k=pago]").addEventListener("change", ev => mudarBoleto(cab.chave, i, { pago: ev.target.checked ? new Date().toISOString() : null }));
-    const rc = e.querySelector("[data-k=rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(cab.chave, i, { rec: ev.target.checked ? new Date().toISOString() : null }));
+    const rc = e.querySelector("[data-k=rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(cab.chave, i, recPatch(ev.target.checked, partes && partes[i] > 0 ? partes[i] : b.p2)));
     const x = e.querySelector("[data-x]"); x.addEventListener("click", () => { if (x.dataset.ok) mudarBoleto(cab.chave, i, null); else { x.dataset.ok = "1"; x.textContent = "confirmar"; } });
     l.appendChild(e);
   });
@@ -2365,13 +2371,13 @@ function desenharBoletos() {
   if (vista !== "boletos") return;
   const todos = todosBoletos(), abertos_ = todos.filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
   const venc = abertos_.filter(x => dias(x.b.venc) < 0), s7 = abertos_.filter(x => { const d = dias(x.b.venc); return d >= 0 && d <= 7; }), s30 = abertos_.filter(x => { const d = dias(x.b.venc); return d > 7 && d <= 30; });
-  { const l2 = todos.reduce((a, x) => a + (x.b.p2 && !x.b.rec ? x.b.p2 : 0), 0), per = document.getElementById("fBolPer").value;
+  { const l2 = todos.reduce((a, x) => a + l2Falta(x.b), 0), per = document.getElementById("fBolPer").value;
     document.getElementById("bolStats").innerHTML = `<div class="stat-row">${[["Vencidos · " + venc.length, soma(venc), "error", "venc"], ["Próximos 7 dias · " + s7.length, soma(s7), "warning", null], ["De 8 a 30 dias · " + s30.length, soma(s30), "", null], l2 > 0 ? ["Outra loja tem a me pagar", l2, "one", null] : ["Total em aberto · " + abertos_.length, soma(abertos_), "one", ""]]
       .map(([l, v, c, f]) => `<div class="stat-tile${f != null && per === f && f ? " on" : ""}"${f != null ? ` data-bper="${f}" style="cursor:pointer" title="${f ? "mostrar só estes" : "mostrar todos"}"` : ""}><span class="stat-bar ${c}"></span><span class="eyebrow">${l}</span><strong>R$ ${br(v)}</strong></div>`).join("")}</div>`;
     for (const t of document.querySelectorAll("#bolStats [data-bper]")) t.onclick = () => { const sl = document.getElementById("fBolPer"); sl.value = sl.value === t.dataset.bper ? "" : t.dataset.bper; sl.dispatchEvent(new Event("change")); }; }
-  document.getElementById("resBol").innerHTML = `<div><small>Vencidos</small><b>${venc.length} · R$ ${br(soma(venc))}</b></div><div><small>Próximos 7 dias</small><b>${s7.length} · R$ ${br(soma(s7))}</b></div><div><small>De 8 a 30 dias</small><b>${s30.length} · R$ ${br(soma(s30))}</b></div><div><small>Total em aberto</small><b>${abertos_.length} · R$ ${br(soma(abertos_))}</b></div>` + (todos.some(x => x.b.p2 && !x.b.rec) ? `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="soma da parte da Loja 2 nos boletos em que ela ainda não te pagou"><small>Loja 2 tem a me pagar</small><b>R$ ${br(todos.reduce((a, x) => a + (x.b.p2 && !x.b.rec ? x.b.p2 : 0), 0))}</b></div>` : "");
+  document.getElementById("resBol").innerHTML = `<div><small>Vencidos</small><b>${venc.length} · R$ ${br(soma(venc))}</b></div><div><small>Próximos 7 dias</small><b>${s7.length} · R$ ${br(soma(s7))}</b></div><div><small>De 8 a 30 dias</small><b>${s30.length} · R$ ${br(soma(s30))}</b></div><div><small>Total em aberto</small><b>${abertos_.length} · R$ ${br(soma(abertos_))}</b></div>` + (todos.some(x => l2Falta(x.b)) ? `<div style="background:#f3f0ff;border-radius:6px;padding:2px 8px" title="soma da parte da Loja 2 nos boletos em que ela ainda não te pagou"><small>Loja 2 tem a me pagar</small><b>R$ ${br(todos.reduce((a, x) => a + l2Falta(x.b), 0))}</b></div>` : "");
   const tb = document.getElementById("tbBol"); tb.innerHTML = "";
-  const base = document.getElementById("fBolPagos").checked ? todos : todos.filter(x => !x.b.pago || (x.b.p2 && !x.b.rec)); // boleto pago continua na lista enquanto a Loja 2 não acertar a parte dela
+  const base = document.getElementById("fBolPagos").checked ? todos : todos.filter(x => !x.b.pago || l2Falta(x.b)); // boleto pago continua na lista enquanto a Loja 2 não acertar a parte dela
   // filtros: período (pelo vencimento) e fornecedor
   const selF = document.getElementById("fBolForn"), fornAtual = selF.value, forns = [...new Set(todos.map(x => x.n.emit || "").filter(Boolean))].sort((a, b) => a.localeCompare(b));
   if (selF.dataset.l !== forns.join("|")) { selF.dataset.l = forns.join("|"); selF.innerHTML = `<option value="">Todos</option>` + forns.map(f => `<option value="${h(f)}">${h(f)}</option>`).join(""); selF.value = forns.includes(fornAtual) ? fornAtual : ""; }
@@ -2398,11 +2404,11 @@ function desenharBoletos() {
         const [txtS, cls] = sitBoleto(x.b), c = document.createElement("div"), v = x.b.venc || "", l2_ = lojaBoleto(x) === 2; c.className = "bcard " + cls;
         c.innerHTML = `<div class="topo"><span class="dia">${v ? v.slice(8, 10) + "/" + v.slice(5, 7) : "—"}</span><span class="sem">${v ? SEM[new Date(v + "T12:00:00").getDay()] : ""}</span><span class="chip ${cls}" style="margin:0 0 0 auto">${txtS}</span></div>` +
           `<div class="forn">${h(x.n.emit)}</div><div class="det"><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a> · parcela ${h(x.b.n || x.i + 1)} · <span${l2_ ? ' style="color:#4b3fa3;font-weight:600"' : ""}>Loja ${l2_ ? 2 : 1}</span>${x.b.nf && fbDe(x.n) > 1 ? " · meia nota" : ""}</div>` +
-          (x.b.p2 ? `<div class="l2"><span>Loja ${lojaBoleto(x) === 2 ? 1 : 2} me paga <b>R$ ${br(x.b.p2)}</b></span><label style="margin-left:auto"><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : "") +
+          (x.b.p2 ? `<div class="l2"><span>Loja ${lojaBoleto(x) === 2 ? 1 : 2} me paga <b>R$ ${br(x.b.p2)}</b>${l2Txt(x.b)}</span><label style="margin-left:auto"><input type="checkbox" data-rec="1"${x.b.rec && !l2Falta(x.b) ? " checked" : ""}> já me pagou${x.b.rec && l2Falta(x.b) ? " o resto" : ""}</label></div>` : "") +
           `<div class="pe"><span class="val">R$ ${br(aPagar(x.n, x.b))}</span><label class="pagar"><input type="checkbox" data-pago="1"${x.b.pago ? " checked" : ""}> ${x.b.pago ? "pago" : "marcar pago"}</label></div>`;
         c.querySelector("a").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(x.n.id); });
         c.querySelector("[data-pago]").addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { pago: ev.target.checked ? new Date().toISOString() : null }));
-        const rc = c.querySelector("[data-rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { rec: ev.target.checked ? new Date().toISOString() : null }));
+        const rc = c.querySelector("[data-rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(x.n.id, x.i, recPatch(ev.target.checked, x.b.p2)));
         grade.appendChild(c);
       }
     }
@@ -2411,10 +2417,10 @@ function desenharBoletos() {
   if (!lista.length) tb.innerHTML = `<tr><td colspan="9"><i>${per || forn || lj ? "Nenhum boleto nesse filtro." : db ? "Nenhum boleto em aberto." : "Sem armazenamento compartilhado, aparecem aqui só os boletos da nota aberta."}</i></td></tr>`;
   for (const x of lista) {
     const [txtS, cls] = sitBoleto(x.b), tr = document.createElement("tr");
-    tr.innerHTML = `<td>${dataBr(x.b.venc) || "-"}</td><td>${lojaBoleto(x) === 2 ? '<span class="chip" style="background:#f3f0ff">Loja 2</span>' : "Loja 1"}</td><td>${h(x.n.emit)}</td><td><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a></td><td>${h(x.b.n || x.i + 1)}</td><td class="n">${br(aPagar(x.n, x.b))}${x.b.nf && fbDe(x.n) > 1 ? '<div class="orig">meia nota</div>' : ""}</td><td class="n">${x.b.p2 ? "<b>" + br(x.b.p2) + `</b><div class="orig"><label><input type="checkbox" data-rec="1"${x.b.rec ? " checked" : ""}> já me pagou</label></div>` : x.b.l2 ? '<span class="orig">boleto da Loja 2</span>' : ""}</td><td><span class="chip ${cls}">${txtS}</span></td><td><input type="checkbox"${x.b.pago ? " checked" : ""}></td>`;
+    tr.innerHTML = `<td>${dataBr(x.b.venc) || "-"}</td><td>${lojaBoleto(x) === 2 ? '<span class="chip" style="background:#f3f0ff">Loja 2</span>' : "Loja 1"}</td><td>${h(x.n.emit)}</td><td><a style="cursor:pointer;color:#0b57d0;text-decoration:underline">${h(rotNota(x.n))}</a></td><td>${h(x.b.n || x.i + 1)}</td><td class="n">${br(aPagar(x.n, x.b))}${x.b.nf && fbDe(x.n) > 1 ? '<div class="orig">meia nota</div>' : ""}</td><td class="n">${x.b.p2 ? "<b>" + br(x.b.p2) + `</b><div class="orig">${l2Txt(x.b)}<label><input type="checkbox" data-rec="1"${x.b.rec && !l2Falta(x.b) ? " checked" : ""}> já me pagou${x.b.rec && l2Falta(x.b) ? " o resto" : ""}</label></div>` : x.b.l2 ? '<span class="orig">boleto da Loja 2</span>' : ""}</td><td><span class="chip ${cls}">${txtS}</span></td><td><input type="checkbox"${x.b.pago ? " checked" : ""}></td>`;
     tr.querySelector("a").addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(x.n.id); });
     tr.querySelector("input:not([data-rec])").addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { pago: ev.target.checked ? new Date().toISOString() : null }));
-    const rc = tr.querySelector("[data-rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(x.n.id, x.i, { rec: ev.target.checked ? new Date().toISOString() : null }));
+    const rc = tr.querySelector("[data-rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(x.n.id, x.i, recPatch(ev.target.checked, x.b.p2)));
     tb.appendChild(tr);
   }
 }
@@ -2554,7 +2560,7 @@ function desenharAvisos() {
   const tab = (id, cab_, linhas, vazio) => { document.getElementById(id).innerHTML = linhas.length ? `<table class="lv-dt"><thead><tr>${cab_.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>${linhas.join("")}</tbody></table>` : `<p class="alert-empty">✓ ${vazio}</p>`; };
   const bol = todosBoletos().filter(x => !x.b.pago && dias(x.b.venc) <= 7);
   cabAv("bol", bol.length, "error", bol.length ? "Total R$ " + br(bol.reduce((a, x) => a + aPagar(x.n, x.b), 0)) : "Nada para pagar nos próximos 7 dias");
-  tab("avBol", ["Vencimento", "Fornecedor", "Nota", "Parcela", "Valor a pagar", "Outra loja me paga", "Situação"], bol.map(x => { const [t, c] = sitBoleto(x.b); return `<tr><td>${dataBr(x.b.venc)}</td><td>${h(x.n.emit)}</td><td>${h(rotNota(x.n))}</td><td>${h(x.b.n || x.i + 1)}</td><td>R$ ${br(aPagar(x.n, x.b))}</td><td>${x.b.p2 ? "R$ " + br(x.b.p2) + (x.b.rec ? " (já pagou)" : "") : ""}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum boleto vencido ou vencendo nos próximos 7 dias.");
+  tab("avBol", ["Vencimento", "Fornecedor", "Nota", "Parcela", "Valor a pagar", "Outra loja me paga", "Situação"], bol.map(x => { const [t, c] = sitBoleto(x.b); return `<tr><td>${dataBr(x.b.venc)}</td><td>${h(x.n.emit)}</td><td>${h(rotNota(x.n))}</td><td>${h(x.b.n || x.i + 1)}</td><td>R$ ${br(aPagar(x.n, x.b))}</td><td>${x.b.p2 ? "R$ " + br(x.b.p2) + (x.b.rec ? (l2Falta(x.b) ? ` (falta R$ ${br(l2Falta(x.b))})` : " (já pagou)") : "") : ""}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum boleto vencido ou vencendo nos próximos 7 dias.");
   const val = listaValidades().filter(v => !v.baixa && dias(v.val) <= 30);
   cabAv("val", val.length, "warning");
   tab("avVal", ["Validade", "Produto", "Código de barras", "Qtd", "Situação"], val.map(v => { const [t, c] = sitValidade(v); return `<tr><td>${dataBr(v.val)}</td><td>${h(v.desc)}</td><td class="mono">${h(v.ean)}</td><td>${br(v.qtd || 0, 0)}</td><td><span class="chip ${c}">${t}</span></td></tr>`; }), "Nenhum produto vencido ou vencendo nos próximos 30 dias.");
@@ -5876,7 +5882,7 @@ function hjDesenhar() {
       <div class="orig">ontem ${orBrl(vd(l, ontem))} · ${["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(h + "T12:00:00").getDay()]} passado ${orBrl(sp)} · média 7 dias ${orBrl(m)}${m > 0 && hj > 0 ? ` <span class="chip ${hj >= m ? "ok" : "av"}" style="padding:0 5px">${hj >= m ? "+" : ""}${br((hj / m - 1) * 100, 0)}% vs média</span>` : ""}</div></div>`; };
   const bol = todosBoletos().filter(x => !x.b.pago), soma = l => l.reduce((a, x) => a + aPagar(x.n, x.b), 0);
   const bv = bol.filter(x => dias(x.b.venc) < 0), bh = bol.filter(x => dias(x.b.venc) === 0), b7 = bol.filter(x => { const d = dias(x.b.venc); return d > 0 && d <= 7; });
-  const l2rec = bol.filter(x => x.b.p2 > 0 && !x.b.rec && dias(x.b.venc) <= 0), l2soma = l2rec.reduce((a, x) => a + (Number(x.b.p2) || 0), 0);
+  const l2rec = bol.filter(x => l2Falta(x.b) > 0 && dias(x.b.venc) <= 0), l2soma = l2rec.reduce((a, x) => a + l2Falta(x.b), 0);
   const val = listaValidades().filter(v => !v.baixa), vv = val.filter(v => dias(v.val) < 0), v30 = val.filter(v => { const d = dias(v.val); return d >= 0 && d <= 30; });
   const orcs = [...OR.docs.values()].filter(o => o.status === "aberto" || o.status === "enviado"), orcTot = orcs.reduce((a, o) => a + orTotal(o), 0), orcVenc = orcs.filter(o => o.validade && o.validade < h);
   const listas = [...OL.listas.values()].filter(L => L.status === "aberto" || L.status === "enviado");

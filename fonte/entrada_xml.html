@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="174">
+<meta name="versao" content="175">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -231,6 +231,15 @@
   .lv-tabs button:hover { color: var(--texto); background: none; }
   .lv-tabs button.on { color: var(--azul); border-bottom-color: var(--azul); }
   .lv-tabs button span { margin-left: 4px; background: var(--muted); border-radius: 4px; padding: 0 6px; font-size: 11px; }
+  /* começo da Entrada (protótipo): três formas de começar em blocos grandes; com uma nota aberta eles encolhem */
+  .lv-inicio { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
+  .lv-tile { display: flex !important; align-items: center; gap: 14px; text-align: left; padding: 16px 18px !important; height: auto !important; border: 1px solid var(--borda) !important; border-radius: 10px !important; background: #fff !important; color: var(--texto) !important; cursor: pointer; box-shadow: none !important; transition: border-color .15s, box-shadow .15s; font-weight: 400; }
+  .lv-tile:hover { border-color: var(--loja1) !important; box-shadow: var(--sombra) !important; }
+  .lv-tile > svg, label.btn-arq.lv-tile > svg { width: 26px; height: 26px; flex: none; fill: none; stroke: var(--loja1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .lv-tile-t strong { display: block; font-size: 14px; font-weight: 800; color: var(--azul); } .lv-tile-t small { display: block; font-size: 11px; color: var(--cinza); margin-top: 2px; font-weight: 600; }
+  .lv-tile.pri { background: var(--azul) !important; border-color: var(--azul) !important; } .lv-tile.pri strong { color: #fff; } .lv-tile.pri > svg { stroke: #fff; } .lv-tile.pri small { color: var(--sb-muted); }
+  body.lvRod .lv-inicio { display: flex; flex-wrap: wrap; gap: 8px; } body.lvRod .lv-tile { padding: 7px 12px !important; gap: 8px; } body.lvRod .lv-tile small { display: none; } body.lvRod .lv-tile > svg, body.lvRod label.btn-arq.lv-tile > svg { width: 16px; height: 16px; } body.lvRod .lv-tile-t strong { font-size: 12.5px; }
+  @media (max-width: 760px) { .lv-inicio { grid-template-columns: 1fr; gap: 8px; } .lv-tile { padding: 12px 14px !important; } }
   /* rodapé fixo de envio e botão flutuante "Bipar outro" (protótipo) */
   #lvRodape { position: fixed; left: var(--menu); right: 0; bottom: 0; z-index: 35; background: #fff; border-top: 1px solid var(--borda); padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; gap: 10px 16px; flex-wrap: wrap; box-shadow: 0 -4px 16px rgba(27,45,75,.08); transition: left .16s ease; }
   #lvRodape .lv-rod-bts { display: flex; gap: 8px; align-items: center; margin-left: auto; }
@@ -742,10 +751,12 @@
 <main id="principal" style="display:none">
  <div id="vEntrada">
   <div class="painel ent-topo" id="entTopo">
-    <div class="linha">
-      <label class="btn-arq" id="lXml" title="escolha o arquivo XML da NF-e — ou arraste o XML (ou o PDF/foto do romaneio) para este quadro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>Abrir XML da NF-e<input type="file" id="fXml" accept=".xml"></label>
-      <button id="bManual" class="sec">Nova entrada sem nota</button>
-      <button id="bRom" class="sec" title="a IA lê o romaneio, pedido ou DANFE (PDF ou fotos), confere os totais e abre como entrada sem XML para você revisar">Entrada por romaneio (PDF ou foto)</button><input type="file" id="fRom" accept="application/pdf,image/*" multiple style="display:none">
+    <div class="lv-inicio">
+      <label class="btn-arq lv-tile pri" id="lXml" title="escolha o arquivo XML da NF-e — ou arraste o XML (ou o PDF/foto do romaneio) para este quadro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg><span class="lv-tile-t"><strong>Abrir XML da NF-e</strong><small>O jeito mais rápido: os itens vêm prontos</small></span><input type="file" id="fXml" accept=".xml"></label>
+      <button id="bManual" class="sec lv-tile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M12 12v6"/></svg><span class="lv-tile-t"><strong>Entrada sem nota</strong><small>Digite ou bipe os itens à mão</small></span></button>
+      <button id="bRom" class="sec lv-tile" title="a IA lê o romaneio, pedido ou DANFE (PDF ou fotos), confere os totais e abre como entrada sem XML para você revisar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg><span class="lv-tile-t"><strong>Por romaneio</strong><small>PDF ou foto do pedido (a IA lê)</small></span></button><input type="file" id="fRom" accept="application/pdf,image/*" multiple style="display:none">
+    </div>
+    <div class="linha" style="margin-top:8px">
       <label class="c" id="lCad">Cadastro do Gestão (cadastro_gestao.json)<input type="file" id="fCad" accept=".json"></label>
       <span id="stCad" class="orig"></span>
       <span id="stSync" class="chip av">conectando…</span>
@@ -3802,13 +3813,21 @@ async function novaEntradaManual(nome, lista, loja) {
 // notas em andamento em cartões (mais recentes primeiro). Com uma nota aberta, a lista fica recolhida (dá para abrir).
 const NT = { mostrar: null };
 function desenharNotas() {
-  const abertas = listaNotas.filter(n => !n.concluida).sort((x, y) => (y.criado || "").localeCompare(x.criado || ""));
-  const d = document.getElementById("notas"); d.innerHTML = ""; if (!abertas.length) return;
-  const atual = cab ? abertas.find(n => n.id === cab.chave) : null, mostra = NT.mostrar != null ? NT.mostrar : !cab;
+  const todasAb = listaNotas.filter(n => !n.concluida).sort((x, y) => (y.criado || "").localeCompare(x.criado || ""));
+  const d = document.getElementById("notas"), foco = document.activeElement && document.activeElement.id === "ntQ"; d.innerHTML = ""; if (!todasAb.length) return;
+  const ntSit = n => sitNota(n)[0] === "e" ? "e" : "a", ntQ = semAcento(String(NT.q || "").toLowerCase().trim());
+  const abertas = todasAb.filter(n => (!NT.st || ntSit(n) === NT.st) && (!ntQ || semAcento(((n.emit || "") + " " + (n.nnf || "")).toLowerCase()).includes(ntQ)));
+  const atual = cab ? todasAb.find(n => n.id === cab.chave) : null, mostra = NT.mostrar != null ? NT.mostrar : !cab;
   const topo = document.createElement("div"); topo.className = "nt-cab";
-  topo.innerHTML = `<b>Notas em andamento</b><span class="badge neutro">${abertas.length}</span>${atual ? `<span class="orig" style="margin:0">· aberta agora: <b style="font-size:12px">${escH(atual.emit || "")}</b></span>` : ""}<a class="nt-tog">${mostra ? "ocultar lista" : "mostrar todas"}</a>`;
+  topo.innerHTML = `<b>Notas em andamento</b><span class="badge neutro">${todasAb.length}</span>${atual ? `<span class="orig" style="margin:0">· aberta agora: <b style="font-size:12px">${escH(atual.emit || "")}</b></span>` : ""}<a class="nt-tog">${mostra ? "ocultar lista" : "mostrar todas"}</a>`;
   topo.querySelector(".nt-tog").onclick = () => { NT.mostrar = !mostra; desenharNotas(); };
   d.appendChild(topo); if (!mostra) return;
+  if (todasAb.length > 3 || NT.q || NT.st) { const f = document.createElement("div"); f.className = "lv-busca"; f.style.margin = "8px 0";
+    f.innerHTML = `<div class="lv-sbox"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="ntQ" placeholder="Buscar fornecedor ou nº da nota" value="${escH(NT.q || "")}"></div><div class="lv-chips">${[["", "Todas", todasAb.length], ["a", "Em andamento", todasAb.filter(n => ntSit(n) === "a").length], ["e", "Enviada ao Gestão", todasAb.filter(n => ntSit(n) === "e").length]].map(([k, t, n]) => `<button type="button" class="lv-chip${(NT.st || "") === k ? " on" : ""}" data-nst="${k}">${t} <span style="opacity:.8;font-size:10px">${n}</span></button>`).join("")}</div>`;
+    const q = f.querySelector("#ntQ"); q.oninput = () => { NT.q = q.value; desenharNotas(); };
+    for (const b of f.querySelectorAll("[data-nst]")) b.onclick = () => { NT.st = b.dataset.nst; desenharNotas(); };
+    d.appendChild(f); if (foco) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) { } } }
+  if (!abertas.length) { const v = document.createElement("div"); v.className = "orig"; v.textContent = "Nenhuma nota com esse filtro."; d.appendChild(v); return; }
   const grid = document.createElement("div"); grid.className = "nt-grid";
   for (const n of abertas) {
     const [, txt0, cls] = sitNota(n), txt = txt0.replace(/ em \d{2}\/\d{2}\/\d{4}$/, "").replace("Erro ao gravar no Gestão", "Erro no envio"), ehAtual = atual && atual.id === n.id, c = document.createElement("div");

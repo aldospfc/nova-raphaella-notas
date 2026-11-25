@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="181">
+<meta name="versao" content="182">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -4397,13 +4397,18 @@ function ckDesenha() {
   el.innerHTML = `<div class="painel"><div class="linha" style="gap:8px;flex-wrap:wrap;align-items:center"><b style="flex:1">${escH(p.canal || "")} · ${escH(p.numero_loja || String(p.numero || ""))} · ${escH(p.cliente || "")}</b><span style="font-size:18px;font-weight:bold">${ok} / ${tot}</span></div>
     ${CK.linhas.map((l, i) => { const cor = l.lido >= l.qtd ? "#e3f6ea" : l.lido ? "#fff6dc" : "#fff";
       return `<div style="display:flex;gap:10px;align-items:center;padding:8px;margin-top:8px;border:1px solid #d9dee5;border-radius:8px;background:${cor}">
-        ${l.img ? `<img src="${escH(l.img)}" style="width:56px;height:56px;object-fit:contain;background:#fff;border-radius:6px" loading="lazy">` : `<div style="width:56px"></div>`}
+        ${l.img ? `<img src="${escH(l.img)}" data-ckz="${i}" title="toque para ampliar a foto" style="width:72px;height:72px;object-fit:contain;background:#fff;border-radius:6px;cursor:zoom-in;border:1px solid #d9dee5;flex:none" loading="lazy">` : `<div style="width:72px;flex:none"></div>`}
         <div style="flex:1;min-width:0"><div style="font-weight:bold">${escH(l.nome)}</div><div class="orig" style="font-size:12px">${l.kit ? "do kit: " + escH(l.kit) + " · " : ""}${l.gtin ? "cód. " + escH(l.gtin) : "<b style='color:#b54708'>sem código de barras — use +1</b>"}${l.cod ? " · " + escH(l.cod) : ""}${l.local ? " · 📍" + escH(l.local) : ""}</div></div>
         <div style="text-align:center;min-width:64px"><div style="font-size:22px;font-weight:bold">${l.lido}<span style="font-size:14px;color:#667085">/${l.qtd}</span></div>
         <div style="display:flex;gap:4px;justify-content:center"><button class="sec" data-ckm="${i}" style="padding:2px 8px" title="tirar um">−</button><button class="sec" data-ckp="${i}" style="padding:2px 8px" title="contar um sem bipar">+1</button></div></div></div>`; }).join("")}
     <div class="linha" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="sec" id="ckFalta">Fechar com falta…</button><span style="flex:1"></span><button class="sec" id="ckLimpa">Recomeçar este pedido</button></div></div>`;
   for (const b of el.querySelectorAll("[data-ckp]")) b.onclick = () => { const l = CK.linhas[Number(b.dataset.ckp)]; if (l.lido >= l.qtd) { ckSom("erro"); return ckAviso("Essa linha já está completa.", "erro"); } l.lido++; l.manual++; ckSom("ok"); ckAviso(`✓ ${l.nome} (${l.lido} de ${l.qtd}) — sem bipar`, "ok"); ckDesenha(); ckTalvezFim(); };
   for (const b of el.querySelectorAll("[data-ckm]")) b.onclick = () => { const l = CK.linhas[Number(b.dataset.ckm)]; if (l.lido > 0) { l.lido--; if (l.manual > l.lido) l.manual = l.lido; } ckDesenha(); };
+  // toque na foto: amplia (toque de novo, ou Esc, fecha e o cursor volta para o campo de bipar)
+  for (const im of el.querySelectorAll("[data-ckz]")) im.onclick = () => { const l = CK.linhas[Number(im.dataset.ckz)], z = document.getElementById("sepZoom"); if (!z) return;
+    if (z.parentNode !== document.body) document.body.appendChild(z);
+    z.querySelector("img").src = im.src; z.querySelector(".sep-zt").textContent = l.nome + (l.gtin ? " · " + l.gtin : "") + " · " + l.qtd + " un."; z.classList.add("on");
+    z.onclick = () => { z.classList.remove("on"); const i = document.getElementById("ckIn"); if (i) i.focus(); }; };
   document.getElementById("ckLimpa").onclick = () => { for (const l of CK.linhas) { l.lido = 0; l.manual = 0; } ckDesenha(); };
   document.getElementById("ckFalta").onclick = () => { const r = prompt("O que faltou ou por que vai fechar assim? (fica registrado no pedido)"); if (r && r.trim()) ckGravar(r.trim()); };
 }
@@ -5039,7 +5044,7 @@ function sepDesenhar() {
     if (alvo) { alvo.classList.add("sep-foco"); setTimeout(() => alvo.scrollIntoView({ block: "center", behavior: "smooth" }), 60); setTimeout(() => alvo.classList.remove("sep-foco"), 4000); } }
   for (const im of el.querySelectorAll(".sep-it img")) im.onclick = () => { const z = document.getElementById("sepZoom"); z.querySelector("img").src = im.src;
     z.querySelector(".sep-zt").textContent = (im.closest(".sep-it")?.querySelector("b")?.textContent || ""); z.classList.add("on"); };
-  document.getElementById("sepZoom").onclick = () => document.getElementById("sepZoom").classList.remove("on");
+  document.getElementById("sepZoom").onclick = () => { document.getElementById("sepZoom").classList.remove("on"); const i = document.getElementById("ckIn"); if (i) i.focus(); };
   for (const b of el.querySelectorAll("[data-nf]")) b.onclick = () => sepEmitirNf([Number(b.dataset.nf)]);
   for (const b of el.querySelectorAll("[data-etq]")) b.onclick = () => sepEtiquetas([Number(b.dataset.etq)]);
   if (document.getElementById("sepLoteNf")) document.getElementById("sepLoteNf").onclick = () => sepEmitirNf([...SEP.sel].filter(id => { const p = SEP.lista.find(x => x.id === id); return p && precisaNf(p); }));

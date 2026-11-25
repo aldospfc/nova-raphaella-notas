@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="180">
+<meta name="versao" content="181">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -2241,6 +2241,11 @@ function irDestino(h) {
 // perfil funcionário: Pedidos online, Validades, Etiquetas e consulta de produtos (sem custo; o banco só entrega as colunas liberadas)
 const ABAS_FUNC = ["separacao", "validades", "etiquetas", "produtos"];
 function ehFunc() { return document.body.classList.contains("perfil-sep"); }
+// funcionário com loja definida: etiquetas e validades ficam presas na loja dele (o banco também recusa a outra loja)
+function funcLoja() { const l = window.__loja; if (!l) return;
+  ET.loja = l;
+  { const e = document.getElementById("vaLoja"); if (e) { e.value = "Loja " + l; e.disabled = true; } }
+  { const e = document.getElementById("fValLoja"); if (e) { e.value = String(l); e.disabled = true; } } }
 function tProd() { return ehFunc() ? "produtos_func" : "produtos"; }
 function tAux() { return ehFunc() ? "auxiliares_func" : "auxiliares"; }
 function mostrar(v, semHist) {
@@ -2440,9 +2445,9 @@ async function syncValidade(it, chave) {
   if (!db) return;
   const id = `${chave}_${idItem(it.n)}`, a = valDocs.get(id), ref = db.doc("validades/" + id);
   if (it.val) {
-    const base = { ean: it.ean || "", desc: it.desc || it.xprod || "", val: it.val, qtd: calc(it).qtdUn, nota: chave, emit: cab ? cab.emit : "", nnf: cab ? cab.nnf : "" };
+    const base = { ean: it.ean || "", desc: it.desc || it.xprod || "", val: it.val, qtd: calc(it).qtdUn, nota: chave, emit: cab ? cab.emit : "", nnf: cab ? cab.nnf : "", loja: "Loja " + (["2", "div21"].includes(destino()) ? 2 : 1) };
     if (!a) await ref.set({ ...base, baixa: null });
-    else if (["ean", "desc", "val", "qtd"].some(k => a[k] !== base[k])) await ref.update(base);
+    else if (["ean", "desc", "val", "qtd", "loja"].some(k => a[k] !== base[k])) await ref.update(base);
   } else if (a) await ref.delete();
 }
 // salva data/quantidade de uma validade; se ela veio de uma nota, atualiza também o item da nota (senão, ao reabrir a nota, a data antiga voltaria)
@@ -2491,7 +2496,7 @@ function desenharValidades() {
   let lista = (g("fValBaixa").checked ? todos : pend_).filter(v => {
     const d = dias(v.val);
     if (per === "venc" && !(d < 0 && !v.baixa)) return false; if (per && per !== "venc" && !(d <= Number(per) && !v.baixa)) return false;
-    if (lj && lojaValidade(v) !== Number(lj)) return false;
+    if (lj && lojaValidade(v) !== Number(lj) && !(window.__loja && lojaValidade(v) == null)) return false; // funcionário também vê as que não têm loja marcada
     if (fo && (v.avulso ? "lançado na loja" : (v.emit || "")) !== fo) return false;
     if (q && !semAcento((v.desc || "") + " " + (v.ean || "")).toLowerCase().includes(q)) return false;
     return true;
@@ -3997,7 +4002,7 @@ async function entrarNoSistema(sessao) {
   }
   if (r.data.perfil !== "separacao" && !(await mfaGarantir(r.data))) return;
   mostrarLogin(false);
-  window.__email = sessao.user.email; window.__admin = !!r.data.admin;
+  window.__email = sessao.user.email; window.__admin = !!r.data.admin; window.__loja = r.data.perfil === "separacao" && [1, 2].includes(Number(r.data.loja)) ? Number(r.data.loja) : null;
   const u = document.getElementById("usuario"); u.innerHTML = ""; u.append(sessao.user.email); const a = document.createElement("a"); a.textContent = "sair"; a.onclick = async () => { await supa.auth.signOut(); location.reload(); }; u.appendChild(a);
   { const av = document.createElement("a"); av.id = "avSino"; av.textContent = "🔔 avisos"; av.title = "notificações recebidas e configuração dos avisos"; av.onclick = avisosAbrir; u.insertBefore(av, a); }
   avisosIniciar(); avHistoricoIniciar(); vnIniciar();
@@ -4005,7 +4010,7 @@ async function entrarNoSistema(sessao) {
     document.body.classList.add("perfil-sep"); { const [hv, harg] = location.hash.slice(1).split("/"); if (hv === "separacao" && harg) SEP.foco = Number(harg) || null; } sepIniciar();
     db = dbSupabase(supa); // funcionário: só validades e o ajuste das etiquetas (o banco não entrega mais nada)
     db.collection("validades").onSnapshot(s => { valDocs = new Map(s.docs.map(d => [d.id, d.data()])); desenharValidades(); }, () => {});
-    etLigar(); { const e = document.getElementById("prSub"); if (e) e.textContent = "— consulta de preço e estoque (Loja 1 e Loja 2)"; }
+    etLigar(); funcLoja(); { const e = document.getElementById("prSub"); if (e) e.textContent = "— consulta de preço e estoque (Loja 1 e Loja 2)"; }
     { const hv = location.hash.slice(1).split("/")[0], v0 = ABAS_FUNC.includes(hv) ? hv : "separacao"; mostrar(v0, true); try { history.replaceState({ v: v0 }, "", "#" + v0); } catch (e) {} }
     return;
   }
@@ -4048,12 +4053,13 @@ async function usuariosCarregar() {
 function usuariosDesenhar() {
   const el = document.getElementById("usLista"); if (!el) return;
   const dh = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
-  const ACESSO = { completo: "Completo (tudo)", separacao: "Só separação de pedidos online" };
+  const ACESSO = { completo: "Completo (tudo)", separacao: "Funcionário (pedidos online, validades, etiquetas e consulta de produtos)" };
   const form = u => { const novo = !u; u = u || { email: "", nome: "", perfil: "separacao", exige_2fa: true, admin: false };
     return `<div class="us-form"><b>${novo ? "Incluir usuário" : "Editar " + escH(u.nome || u.email)}</b>
       ${novo ? `<label class="c">E-mail<input type="email" id="usEmail" autocomplete="off"></label>` : `<div class="orig">${escH(u.email)}</div>`}
       <label class="c">Nome<input type="text" id="usNome" value="${escH(u.nome || "").replace(/"/g, "&quot;")}"></label>
       <label class="c">Acesso<select id="usPerfil"${u.eu ? " disabled" : ""}><option value="completo"${u.perfil === "completo" ? " selected" : ""}>${ACESSO.completo}</option><option value="separacao"${u.perfil === "separacao" ? " selected" : ""}>${ACESSO.separacao}</option></select></label>
+      <label class="c" id="usLojaBox"${u.perfil === "completo" ? " hidden" : ""}>Loja do funcionário <span class="orig">— etiquetas e validades ficam só nessa loja</span><select id="usLoja"><option value="">as duas lojas</option><option value="1"${u.loja === 1 ? " selected" : ""}>Loja 1</option><option value="2"${u.loja === 2 ? " selected" : ""}>Loja 2</option></select></label>
       <div id="usSoCompleto"${u.perfil === "completo" ? "" : " hidden"}>
         <label class="c us-ck"><input type="checkbox" id="usAdmin"${u.admin ? " checked" : ""}${u.eu ? " disabled" : ""}> Administrador <span class="orig">— pode mexer nos usuários e liberar preços segurados</span></label>
         <label class="c us-ck"><input type="checkbox" id="usExige"${u.exige_2fa ? " checked" : ""}> Exigir a verificação em duas etapas <span class="orig">— pede o código do app autenticador ao entrar</span></label></div>
@@ -4063,7 +4069,7 @@ function usuariosDesenhar() {
   h += US.lista.map((u, i) => US.edit === u.email ? form(u) : `<div class="us-it">
     <div class="us-l1"><b>${escH(u.nome || u.email)}</b>${u.admin ? ' <span class="chip">administrador</span>' : ""}${u.eu ? ' <span class="chip">você</span>' : ""}</div>
     <div class="orig">${escH(u.email)}</div>
-    <div class="us-l2"><span>${escH(ACESSO[u.perfil] || u.perfil)}</span>
+    <div class="us-l2"><span>${escH(ACESSO[u.perfil] || u.perfil)}${u.perfil !== "completo" ? ` · <b>${u.loja ? "Loja " + u.loja : "as duas lojas"}</b>` : ""}</span>
       ${u.tem_conta ? `<span>último acesso: ${u.ultimo_acesso ? escH(dh(u.ultimo_acesso)) : "nunca entrou"}</span>` : '<span class="chip falta" title="a pessoa ainda precisa tocar em Criar conta na tela de entrada">ainda não criou a conta</span>'}
       ${u.perfil === "completo" ? (u.tem_2fa ? '<span style="color:var(--ok)">duas etapas ✓</span>' : u.exige_2fa ? '<span class="chip">vai cadastrar as duas etapas ao entrar</span>' : '<span class="chip falta">sem verificação em duas etapas</span>') : ""}</div>
     <div class="us-bts"><a href="#" data-used="${i}">editar</a> · <a href="#" data-ussenha="${i}">${u.tem_conta ? "trocar senha" : "criar conta com senha"}</a>${u.tem_2fa && !u.eu ? ` · <a href="#" data-us2fa="${i}" title="para quem perdeu ou trocou de celular">zerar duas etapas</a>` : ""}${!u.eu ? ` · <a href="#" data-usrm="${i}" style="color:#b42318">remover acesso</a>` : ""}</div></div>`).join("");
@@ -4083,7 +4089,7 @@ function usuariosDesenhar() {
   const f = el.querySelector(".us-form"); if (!f) return;
   if (f.querySelector("#usGerar")) f.querySelector("#usGerar").onclick = () => { f.querySelector("#usSenha").value = usSenhaNova(); };
   const perfil = f.querySelector("#usPerfil"), soC = f.querySelector("#usSoCompleto");
-  perfil.onchange = () => { soC.hidden = perfil.value !== "completo"; if (perfil.value !== "completo") f.querySelector("#usAdmin").checked = false; };
+  perfil.onchange = () => { soC.hidden = perfil.value !== "completo"; f.querySelector("#usLojaBox").hidden = perfil.value === "completo"; if (perfil.value !== "completo") f.querySelector("#usAdmin").checked = false; };
   f.querySelector("#usCanc").onclick = () => { US.edit = null; usuariosDesenhar(); };
   f.querySelector("#usSalvar").onclick = async () => { const novo = US.edit === "novo", u = novo ? null : US.lista.find(x => x.email === US.edit);
     const email = novo ? f.querySelector("#usEmail").value.trim() : u.email;
@@ -4092,10 +4098,12 @@ function usuariosDesenhar() {
     if (senha) { if (senha.length < 8) return m("A senha precisa ter pelo menos 8 caracteres.");
       m("Criando a conta…"); const r = await usConta("criar", email, senha, { nome: f.querySelector("#usNome").value.trim(), perfil: perfil.value, exige_2fa: comp ? f.querySelector("#usExige").checked : true, admin: comp && f.querySelector("#usAdmin").checked });
       if (!r.ok && !r.existe) return m("Não deu: " + r.msg);
+      if (r.ok) await supa.rpc("usuario_loja", { p_email: email, p_loja: comp ? null : Number(f.querySelector("#usLoja").value) || null });
       m(r.ok ? `Pronto: ${email} já entra com essa senha. Passe para a pessoa (ela pode trocar depois).` : r.msg); US.edit = null; return usuariosCarregar(); }
     const { error } = await supa.rpc("usuario_salvar", { p_email: email, p_nome: f.querySelector("#usNome").value.trim(), p_perfil: perfil.value,
       p_exige_2fa: comp ? f.querySelector("#usExige").checked : true, p_admin: comp && f.querySelector("#usAdmin").checked });
     if (error) return m("Não deu: " + error.message);
+    { const r2 = await supa.rpc("usuario_loja", { p_email: email, p_loja: comp ? null : Number(f.querySelector("#usLoja").value) || null }); if (r2.error) return m("Salvei, mas não consegui gravar a loja: " + r2.error.message); }
     m(novo ? "Incluído. Agora a pessoa toca em \"Criar conta\" na tela de entrada com esse e-mail." : "Salvo."); US.edit = null; usuariosCarregar(); };
   (f.querySelector("#usEmail") || f.querySelector("#usNome")).focus();
 }
@@ -6885,7 +6893,7 @@ function etDesenhar() {
   const el = document.getElementById("etPainel"); if (!el) return; const c = etCfg(), md = ET.modelo || "gondola", tot = ET.itens.reduce((a, i) => a + (Number(i.qtd) || 0), 0);
   el.innerHTML = `<div class="et-layout"><div class="et-esq"><div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
       <label class="c">Modelo<select id="etModelo">${ET_MODELOS.map(([k, t]) => `<option value="${k}" ${ET.modelo === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-      <label class="c">Loja (preço e impressora)<select id="etLoja"><option value="1" ${ET.loja === 1 ? "selected" : ""}>Loja 1</option><option value="2" ${ET.loja === 2 ? "selected" : ""}>Loja 2</option></select></label>
+      <label class="c">Loja (preço e impressora)<select id="etLoja"${window.__loja ? " disabled" : ""}><option value="1" ${ET.loja === 1 ? "selected" : ""}>Loja 1</option><option value="2" ${ET.loja === 2 ? "selected" : ""}>Loja 2</option></select></label>
       <label class="c" style="flex:1;min-width:220px">Adicionar produto (nome ou código; bipar funciona)<input type="text" id="etQ" autocomplete="off" placeholder="busca no cadastro da loja"></label><button class="sec" id="etBuscarB">Buscar</button><button class="sec" id="etCam">📷</button>
     </div>
     <div class="linha et-lote" style="gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><span class="orig">Puxar em lote:</span>

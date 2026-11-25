@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="187">
+<meta name="versao" content="188">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -508,6 +508,7 @@
   .sub-abas button { border: 0; background: transparent; color: var(--cinza); font-weight: 800; font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
   .sub-abas button.on { background: #fff; color: var(--texto); box-shadow: 0 1px 2px #0002; }
   .sub-abas .etN:not(:empty) { display: inline-block; background: var(--azul); color: #fff; border-radius: 99px; padding: 0 7px; font-size: 11px; margin-left: 4px; }
+  .pr-valbox #prVal:empty { display: none; } .pr-valbox #prVal input { height: 32px; }
   .pr-etq { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; background: var(--muted, #f3f5f8); border: 1px solid var(--borda); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; } .pr-etq label { display: inline-flex; align-items: center; gap: 5px; color: var(--cinza); font-weight: 700; } .pr-etq label { max-width: 100%; min-width: 0; } .pr-etq select { max-width: 100%; min-width: 0; flex: 1 1 auto; width: auto; font-size: 13px; } .pr-etq select, .pr-etq input { height: 34px; } .pr-etq button { padding: 6px 12px; }
   .pr-card { position: relative; } .pr-card .pr-et { position: absolute; top: 8px; right: 8px; width: auto; padding: 4px 9px; font-size: 12px; z-index: 1; } .pr-card .nm { padding-right: 96px; }
   #nfProg { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; width: min(720px, calc(100vw - 20px)); z-index: 9500; background: #fff; border: 1px solid var(--borda); border-left: 5px solid var(--azul); border-radius: 12px; box-shadow: 0 10px 30px #0003; padding: 10px 12px; font-size: 13px; }
@@ -3088,7 +3089,7 @@ async function prBuscar() {
   res.innerHTML = lista.slice(0, 100).map((x, i) => `<div class="pr-card" data-i="${i}" data-ean="${escH(x.ean)}"><button type="button" class="sec pr-et" data-pret="${i}" title="pôr este produto na lista de etiquetas">＋ etiqueta</button><div class="nm">${escH((x[1] || x[2]).descricao)}</div><div class="mini mono">${escH(x.ean)} ${val(x)}</div><div class="lj">${loja(x[1], 1)}${loja(x[2], 2)}</div></div>`).join("");
   for (const b of res.querySelectorAll("[data-pret]")) b.addEventListener("click", ev => { ev.stopPropagation(); prEtiqueta(lista[Number(b.dataset.pret)], b); });
   if (fn) { for (const c of res.querySelectorAll(".pr-card")) c.style.cursor = "default"; // funcionário: só consulta
-    if (lista.length === 1) { res.insertAdjacentHTML("beforeend", prEtqBox(lista[0])); prEtqLigar(res, lista[0]); } // bipou um produto: já oferece a etiqueta
+    if (lista.length === 1) { const x = lista[0]; PR.grupo = x; res.insertAdjacentHTML("beforeend", prEtqBox(x) + prValHtml(x)); prEtqLigar(res, x); prValLigar(res, x, () => (x[window.__loja || 1] || x[1] || x[2]).descricao || ""); } // bipou um produto: já oferece etiqueta e validade
     return; }
   for (const c of res.querySelectorAll(".pr-card")) c.addEventListener("click", () => { prAbrir(lista[Number(c.dataset.i)]); document.getElementById("prEd").scrollIntoView({ behavior: "smooth", block: "start" }); });
   // última mudança de preço de cada produto (histórico)
@@ -3127,7 +3128,7 @@ async function prAbrir(g) {
         <input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-f="auxNovo" placeholder="novo código auxiliar" style="width:150px"> <a data-f="auxAdd" style="cursor:pointer;color:#0b57d0">incluir</a></div>
     </div>`; };
   ed.innerHTML = `<div class="painel"><b>${escH(base.descricao)}</b> <span class="mono orig">${escH(g.ean)}</span> <a id="prFechar" style="cursor:pointer;color:#0b57d0;float:right">fechar</a>
-    ${prEtqBox(g)}
+    ${prEtqBox(g)}${prValHtml(g)}
     <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap">
       <label class="c" style="flex:1;min-width:240px">Descrição (até 60)<input class="desc" type="text" id="prDesc" maxlength="60" value="${escH(base.descricao || "").replace(/"/g, "&quot;")}" style="width:100%"></label>
       <label class="c">NCM<input class="p" type="text" inputmode="numeric" id="prNcm" maxlength="8" value="${escH(base.ncm || "")}" style="width:90px"></label>
@@ -3136,14 +3137,7 @@ async function prAbrir(g) {
     <div class="pr-lojas">${bloco(1)}${bloco(2)}</div>
     <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><button id="prGravarPos" title="grava no Gestão e manda preço, custo e nome direto para os caixas da loja, sem a Carga Completa">Gravar no Gestão e enviar ao POS</button><span id="prAviso" class="orig"></span></div>
     <div class="pr-split"><div class="painel pr-sub"><b>Histórico de preços</b> <span class="orig">— custo e venda nas duas lojas; mudanças feitas no Gestão aparecem em até 5 minutos</span><div id="prHist" style="margin-top:6px">carregando…</div></div>
-    <div class="painel pr-sub"><b>Validades deste produto</b> <span class="orig">— controle do nosso sistema (abas Validades e Avisos); salva na hora, não depende do botão acima</span>
-      <div id="prVal" style="margin-top:6px"></div>
-      <div class="linha" style="margin-top:6px;gap:10px;flex-wrap:wrap;align-items:flex-end">
-        <label class="c">Nova validade<input type="date" id="prValData"></label>
-        <label class="c">Quantidade<input type="number" id="prValQtd" min="0" step="1" style="width:80px"></label>
-        <label class="c">Loja<select id="prValLoja">${g[1] ? "<option>Loja 1</option>" : ""}${g[2] ? "<option>Loja 2</option>" : ""}</select></label>
-        <button id="prValOk">Lançar validade</button>
-      </div></div></div></div>`;
+</div></div>`;
   prEtqLigar(ed, g);
   for (const c of document.querySelectorAll("#prRes .pr-card")) c.classList.toggle("on", c.dataset.ean === String(g.ean));
   for (const a of ed.querySelectorAll("[data-entrada]")) a.onclick = () => { const l = Number(a.dataset.entrada), p = g[l];
@@ -3151,15 +3145,7 @@ async function prAbrir(g) {
   for (const b of ed.querySelectorAll("[data-clonar]")) b.onclick = () => prClonar(Number(b.dataset.clonar), b);
   histPrecos(base.ean).then(h => { const d = ed.querySelector("#prHist"); if (d) d.innerHTML = histHtml(h); });
   prValidades();
-  ed.querySelector("#prValOk").onclick = () => {
-    const val = ed.querySelector("#prValData").value, qtd = parseFloat(ed.querySelector("#prValQtd").value) || 0;
-    if (!db) return msg("A validade precisa do armazenamento compartilhado (página publicada).");
-    if (!val) return msg("Informe a data de validade.");
-    const idV = "A" + Date.now(), dadoV = { avulso: 1, ean: g.ean, desc: prTxt(document.getElementById("prDesc").value) || base.descricao || "", val, qtd, loja: ed.querySelector("#prValLoja").value, nota: "", emit: "", nnf: "", baixa: null };
-    db.doc("validades/" + idV).set(dadoV)
-      .then(() => { ed.querySelector("#prValData").value = ed.querySelector("#prValQtd").value = ""; msg("Validade lançada."); if (!valDocs.has(idV)) valDocs.set(idV, dadoV); prValidades(); alertas(); })
-      .catch(e => msg("Não consegui salvar a validade (" + (e.code || e.message) + ")."));
-  };
+  prValLigar(ed, g, () => prTxt(document.getElementById("prDesc").value) || base.descricao || "");
   ed.querySelector("#prFechar").onclick = () => { ed.style.display = "none"; PR.grupo = null; };
   ed.querySelector("#prNcm").addEventListener("input", ev => { const c = cestDe(ev.target.value.replace(/\D/g, "")); if (c) ed.querySelector("#prCest").placeholder = "sugestão: " + c; });
   for (const blk of ed.querySelectorAll("[data-l]")) {
@@ -6816,7 +6802,7 @@ function etZpl(it, c) {
   const desc = etAscii(it.desc).toUpperCase().slice(0, 64), ean = String(it.ean || "").replace(/\D/g, ""), promo = it.de > 0 && it.de > it.preco;
   const [inteiro, cent] = etPreco(it.preco).split(","), xp = W - 300;
   const z = [`${etEscuroZpl(c)}^CI0^MTD^PW${W}^LL${H}^LH${Math.max(0, dx)},${Math.max(0, dy)}^PQ${Math.max(1, Math.floor(it.qtd || 1))},0,1,Y`];
-  const faixa = !promo && !it.sob; // preço simples: nome na largura toda em cima; embaixo o código de barras à esquerda e "R$ 4,00" grande encostado na direita
+  const faixa = !promo; // preço simples (com ou sem unidade): nome na largura toda em cima; embaixo o código de barras à esquerda e "R$ 4,00" grande encostado na direita
   // (o tamanho da letra é escolhido como se a linha fosse mais curta, para o nome nunca estourar a largura real e perder o fim)
   z.push(faixa ? (() => { const a = etNomeAjuste(it.desc, 680, 92, ET_TAM_FAIXA); return `^FO16,8^A0N,${a.h},${Math.round(a.h * 0.86)}^FB${W - 32},${a.maxL},2,L,0^FD${a.texto}^FS`; })() : etNomeZpl(it.desc, 16, 10, xp - 30, H - 122 - 16));
   // código de barras maior (módulo 3, 72 pontos de altura); códigos longos voltam ao módulo 2 para caber
@@ -6828,9 +6814,11 @@ function etZpl(it, c) {
   }
   const sob = it.sob ? etAscii(it.sob).toUpperCase().slice(0, 8) : "";
   if (faixa) {
-    const txt = inteiro + "," + cent, n = txt.length, fh = n >= 7 ? 110 : 128, fw = n <= 4 ? 120 : n === 5 ? 108 : n === 6 ? 92 : 78;
-    const larg = Math.round((n - 1) * fw * 0.6 + fw * 0.3), x0 = 350, xMax = W - 14, xR = Math.max(x0, xMax - larg - 66);
+    // a unidade (UN., PCT., KG…) vai à direita do preço, embaixo; o preço recua só o necessário e continua grande
+    const wU = sob ? sob.length * 22 + 14 : 0, txt = inteiro + "," + cent, n = txt.length, fh = n >= 7 ? 110 : 128, fw = Math.round((n <= 4 ? 120 : n === 5 ? 108 : n === 6 ? 92 : 78) * (sob && n >= 5 ? 0.9 : 1));
+    const larg = Math.round((n - 1) * fw * 0.55 + fw * 0.28), x0 = 340, xMax = W - 26 - wU, xR = Math.max(x0, xMax - larg - 64);
     z.push(`^FO${xR},${H - 76}^A0N,36,32^FDR$^FS`, `^FO${x0},${H - fh - 10}^A0N,${fh},${fw}^FB${xMax - x0},1,0,R,0^FD${txt}^FS`);
+    if (sob) z.push(`^FO${xMax + 12},${H - 52}^A0N,40,34^FD${sob}^FS`);
   } else if (sob && promo) {
     // DE/POR com unidade: preço um pouco menor e a unidade logo abaixo dos centavos
     const pr = etPrecoZpl(inteiro, cent, xp, W - 12, 92, 100, 76, 96, 46, 36);
@@ -6851,11 +6839,11 @@ function etZpl(it, c) {
 }
 function etPreview(it) {
   const promo = it.de > 0 && it.de > it.preco, [i, c] = etPreco(it.preco).split(",");
-  if (!promo && !it.sob) { const n = (i + "," + c).length, fs = n <= 4 ? 48 : n === 5 ? 46 : n === 6 ? 40 : 34; // mesmo desenho da etiqueta "faixa"
+  if (!promo) { const n = (i + "," + c).length, fs = Math.round((n <= 4 ? 48 : n === 5 ? 46 : n === 6 ? 40 : 34) * (it.sob && n >= 5 ? 0.9 : 1)); // mesmo desenho da etiqueta "faixa"
     return `<div style="width:315px;height:90px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">
     ${(() => { const a = etNomeAjuste(it.desc, 680, 92, ET_TAM_FAIXA), k = ET_K, lh = (a.h + 2) * k; return `<div style="position:absolute;left:${(16 * k).toFixed(1)}px;top:${(8 * k).toFixed(1)}px;width:${(808 * k).toFixed(1)}px;font-size:${(a.h * k).toFixed(1)}px;font-weight:bold;line-height:${lh.toFixed(1)}px;max-height:${(lh * a.maxL).toFixed(1)}px;overflow:hidden">${escH(a.texto)}</div>`; })()}
     ${it.ean ? etBarrasPrev(String(it.ean).replace(/\D/g, ""), 16, 240 - 122, 72, String(it.ean).length > 13 ? 2 : 3) : ""}
-    <div style="position:absolute;right:5px;bottom:1px;white-space:nowrap;line-height:1"><span style="font-size:13px;font-weight:bold;margin-right:4px">R$</span><span style="font-size:${fs}px;font-weight:bold;letter-spacing:-1px">${i},${c}</span></div></div>`; }
+    <div style="position:absolute;right:5px;bottom:1px;white-space:nowrap;line-height:1"><span style="font-size:13px;font-weight:bold;margin-right:4px">R$</span><span style="font-size:${fs}px;font-weight:bold;letter-spacing:-1px">${i},${c}</span>${it.sob ? `<span style="font-size:13px;font-weight:bold;margin-left:4px">${escH(etAscii(it.sob).toUpperCase())}</span>` : ""}</div></div>`; }
   return `<div style="width:315px;height:90px;border:1px solid #999;border-radius:4px;background:#fff;position:relative;font-family:Arial;overflow:hidden;flex:none">
     ${etNomePrev(it.desc, 510, 240 - 122 - 16)}
     ${it.ean ? etBarrasPrev(String(it.ean).replace(/\D/g, ""), 16, 240 - 122, 72, String(it.ean).length > 13 ? 2 : 3) : ""}
@@ -6969,6 +6957,26 @@ async function etAdicionarEans(lista, loja) {
 // contador da sub-aba Etiquetas (dentro de Produtos) e troca entre as duas sub-abas
 function etConta() { let n = 0; try { n = ET.itens.length; } catch (e) { } for (const e of document.querySelectorAll(".etN")) e.textContent = n ? String(n) : ""; }
 document.addEventListener("click", ev => { const b = ev.target.closest && ev.target.closest("[data-prsub]"); if (b) mostrar(b.dataset.prsub); });
+// Caixa "Validade" do produto aberto/bipado em Produtos: lista as validades em aberto (data e quantidade editáveis, dar baixa) e lança uma nova
+function prValHtml(g) {
+  const ljs = [1, 2].filter(l => g[l] && (!window.__loja || window.__loja === l)); if (!ljs.length) return "";
+  return `<div class="pr-etq pr-valbox" data-valbox><b>📅 Validade</b><div id="prVal" style="flex:1 1 100%"></div>
+    <label>Nova <input type="date" id="prValData"></label><label>Qtd <input type="number" id="prValQtd" min="0" step="1" inputmode="numeric" style="width:70px"></label>
+    <label>Loja <select id="prValLoja"${ljs.length < 2 ? " disabled" : ""}>${ljs.map(l => `<option>Loja ${l}</option>`).join("")}</select></label><button type="button" class="sec" id="prValOk">Lançar validade</button></div>`;
+}
+function prValLigar(raiz, g, nome) {
+  const q = id => raiz.querySelector("#" + id); if (!q("prValOk")) return;
+  q("prValOk").onclick = () => {
+    const val = q("prValData").value, qtd = parseFloat(q("prValQtd").value) || 0;
+    if (!db) return msg("A validade precisa do armazenamento compartilhado (página publicada).");
+    if (!val) return msg("Informe a data de validade.");
+    const idV = "A" + Date.now(), dadoV = { avulso: 1, ean: g.ean, desc: nome(), val, qtd, loja: q("prValLoja").value, nota: "", emit: "", nnf: "", baixa: null };
+    db.doc("validades/" + idV).set(dadoV)
+      .then(() => { q("prValData").value = q("prValQtd").value = ""; msg("Validade lançada."); if (!valDocs.has(idV)) valDocs.set(idV, dadoV); prValidades(); alertas(); })
+      .catch(e => msg("Não consegui salvar a validade (" + (e.code || e.message) + ")."));
+  };
+  prValidades();
+}
 // Caixa "Etiqueta" do produto aberto/bipado em Produtos: imprime na hora (loja, modelo e quantidade) ou põe na lista
 function prEtqBox(x) {
   const ljs = [1, 2].filter(l => x[l] && (!window.__loja || window.__loja === l)); if (!ljs.length) return "";
@@ -6976,6 +6984,7 @@ function prEtqBox(x) {
   return `<div class="pr-etq" data-etq><b>🏷 Etiqueta</b>
     <label>Loja <select data-eq="loja"${ljs.length < 2 ? " disabled" : ""}>${ljs.map(l => `<option value="${l}"${l === l0 ? " selected" : ""}>Loja ${l} · R$ ${br(Number(x[l].preco_venda) || 0)}</option>`).join("")}</select></label>
     <label>Modelo <select data-eq="md">${mds.map(([k, t]) => `<option value="${k}"${md0 === k ? " selected" : ""}>${escH(t)}</option>`).join("")}</select></label>
+    <label title="aparece ao lado do preço na etiqueta de gôndola">Vendido por <select data-eq="sob">${ET_SOB.map(u => `<option value="${u}"${(PR.sob || "") === u ? " selected" : ""}>${u || "— (sem unidade)"}</option>`).join("")}</select></label>
     <label>Qtd <input data-eq="qtd" type="number" min="1" max="200" value="1" inputmode="numeric" style="width:64px;text-align:right"></label>
     <button type="button" data-eq="imp">Imprimir agora</button><button type="button" class="sec" data-eq="lista">＋ pôr na lista</button></div>`;
 }
@@ -6983,10 +6992,12 @@ function prEtqLigar(raiz, x) {
   const c = raiz && raiz.querySelector("[data-etq]"); if (!c) return; const q = k => c.querySelector(`[data-eq=${k}]`);
   q("imp").addEventListener("click", () => { const l = Number(q("loja").value), p = x[l], n = Math.max(1, Math.min(200, Math.floor(Number(q("qtd").value) || 1)));
     const ljAnt = ET.loja, mdAnt = ET.modelo; ET.loja = l; ET.modelo = q("md").value;
-    try { etEnviar([{ ean: p.ean, desc: p.descricao, descOrig: p.descricao, cod: p.codigo_interno || "", preco: r2(Number(p.preco_venda) || 0), qtd: n }]); } finally { ET.loja = ljAnt; ET.modelo = mdAnt; } });
+    try { etEnviar([{ ean: p.ean, desc: p.descricao, descOrig: p.descricao, cod: p.codigo_interno || "", preco: r2(Number(p.preco_venda) || 0), qtd: n, sob: q("md").value === "gondola" ? q("sob").value || null : null }]); } finally { ET.loja = ljAnt; ET.modelo = mdAnt; } });
+  q("sob").addEventListener("change", () => { PR.sob = q("sob").value; }); // fica lembrado para o próximo produto bipado
+  const soGond = () => { q("sob").closest("label").style.display = q("md").value === "gondola" ? "" : "none"; }; q("md").addEventListener("change", soGond); soGond();
   q("lista").addEventListener("click", async () => { const l = Number(q("loja").value), n = Math.max(1, Math.floor(Number(q("qtd").value) || 1));
     if (ET.itens.length && ET.loja !== l) return msg(`A lista de etiquetas está na Loja ${ET.loja}. Imprima ou limpe a lista antes de pôr produto da Loja ${l}.`);
-    ET.loja = l; await etAdicionarEans([{ ean: x[l].ean, qtd: n }], l); etConta(); msg(`Na lista de etiquetas (${ET.itens.length}) — Loja ${l}.`); });
+    ET.loja = l; await etAdicionarEans([{ ean: x[l].ean, qtd: n, sob: q("sob").value || null }], l); etConta(); msg(`Na lista de etiquetas (${ET.itens.length}) — Loja ${l}.`); });
 }
 // "+ etiqueta" no resultado da busca de Produtos: põe o produto na lista de etiquetas sem sair da tela
 async function prEtiqueta(x, bt) {

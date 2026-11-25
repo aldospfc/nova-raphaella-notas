@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="164">
+<meta name="versao" content="165">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -61,6 +61,13 @@
   td.rv { text-align: center; white-space: nowrap; }
   td.rv input { width: 20px; height: 20px; cursor: pointer; }
   body.soPend tr.rev { display: none; }
+  #tb tr.it.cadok > td { background: #ffd84d !important; }
+  #tb tr.it.cadok > td input { background: #fff8d6; }
+  body.modoCartao #tb tr.it.cadok { background: #ffd84d; border-left-color: #b45309; }
+  .chip.cad { background: #b45309; color: #fff; font-size: 12px; letter-spacing: .03em; }
+  input.ean.cx { border: 2px solid #dc2626 !important; background: #fff1f0 !important; }
+  tr.it.achado > td { box-shadow: inset 0 3px 0 #1d4ed8, inset 0 -3px 0 #1d4ed8; }
+  body.modoCartao #tb tr.it.achado { outline: 3px solid #1d4ed8; }
   body.f-naoenv #tb tr.it.env, body.f-naoenv #tb tr.it.env + tr, body.f-env #tb tr.it:not(.env), body.f-env #tb tr.it:not(.env) + tr,
   body.f-sempv #tb tr.it.pdef, body.f-sempv #tb tr.it.pdef + tr,
   body.f-compv #tb tr.it:not(.pdef), body.f-compv #tb tr.it:not(.pdef) + tr { display: none !important; }
@@ -637,6 +644,7 @@
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#eef8f1;border-radius:6px" title="liga em cada item a marcação do que chegou (para notas que vêm bagunçadas: vá marcando conforme encontra os pacotes). Fica guardado neste aparelho; o que for marcado aparece nos dois PCs."><input type="checkbox" id="gRec" style="width:18px;height:18px"> Conferir recebimento</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#fff7e0;border-radius:6px" title="filtra os itens da nota na tabela">Mostrar <select id="fIt"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option></select></label>
+      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#e8f0fe;border-radius:6px" title="bipe (ou digite e Enter) o código de barras de um produto: o sistema acha o item na nota. Se o item estiver com o código da caixa, o código bipado entra no lugar">Bipar produto <input id="bipIt" type="text" inputmode="numeric" maxlength="14" class="mono" placeholder="bipe para achar o item" style="width:170px"><a id="bipCam" style="cursor:pointer" title="ler com a câmera do celular">📷</a></label>
       <span class="legenda" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido (sugerido nunca vai ao Gestão) · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
       <div class="quebra lin"></div>
       <button id="bEnt" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão da loja, pelo agente do PC 1. NÃO use junto com a importação do XML pelo Gestão, senão o estoque entra duas vezes.">Enviar ao Gestão (entrada completa)</button>
@@ -1275,6 +1283,7 @@ function desenhar() {
         inp.addEventListener("focus", () => { if (it[c] == null) inp.value = ""; else inp.select(); });
         inp.addEventListener("blur", () => { if (it[c] == null) atualizarLinha(it); else inp.value = br(it[c]); });
       }
+      if (c === "ean") inp.addEventListener("focus", () => { if (eanUnidadeDeCaixa(inp.value)) setTimeout(() => { try { inp.select(); } catch (e) { } }, 0); }); // código de caixa: o bipe substitui em vez de travar no limite de 14 dígitos
       if (c === "ean") inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const prox = document.querySelector(`#l${it.n + 1} [data-c=ean]`); if (prox) prox.focus(); } });
     }
     tr.querySelector("[data-b]").addEventListener("click", () => abrirBusca(it));
@@ -1341,6 +1350,8 @@ function atualizarLinha(it) {
     tr.classList.toggle("falta", falta); tr.classList.toggle("pok", !falta && !it.jg && precoDefinido(it) && k.venda > 0);
     tr.title = falta ? "falta: " + faltas.join(", ") : "";
     tr.classList.toggle("env", !!(it.e1 || it.e2 || it.jg)); tr.classList.toggle("pdef", precoDefinido(it));
+    tr.classList.toggle("cadok", !!(it.e1 || it.e2) && precoDefinido(it));
+    const ie = tr.querySelector("[data-c=ean]"); if (ie) ie.classList.toggle("cx", !(it.e1 || it.e2 || it.jg) && !!eanUnidadeDeCaixa(it.ean));
   }
   let h = "";
   if (!it.ean) h = `<span class="chip falta">sem EAN — vai como SEM GTIN</span> <a data-gi="1" style="cursor:pointer;color:#0b57d0" title="cria um código de barras da casa (faixa 040), com numeração única para as duas lojas. Antes era igual ao botão do Gestão (000000000 + número)">gerar código da casa</a>`;
@@ -1358,7 +1369,7 @@ function atualizarLinha(it) {
   if (it.div > 1 && it.ean && chave13(it.ean) === chave13(it.eanNota)) h += ` <span class="chip av">é o EAN da caixa</span>`;
   { const dn = dunDoItem(it);
     if (dn && dn.ex) h += ` <span class="chip falta" title="este código tem 14 dígitos: é o código da CAIXA (DUN-14). O produto da unidade (${dn.un}) já existe no Gestão — se entrar com o código da caixa vira um produto novo e o estoque não vai para o produto que você vende">código da CAIXA — a unidade já existe: ${escH(String(dn.ex))}</span> <a data-dun="${dn.un}" style="cursor:pointer;color:#0b57d0" title="troca só o código (EAN) deste item; divisor, custo e preço não mudam — confira o divisor (quantas unidades vêm na caixa)">usar o código da unidade (${dn.un})</a>`;
-    else if (dn && it.div === 1) h += ` <span class="chip av" title="código de 14 dígitos = código da CAIXA. A unidade provável seria ${dn.un}, que não está no cadastro. Confira se você vende a caixa inteira ou a unidade (aí ajuste o EAN e o divisor)">código de caixa (14 dígitos)</span>`; }
+    else if (dn) h += ` <span class="chip falta" title="o campo está com o código da CAIXA (14 dígitos), que veio da nota. Clique no campo e bipe o produto (a unidade): o código bipado entra no lugar. Se você vende a caixa fechada, pode deixar como está">código da CAIXA — bipe o produto aqui para trocar</span>`; }
   const rep = it.ean && itens.some(x => x !== it && x.ean === it.ean); if (rep) h += ` <span class="chip av">mesmo código de outro item — soma no mesmo produto</span>`;
   if (duv) h += ` <span class="chip av">${duv}</span>`;
   if (it.val) h += ` <span class="chip novo">validade ${dataBr(it.val)}</span>`;
@@ -1368,7 +1379,7 @@ function atualizarLinha(it) {
     if (it.mem.cu > 0) { const dv = (k.custoUn / it.mem.cu - 1) * 100; if (Math.abs(dv) >= 1) h += ` <span class="chip ${dv > 0 ? "falta" : "ok"}">custo ${dv > 0 ? "subiu" : "caiu"} ${br(Math.abs(dv), 1)}% desde ${dataBr(it.mem.em)}</span>`; }
   }
   if (!it.ean && it.sug) h += `<div class="sug">parecido no cadastro (confira): <span class="mono">${it.sug.ean}</span> ${it.sug.desc} — <a data-u="1">usar</a></div>`;
-  if (it.e1 || it.e2) h = `<span class="chip ok" title="este item já foi gravado no Gestão por um envio daqui; não entra de novo no próximo envio">enviado${it.e1 ? " à Loja 1 em " + dataBr(it.e1) : ""}${it.e1 && it.e2 ? " e" : ""}${it.e2 ? " à Loja 2 em " + dataBr(it.e2) : ""}</span> <a data-re="1" style="cursor:pointer;color:#667;font-size:11px" title="apaga a marca de enviado: o item volta a entrar no próximo envio (soma o estoque de novo)">enviar de novo</a> ` + h;
+  if (it.e1 || it.e2) h = (precoDefinido(it) ? `<span class="chip cad" title="este item já está com preço definido e já foi enviado ao Gestão">JÁ CADASTRADO</span> ` : `<span class="chip falta" title="o item já foi enviado ao Gestão, mas o preço de venda não foi digitado: digite e use 'Enviar só preços e categorias'">enviado SEM preço digitado</span> `) + `<span class="chip ok" title="este item já foi gravado no Gestão por um envio daqui; não entra de novo no próximo envio">enviado${it.e1 ? " à Loja 1 em " + dataBr(it.e1) : ""}${it.e1 && it.e2 ? " e" : ""}${it.e2 ? " à Loja 2 em " + dataBr(it.e2) : ""}</span> <a data-re="1" style="cursor:pointer;color:#667;font-size:11px" title="apaga a marca de enviado: o item volta a entrar no próximo envio (soma o estoque de novo)">enviar de novo</a> ` + h;
   if (it.jg) h = `<span class="chip ok" title="este item já foi lançado no Gestão antes de vir para o sistema; fica aqui só para conferência e não entra no envio">já lançado no Gestão — fora do envio</span> <a data-jg="1" style="cursor:pointer;color:#0b57d0;font-size:11px">incluir no envio</a> ` + h;
   if (!it.jg) h += ` <div><a data-mjg="1" style="cursor:pointer;color:#667;font-size:11px" title="use quando este item já foi lançado no Gestão por fora do sistema: ele continua na nota (custo, boletos), mas não entra no envio">já lancei este item no Gestão</a></div>`;
   if (!it.ean && !it.jg && it.sugs && it.sugs.length) h += `<div class="sug sugs">parecidos no cadastro (confira):` + it.sugs.map((x, i) => `<div><span class="mono">${x[1]}</span> ${escH(x[2])} — <a data-us="${i}">usar</a></div>`).join("") + `</div>`;
@@ -1486,6 +1497,21 @@ function desenharDetalhe(it) {
   td.querySelector("[data-val]").addEventListener("change", ev => { it.val = ev.target.value || null; it.tocado = true; atualizarLinha(it); guardar(it); if (!db) { desenharValidades(); alertas(); } });
   td.querySelector("[data-copiar]").addEventListener("click", () => escolherItensParaCategoria(it));
 }
+// "Bipar produto": acha o item da nota pelo código bipado; item que está com o código da CAIXA recebe o código da unidade bipado
+function bipAchar(cod) {
+  const c = chave13(String(cod || "").replace(/\D/g, "")); if (c.length < 8) return msg("Código muito curto.");
+  const k = e => chave13(String(e || "").replace(/\D/g, ""));
+  let it = itens.find(i => k(i.ean) === c), troca = false;
+  if (!it) { const cx = itens.filter(i => k(eanUnidadeDeCaixa(i.ean) || eanUnidadeDeCaixa(i.eanNota)) === c || (i.eanNota && k(i.eanNota).length === 14 && k(i.eanNota).slice(1, 13) === c.slice(0, 12)));
+    it = cx.find(i => !i.e1 && !i.e2 && !i.jg) || cx[0]; troca = !!it && !it.e1 && !it.e2 && !it.jg; }
+  if (!it) it = itens.find(i => k(i.eanNota) === c);
+  if (!it) return msg(`Não achei o código ${c} nesta nota. Se for um item que veio sem código, clique no campo EAN do item e bipe lá.`);
+  if (troca) { usarEan(it, c); msg(`Item ${rot(it)}: estava com o código da CAIXA — troquei pelo código bipado (${c}). Confira o divisor (quantas unidades vêm na caixa)${it.div > 1 ? `: está ${it.div}` : ": está 1"}.`); }
+  else msg(`Item ${rot(it)}: ${it.desc || it.xprod}${it.e1 || it.e2 ? " — já enviado ao Gestão" : ""}.`);
+  let tr = document.getElementById("l" + it.n); if (!tr) return;
+  if (tr.offsetParent === null) { const f = document.getElementById("fIt"); if (f && f.value) { f.value = ""; f.dispatchEvent(new Event("change")); } }
+  tr.scrollIntoView({ block: "center", behavior: "smooth" }); tr.classList.add("achado"); setTimeout(() => tr.classList.remove("achado"), 4000);
+}
 // filtro da tabela de itens (enviados / falta enviar / com e sem preço digitado)
 function fltContar() {
   const sel = document.getElementById("fIt"); if (!sel) return;
@@ -1513,6 +1539,7 @@ function totais() {
   if (div2On()) { const ex = totaisLojas().excede; if (ex) av.push(`<b>${ex} item(ns) com mais unidades para a Loja ${lojaOutra()} do que vieram na nota.</b>`); }
   if (!cad) av.push("Cadastro do Gestão não carregado: sem ele não dá para saber quais EANs já existem nem sugerir a unidade.");
   if (semEan) av.push(`${semEan} item(ns) sem EAN de unidade válido — no XML vão como SEM GTIN.`);
+  { const nc = itens.filter(i => !i.e1 && !i.e2 && !i.jg && eanUnidadeDeCaixa(i.ean) && !(dunDoItem(i) || {}).ex).length; if (nc) av.push(`<b>${nc} item(ns) com o código da CAIXA no campo EAN</b> — bipe o produto em "Bipar produto" (acima da tabela) ou no campo do item para trocar pelo código da unidade.`); }
   { const nd = itens.filter(i => !i.e1 && !i.e2 && !i.jg && (dunDoItem(i) || {}).ex).length; if (nd) av.push(`<b>${nd} item(ns) com o código da CAIXA, mas a unidade já existe no Gestão</b> — use "usar o código da unidade" em cada um, senão viram produtos novos.`); }
   document.getElementById("avisos").innerHTML = av.join("<br>");
 }
@@ -3264,6 +3291,8 @@ function desenharRom() {
     ((r.obs || []).length ? `<div style="margin-top:6px"><b>Observações da leitura:</b><ul style="margin:4px 0 0 18px;padding:0">${r.obs.map(o => `<li>${escH(o)}</li>`).join("")}</ul></div>` : "");
 }
 document.getElementById("bRom").addEventListener("click", () => document.getElementById("fRom").click());
+document.getElementById("bipIt").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const v = ev.target.value.trim(); ev.target.value = ""; if (v) bipAchar(v); } });
+document.getElementById("bipCam").addEventListener("click", () => lerCamera(c => bipAchar(c)));
 document.getElementById("fIt").addEventListener("change", ev => { for (const v of ["naoenv", "env", "sempv", "compv"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
 document.getElementById("fRom").addEventListener("change", async ev => {
   const fs = [...ev.target.files]; ev.target.value = "";

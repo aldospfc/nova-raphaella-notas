@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="184">
+<meta name="versao" content="185">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -502,6 +502,13 @@
   .sep-it img, .sep-it .semfoto { width: 96px; height: 96px; object-fit: contain; border-radius: 8px; background: #f5f7f9; flex: none; border: 1px solid var(--borda); }
   .sep-it img { cursor: zoom-in; }
   @media (max-width: 600px) { .sep-it img, .sep-it .semfoto { width: 80px; height: 80px; } }
+  /* Etiquetas mora dentro de Produtos: some do menu e vira uma sub-aba */
+  .aba[data-v="etiquetas"] { display: none !important; }
+  .sub-abas { display: flex; gap: 4px; background: var(--muted, #eef0f3); border-radius: 10px; padding: 4px; margin: 0 0 12px; width: fit-content; max-width: 100%; }
+  .sub-abas button { border: 0; background: transparent; color: var(--cinza); font-weight: 800; font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .sub-abas button.on { background: #fff; color: var(--texto); box-shadow: 0 1px 2px #0002; }
+  .sub-abas .etN:not(:empty) { display: inline-block; background: var(--azul); color: #fff; border-radius: 99px; padding: 0 7px; font-size: 11px; margin-left: 4px; }
+  .pr-card { position: relative; } .pr-card .pr-et { position: absolute; top: 8px; right: 8px; width: auto; padding: 4px 9px; font-size: 12px; z-index: 1; } .pr-card .nm { padding-right: 96px; }
   #nfProg { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; width: min(720px, calc(100vw - 20px)); z-index: 9500; background: #fff; border: 1px solid var(--borda); border-left: 5px solid var(--azul); border-radius: 12px; box-shadow: 0 10px 30px #0003; padding: 10px 12px; font-size: 13px; }
   #nfProg.fim { border-left-color: var(--ok); } #nfProg.fim.ruim { border-left-color: #b42318; }
   #nfProg .nfp-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } #nfProg .nfp-n { font-weight: 800; font-size: 12px; color: var(--cinza); } #nfProg .nfp-n.ok { color: var(--ok); } #nfProg .nfp-n.ruim { color: #b42318; }
@@ -895,6 +902,7 @@
   <div class="rolagem" id="bolTabela"><table><thead><tr><th>Vencimento</th><th>Loja</th><th>Fornecedor</th><th>Nota</th><th>Parcela</th><th class="n">Valor</th><th class="n" title="parte da Loja 2 neste boleto (nota dividida), já com a parte dela no DIFAL">Loja 2 me paga</th><th>Situação</th><th>Pago</th></tr></thead><tbody id="tbBol"></tbody></table></div>
  </div>
  <div id="vProdutos" style="display:none">
+  <div class="sub-abas"><button type="button" data-prsub="produtos" class="on">Consulta e cadastro</button><button type="button" data-prsub="etiquetas">Etiquetas <span class="etN"></span></button></div>
   <div class="painel"><b>Produtos das lojas</b> <span class="orig" id="prSub">— consultar e alterar preço, custo, estoque, nome e categoria no Gestão (Loja 1 e Loja 2)</span>
    <div class="linha" style="margin-top:6px;gap:8px"><input type="text" id="prQ" placeholder="Nome, código ou EAN" style="flex:1;min-width:200px;font-size:16px;padding:6px;height:44px"><select id="prLoja" title="em qual loja procurar" style="height:44px"><option value="">nas duas lojas</option><option value="1">só Loja 1</option><option value="2">só Loja 2</option></select><button id="prBuscar">Buscar</button><button id="prCam" title="ler o código de barras com a câmera do celular">📷 Câmera</button></div>
    <div id="prMsg" class="orig" style="margin-top:4px">Busca nas duas lojas. O cadastro mostrado aqui é a cópia da nuvem, atualizada a cada 5 minutos.</div></div>
@@ -1018,7 +1026,8 @@
    <input id="mgQ" placeholder="buscar produto ou comprador" style="min-width:180px">
   </div>
   <div id="mgRes" style="margin-top:8px"></div></div></div>
- <div id="vEtiquetas" style="display:none"><div class="painel"><b>Etiquetas de gôndola</b> <span class="orig">— 105 × 30 mm na Elgin L42 Pro da loja; monte a lista e imprima tudo de uma vez</span><div id="etPainel" style="margin-top:8px"></div></div></div>
+ <div id="vEtiquetas" style="display:none"><div class="sub-abas"><button type="button" data-prsub="produtos">Consulta e cadastro</button><button type="button" data-prsub="etiquetas" class="on">Etiquetas <span class="etN"></span></button></div>
+  <div class="painel"><b>Etiquetas de gôndola</b> <span class="orig">— 105 × 30 mm na Elgin L42 Pro da loja; monte a lista e imprima tudo de uma vez</span><div id="etPainel" style="margin-top:8px"></div></div></div>
  <div id="vAvisos" style="display:none">
   <div class="orig" id="avResumo" style="margin:0 2px 12px;font-size:13px"></div>
   <div class="alerts-grid">
@@ -2263,7 +2272,8 @@ function mostrar(v, semHist) {
   if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
   vista = v;
   for (const [id, nome] of [["vSeparacao", "separacao"], ["vMl", "ml"], ["vMargem", "margem"], ["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
-  for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v);
+  for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v || (v === "etiquetas" && b.dataset.v === "produtos"));
+  etConta();
   { const b = document.querySelector('nav#abas .aba[data-v="' + v + '"] span'), h = document.getElementById("hTitulo"); if (b && h) h.textContent = b.textContent; }
   document.body.classList.remove("menu-aberto");
   if (v === "separacao") { sepCarregar(); return; }
@@ -3076,7 +3086,8 @@ async function prBuscar() {
   const val = x => { const k = chave13(x.ean), vs = [...valDocs.values()].filter(v => v.ean && !v.baixa && chave13(v.ean) === k).map(v => v.val).sort(); return vs.length ? `<span class="chip novo" style="padding:0 4px">validade ${dataBr(vs[0])}${vs.length > 1 ? " +" + (vs.length - 1) : ""}</span>` : ""; };
   const loja = (p, l) => p ? `<div class="${l === 2 ? "l2" : ""}"><div class="mini">Loja ${l}${p.ativo === false ? ' · <span style="color:#b42318">inativo</span>' : ""}</div><div class="pv">R$ ${br(Number(p.preco_venda) || 0)}</div><div class="mini">estoque ${br(Number(p.estoque) || 0, 0)}${fn ? "" : ` · custo ${br(Number(p.preco_compra) || 0)}`}</div><div class="mini" data-hu="${l}"></div></div>`
     : `<div class="${l === 2 ? "l2" : ""}"><div class="mini">Loja ${l}</div><div class="mini" style="margin-top:6px">não tem</div></div>`;
-  res.innerHTML = lista.slice(0, 100).map((x, i) => `<div class="pr-card" data-i="${i}" data-ean="${escH(x.ean)}"><div class="nm">${escH((x[1] || x[2]).descricao)}</div><div class="mini mono">${escH(x.ean)} ${val(x)}</div><div class="lj">${loja(x[1], 1)}${loja(x[2], 2)}</div></div>`).join("");
+  res.innerHTML = lista.slice(0, 100).map((x, i) => `<div class="pr-card" data-i="${i}" data-ean="${escH(x.ean)}"><button type="button" class="sec pr-et" data-pret="${i}" title="pôr este produto na lista de etiquetas">＋ etiqueta</button><div class="nm">${escH((x[1] || x[2]).descricao)}</div><div class="mini mono">${escH(x.ean)} ${val(x)}</div><div class="lj">${loja(x[1], 1)}${loja(x[2], 2)}</div></div>`).join("");
+  for (const b of res.querySelectorAll("[data-pret]")) b.addEventListener("click", ev => { ev.stopPropagation(); prEtiqueta(lista[Number(b.dataset.pret)], b); });
   if (fn) { for (const c of res.querySelectorAll(".pr-card")) c.style.cursor = "default"; return; } // funcionário: só consulta
   for (const c of res.querySelectorAll(".pr-card")) c.addEventListener("click", () => { prAbrir(lista[Number(c.dataset.i)]); document.getElementById("prEd").scrollIntoView({ behavior: "smooth", block: "start" }); });
   // última mudança de preço de cada produto (histórico)
@@ -6940,7 +6951,21 @@ async function etAdicionarEans(lista, loja) {
   for (const x of lista) { const p = m.get(String(x.ean)); if (!p) continue; const ja = ET.itens.find(i => i.ean === p.ean); if (ja) { if (x.qtd) ja.qtd = x.qtd; continue; } ET.itens.push({ ean: p.ean, desc: (x.desc && String(x.desc).trim()) || p.descricao, descOrig: p.descricao, cod: p.codigo_interno || "", preco: x.preco != null ? x.preco : r2(Number(p.preco_venda) || 0), de: x.de || null, ate: x.ate || null, qtd: x.qtd || 1, cq: x.cq || null, cp: x.cp || null, un: x.un || null, sob: x.sob || null }); n++; }
   return n;
 }
+// contador da sub-aba Etiquetas (dentro de Produtos) e troca entre as duas sub-abas
+function etConta() { let n = 0; try { n = ET.itens.length; } catch (e) { } for (const e of document.querySelectorAll(".etN")) e.textContent = n ? String(n) : ""; }
+document.addEventListener("click", ev => { const b = ev.target.closest && ev.target.closest("[data-prsub]"); if (b) mostrar(b.dataset.prsub); });
+// "+ etiqueta" no resultado da busca de Produtos: põe o produto na lista de etiquetas sem sair da tela
+async function prEtiqueta(x, bt) {
+  const lj = window.__loja || (ET.itens.length ? ET.loja : (x[ET.loja] ? ET.loja : x[1] ? 1 : 2));
+  if (!x[lj]) return msg(`Este produto não tem cadastro na Loja ${lj} (a lista de etiquetas está na Loja ${lj}).`);
+  ET.loja = lj; const antes = ET.itens.length; bt.disabled = true;
+  await etAdicionarEans([{ ean: x[lj].ean }], lj); bt.disabled = false;
+  if (ET.itens.length > antes) { bt.textContent = "✓ na lista"; msg(`Etiqueta de "${x[lj].descricao}" na lista (${ET.itens.length}) — Loja ${lj}. Abra a sub-aba Etiquetas para imprimir.`); }
+  else msg(ET.itens.some(i => i.ean === x[lj].ean) ? "Esse produto já estava na lista de etiquetas." : "Não consegui pôr na lista.");
+  etConta(); if (vista === "etiquetas") etDesenhar();
+}
 function etDesenhar() {
+  etConta();
   const el = document.getElementById("etPainel"); if (!el) return; const c = etCfg(), md = ET.modelo || "gondola", tot = ET.itens.reduce((a, i) => a + (Number(i.qtd) || 0), 0);
   el.innerHTML = `<div class="et-layout"><div class="et-esq"><div class="linha" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
       <label class="c">Modelo<select id="etModelo">${ET_MODELOS.map(([k, t]) => `<option value="${k}" ${ET.modelo === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>

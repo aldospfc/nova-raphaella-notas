@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="178">
+<meta name="versao" content="179">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -74,7 +74,8 @@
   body.f-naoenv #tb tr.it.env, body.f-naoenv #tb tr.it.env + tr, body.f-env #tb tr.it:not(.env), body.f-env #tb tr.it:not(.env) + tr,
   body.f-sempv #tb tr.it.pdef, body.f-sempv #tb tr.it.pdef + tr,
   body.f-compv #tb tr.it:not(.pdef), body.f-compv #tb tr.it:not(.pdef) + tr,
-  body.f-l1 #tb tr.it:not(.dl1), body.f-l1 #tb tr.it:not(.dl1) + tr, body.f-l2 #tb tr.it:not(.dl2), body.f-l2 #tb tr.it:not(.dl2) + tr { display: none !important; }
+  body.f-l1 #tb tr.it:not(.dl1), body.f-l1 #tb tr.it:not(.dl1) + tr, body.f-l2 #tb tr.it:not(.dl2), body.f-l2 #tb tr.it:not(.dl2) + tr,
+  body.f-l12 #tb tr.it:not(.dl1), body.f-l12 #tb tr.it:not(.dl1) + tr, body.f-l12 #tb tr.it:not(.dl2), body.f-l12 #tb tr.it:not(.dl2) + tr { display: none !important; }
   .chip.lj { font-weight: 800; letter-spacing: .02em; } .chip.lj.a { background: var(--loja1, #1f3a5f); color: #fff; } .chip.lj.b { background: #4b3fa3; color: #fff; } .chip.lj.ab { background: linear-gradient(90deg, var(--loja1, #1f3a5f) 50%, #4b3fa3 50%); color: #fff; }
   body.semCod .cc { display: none; }
   body.semBol #lBol, body.semBol #bAddBol, body.semBol #bAddAnt, body.semBol #bAddEnt { display: none; }
@@ -834,8 +835,8 @@
     <div id="recResumo" class="painel"></div>
     <div id="lvTopo">
       <div class="lv-scan" title="bipe (ou digite e Enter) o código de barras de um produto: o sistema acha o item na nota. Se o item estiver com o código da caixa, o código bipado entra no lugar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M16 7v10"/></svg><input id="bipIt" type="text" maxlength="60" placeholder="Bipe o código de barras ou digite o nome do produto e aperte Enter"><a id="bipCam" title="ler com a câmera do celular">📷</a></div>
-      <select id="fIt" style="display:none"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option><option value="l1">itens da Loja 1</option><option value="l2">itens da Loja 2</option></select>
-      <div class="lv-tabs" id="fItTabs" role="tablist"><button type="button" data-f="" class="on">Todos <span></span></button><button type="button" data-f="naoenv">Falta enviar <span></span></button><button type="button" data-f="env">Já enviados <span></span></button><button type="button" data-f="sempv">Sem preço <span></span></button><button type="button" data-f="compv">Com preço <span></span></button><button type="button" data-f="l1" class="tl1" style="display:none">Loja 1 <span></span></button><button type="button" data-f="l2" class="tl2" style="display:none">Loja 2 <span></span></button></div>
+      <select id="fIt" style="display:none"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option><option value="l1">itens da Loja 1</option><option value="l2">itens da Loja 2</option><option value="l12">itens nas duas lojas</option></select>
+      <div class="lv-tabs" id="fItTabs" role="tablist"><button type="button" data-f="" class="on">Todos <span></span></button><button type="button" data-f="naoenv">Falta enviar <span></span></button><button type="button" data-f="env">Já enviados <span></span></button><button type="button" data-f="sempv">Sem preço <span></span></button><button type="button" data-f="compv">Com preço <span></span></button><button type="button" data-f="l1" class="tl1" style="display:none">Loja 1 <span></span></button><button type="button" data-f="l2" class="tl2" style="display:none">Loja 2 <span></span></button><button type="button" data-f="l12" style="display:none" title="itens que estão nas duas lojas (nas duas notas)">Nas duas <span></span></button></div>
     </div>
     <div id="vistaItens">
       <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="lv" title="um cartão enxuto por item; o resto aparece em Detalhes">Compacto</a><a data-iv="cartao" title="cartão com todos os campos à mostra">Cartões</a><a data-iv="tabela">Tabela</a></span>
@@ -1729,9 +1730,9 @@ const variasLojas = () => !["1", "2"].includes(destino());
 // filtro da tabela de itens (enviados / falta enviar / com e sem preço digitado)
 function fltContar() {
   const sel = document.getElementById("fIt"); if (!sel) return;
-  const env = envTudo, n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length, l1: itens.filter(i => lojasItem(i)[0]).length, l2: itens.filter(i => lojasItem(i)[1]).length };
-  const rot = { "": "todos os itens", naoenv: "falta enviar ao Gestão", env: "já enviados", sempv: "sem preço digitado", compv: "com preço digitado", l1: "itens da Loja 1", l2: "itens da Loja 2" };
-  { const v = variasLojas(); for (const b of document.querySelectorAll("#fItTabs button[data-f=l1], #fItTabs button[data-f=l2]")) b.style.display = v ? "" : "none"; if (!v && (sel.value === "l1" || sel.value === "l2")) { sel.value = ""; sel.dispatchEvent(new Event("change")); } }
+  const env = envTudo, n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length, l1: itens.filter(i => lojasItem(i)[0]).length, l2: itens.filter(i => lojasItem(i)[1]).length, l12: itens.filter(i => lojasItem(i)[0] && lojasItem(i)[1]).length };
+  const rot = { "": "todos os itens", naoenv: "falta enviar ao Gestão", env: "já enviados", sempv: "sem preço digitado", compv: "com preço digitado", l1: "itens da Loja 1", l2: "itens da Loja 2", l12: "itens nas duas lojas" };
+  { const v = variasLojas(); for (const b of document.querySelectorAll("#fItTabs button[data-f=l1], #fItTabs button[data-f=l2], #fItTabs button[data-f=l12]")) b.style.display = v ? "" : "none"; if (!v && ["l1", "l2", "l12"].includes(sel.value)) { sel.value = ""; sel.dispatchEvent(new Event("change")); } }
   for (const o of sel.options) o.textContent = `${rot[o.value]} (${n[o.value]})`;
   for (const b of document.querySelectorAll("#fItTabs button")) { b.querySelector("span").textContent = n[b.dataset.f]; b.classList.toggle("on", b.dataset.f === sel.value); }
 }
@@ -3647,7 +3648,7 @@ document.getElementById("bipIt").addEventListener("keydown", ev => { if (ev.key 
 document.getElementById("bipCam").addEventListener("click", () => lerCamera(c => bipAchar(c)));
 lvRodapeIniciar();
 for (const b of document.querySelectorAll("#fItTabs button")) b.addEventListener("click", () => { const f = document.getElementById("fIt"); f.value = b.dataset.f; f.dispatchEvent(new Event("change")); });
-document.getElementById("fIt").addEventListener("change", ev => { for (const b of document.querySelectorAll("#fItTabs button")) b.classList.toggle("on", b.dataset.f === ev.target.value); for (const v of ["naoenv", "env", "sempv", "compv", "l1", "l2"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
+document.getElementById("fIt").addEventListener("change", ev => { for (const b of document.querySelectorAll("#fItTabs button")) b.classList.toggle("on", b.dataset.f === ev.target.value); for (const v of ["naoenv", "env", "sempv", "compv", "l1", "l2", "l12"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
 document.getElementById("fRom").addEventListener("change", async ev => {
   const fs = [...ev.target.files]; ev.target.value = "";
   try { await entradaPorRomaneio(fs); } catch (e) { msg("Não consegui ler o romaneio: " + (e.message || e)); }

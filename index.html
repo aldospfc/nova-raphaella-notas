@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="182">
+<meta name="versao" content="183">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -502,6 +502,14 @@
   .sep-it img, .sep-it .semfoto { width: 96px; height: 96px; object-fit: contain; border-radius: 8px; background: #f5f7f9; flex: none; border: 1px solid var(--borda); }
   .sep-it img { cursor: zoom-in; }
   @media (max-width: 600px) { .sep-it img, .sep-it .semfoto { width: 80px; height: 80px; } }
+  #nfProg { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; width: min(720px, calc(100vw - 20px)); z-index: 9500; background: #fff; border: 1px solid var(--borda); border-left: 5px solid var(--azul); border-radius: 12px; box-shadow: 0 10px 30px #0003; padding: 10px 12px; font-size: 13px; }
+  #nfProg.fim { border-left-color: var(--ok); } #nfProg.fim.ruim { border-left-color: #b42318; }
+  #nfProg .nfp-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } #nfProg .nfp-n { font-weight: 800; font-size: 12px; color: var(--cinza); } #nfProg .nfp-n.ok { color: var(--ok); } #nfProg .nfp-n.ruim { color: #b42318; }
+  #nfProg .nfp-trilho { display: flex; height: 8px; border-radius: 99px; background: var(--muted, #eef0f3); overflow: hidden; margin-top: 8px; } #nfProg .nfp-trilho i { background: var(--ok); transition: width .3s; } #nfProg .nfp-trilho i.ruim { background: #d92d20; }
+  #nfProg .nfp-sub { margin-top: 6px; font-size: 12px; color: var(--cinza); }
+  #nfProg .nfp-lista { margin-top: 8px; max-height: 34vh; overflow: auto; border-top: 1px solid var(--borda); } #nfProg .nfp-lista > div { display: flex; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--borda); align-items: baseline; }
+  #nfProg .nfp-lista b { flex: none; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } #nfProg .nfp-lista em { font-style: normal; color: var(--cinza); flex: 1; min-width: 0; } #nfProg .nfp-lista .ok span { color: var(--ok); } #nfProg .nfp-lista .erro span, #nfProg .nfp-lista .erro em { color: #b42318; }
+  @media (max-width: 760px) { #nfProg { bottom: 78px; } }
   #sepZoom { position: fixed; inset: 0; background: #000c; display: none; align-items: center; justify-content: center; z-index: 9999; cursor: zoom-out; padding: 16px; }
   #sepZoom.on { display: flex; }
   #sepZoom img { width: min(92vw, 600px); height: min(92vw, 600px); max-height: 78vh; background: #fff; border-radius: 10px; object-fit: contain; }
@@ -4210,15 +4218,45 @@ async function sepEtiquetas(ids) {
   } else msg("Nenhuma etiqueta disponível: " + (erros.join(" · ") || "o ML ainda não liberou"));
   sepVigiar(ids, "etq");
 }
+// Emissão em lote: uma nota por vez, com barra de acompanhamento embaixo (fica na tela até você fechar)
+const NFL = { rodando: false, itens: [] };
+function nfBarra() {
+  let el = document.getElementById("nfProg");
+  if (!el) { el = document.createElement("div"); el.id = "nfProg"; document.body.appendChild(el); }
+  const tot = NFL.itens.length, ok = NFL.itens.filter(x => x.st === "ok").length, ruim = NFL.itens.filter(x => x.st === "erro").length, feito = ok + ruim, fim = !NFL.rodando;
+  const atual = NFL.itens.find(x => x.st === "indo");
+  el.className = fim ? (ruim ? "fim ruim" : "fim") : "";
+  el.innerHTML = `<div class="nfp-top"><b>${fim ? (ruim ? `Emissão terminada: ${ok} de ${tot} emitida${ok === 1 ? "" : "s"}` : `✓ ${ok} nota${ok === 1 ? "" : "s"} emitida${ok === 1 ? "" : "s"}`) : `Emitindo NF-e · ${feito} de ${tot}`}</b>
+      <span class="nfp-n ok">✓ ${ok}</span>${ruim ? `<span class="nfp-n ruim">✕ ${ruim}</span>` : ""}${fim ? "" : `<span class="nfp-n">faltam ${tot - feito}</span>`}
+      <span style="flex:1"></span><a href="#" id="nfpVer">${NFL.aberto ? "ocultar" : "ver pedidos"}</a>${fim ? `<button class="sec" id="nfpFechar" style="padding:3px 10px">Fechar</button>` : ""}</div>
+    <div class="nfp-trilho"><i style="width:${tot ? Math.round(ok / tot * 100) : 0}%"></i><i class="ruim" style="width:${tot ? Math.round(ruim / tot * 100) : 0}%"></i></div>
+    ${!fim && atual ? `<div class="nfp-sub">agora: pedido ${escH(atual.rot)}…</div>` : ""}${fim && ruim ? `<div class="nfp-sub">As que deram problema continuam na lista com o botão "Emitir NF"; veja o motivo em "ver pedidos".</div>` : ""}
+    ${NFL.aberto || (fim && ruim) ? `<div class="nfp-lista">${NFL.itens.filter(x => NFL.aberto || x.st === "erro").map(x => `<div class="${x.st}"><span>${x.st === "ok" ? "✓" : x.st === "erro" ? "✕" : x.st === "indo" ? "…" : "·"}</span><b>${escH(x.rot)}</b><em>${escH(x.st === "ok" ? (x.msg || "emitida") : x.st === "erro" ? x.msg : x.st === "indo" ? "emitindo" : "na fila")}</em></div>`).join("")}</div>` : ""}`;
+  el.querySelector("#nfpVer").onclick = ev => { ev.preventDefault(); NFL.aberto = !NFL.aberto; nfBarra(); };
+  if (fim) el.querySelector("#nfpFechar").onclick = () => el.remove();
+}
 async function sepEmitirNf(ids) {
+  if (NFL.rodando) return msg("Já tem uma emissão em andamento — espere a barra terminar.");
   if (!ids.length || !confirm(`Emitir NF-e de ${ids.length} pedido(s) pelo Bling?\n\nO Bling gera a nota a partir do pedido e transmite à SEFAZ (igual a emitir lá). Depois o Bling manda a nota para o Mercado Livre e a etiqueta é liberada.`)) return;
-  msg("Emitindo no Bling…");
-  const { data: d, error } = await supa.functions.invoke("envios", { body: { acao: "nfe", ids } });
-  if (error || !d || !d.ok) return msg("Não deu: " + ((d && d.msg) || (error && error.message) || ""));
-  const ok = d.itens.filter(x => x.ok).length, ruins = d.itens.filter(x => !x.ok);
-  msg(`${ok} nota(s) emitida(s)` + (ruins.length ? ` · ${ruins.length} com problema: ` + ruins.map(x => x.msg).join(" · ").slice(0, 300) : ""));
+  NFL.rodando = true; NFL.aberto = false;
+  NFL.itens = ids.map(id => { const p = SEP.lista.find(x => x.id === id) || {}; return { id, rot: [p.numero_loja || p.numero || id, p.cliente || ""].filter(Boolean).join(" · "), st: "fila", msg: "" }; });
+  nfBarra();
+  const sair = ev => { ev.preventDefault(); ev.returnValue = ""; }; window.addEventListener("beforeunload", sair);
+  try {
+    for (const it of NFL.itens) {
+      it.st = "indo"; nfBarra();
+      try {
+        const { data: d, error } = await supa.functions.invoke("envios", { body: { acao: "nfe", ids: [it.id] } });
+        const r = d && d.ok && d.itens && d.itens[0];
+        if (r && r.ok) { it.st = "ok"; it.msg = String(r.msg || "").slice(0, 120); }
+        else { it.st = "erro"; it.msg = String((r && r.msg) || (d && d.msg) || (error && error.message) || "sem resposta do Bling").slice(0, 300); }
+      } catch (e) { it.st = "erro"; it.msg = String(e.message || e).slice(0, 300); }
+      nfBarra();
+    }
+  } finally { NFL.rodando = false; window.removeEventListener("beforeunload", sair); nfBarra(); }
+  sepCarregar();
   // o ML leva alguns segundos para receber a nota do Bling e liberar a etiqueta
-  sepVigiar(d.itens.filter(x => x.ok).map(x => x.id), "nf");
+  sepVigiar(NFL.itens.filter(x => x.st === "ok").map(x => x.id), "nf");
 }
 // confere no ML só esses pedidos a cada 10 s (até 3 min) e para quando a situação muda
 function sepVigiar(ids, motivo) {

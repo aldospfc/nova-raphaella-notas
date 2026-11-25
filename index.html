@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="166">
+<meta name="versao" content="167">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -216,6 +216,54 @@
   .legcor .lr { background: #cfe2f6; border-left-color: #1d4ed8; } .legcor .ld { background: #fff6e5; border-left-color: #f59e0b; }
   .legcor .l2 { background: #faf8ff; border-left-color: #4b3fa3; }
   body:not(.div2) .legcor.so-div2 { display: none; }
+  /* visual do protótipo (Lovable): busca por bipe, abas de filtro, progresso e cartão compacto por item */
+  #lvTopo { margin: 4px 0 10px; }
+  .lv-scan { display: flex; align-items: center; gap: 8px; background: #fff; border: 2px solid rgba(27,45,75,.3); border-radius: 8px; padding: 0 12px; max-width: 760px; }
+  .lv-scan:focus-within { border-color: var(--azul); }
+  .lv-scan svg { width: 20px; height: 20px; fill: none; stroke: var(--azul); stroke-width: 2; stroke-linecap: round; flex: none; }
+  .lv-scan input { flex: 1; min-width: 0; height: 44px; border: 0 !important; outline: 0; background: transparent; font-size: 14px; box-shadow: none !important; }
+  .lv-scan a { cursor: pointer; font-size: 18px; text-decoration: none; }
+  .lv-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--borda); margin-top: 10px; overflow-x: auto; }
+  .lv-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; margin-bottom: -1px; padding: 8px 12px; font-size: 13px; font-weight: 800; color: var(--cinza); white-space: nowrap; cursor: pointer; box-shadow: none; }
+  .lv-tabs button:hover { color: var(--texto); background: none; }
+  .lv-tabs button.on { color: var(--azul); border-bottom-color: var(--azul); }
+  .lv-tabs button span { margin-left: 4px; background: var(--muted); border-radius: 4px; padding: 0 6px; font-size: 11px; }
+  #progEnt { margin-bottom: 10px; }
+  #progEnt .pe-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; margin-bottom: 8px; }
+  #progEnt .pe-eye { font-size: 10px; text-transform: uppercase; font-weight: 800; color: var(--cinza); letter-spacing: 1px; }
+  #progEnt .pe-num { font-size: 22px; font-weight: 800; color: var(--azul); line-height: 1.2; }
+  #progEnt .pe-barra { height: 8px; border-radius: 99px; background: var(--muted); overflow: hidden; }
+  #progEnt .pe-barra i { display: block; height: 100%; background: var(--ok); transition: width .2s; }
+  #progEnt .pe-msg { margin-top: 6px; font-size: 12px; font-weight: 700; }
+  /* cartão compacto: fechado mostra OK, descrição, EAN, quantidade, custo e venda; "detalhes" abre o cartão completo */
+  body.modoCartao.modoLv #tb tr.it { border-left-width: 1px; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+  body.modoCartao.modoLv #tb tr.it.falta { border-color: #f0b4ab; } body.modoCartao.modoLv #tb tr.it.rev { border-color: #8fc7a6; background: #f6fbf7; } body.modoCartao.modoLv #tb tr.it.pok { background: #fff; }
+  body.modoCartao.modoLv #tb tr.it.cadok { background: #ffd84d; border-color: #b45309; }
+  body.modoCartao.modoLv #tb tr.it.aberto { border-left-width: 5px; box-shadow: 0 2px 10px rgba(27,45,75,.12); }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) { grid-template-columns: 30px minmax(0, 1fr) 250px 80px 86px 104px 92px; align-items: start; gap: 6px 12px; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(3), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(5), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(6), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(7),
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(8), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(11), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(12), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(13),
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(15), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(17), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(18) { display: none !important; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(1) { grid-column: auto; order: 1; align-self: center; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(4) { grid-column: auto; order: 2; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) { grid-column: auto; order: 3; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(9) { grid-column: auto; order: 4; font-weight: 800; font-size: 15px; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(14) { grid-column: auto; order: 5; font-weight: 800; font-size: 15px; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(16) { grid-column: auto; order: 6; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(2) { grid-column: auto; order: 7; align-self: center; text-align: right; font-size: 13px; }
+  body.modoCartao.modoLv #tb tr.it > td:nth-child(16) input.p { font-size: 16px; font-weight: 800; height: 36px; text-align: right; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.desc { font-size: 14px; font-weight: 800; border-color: transparent; background: transparent; padding: 4px 6px; margin-left: -6px; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.desc:focus { background: #fff; border-color: var(--borda); }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.ean { width: 150px; }
+  @media (max-width: 900px) {
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(1) { grid-column: span 1; }
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(4) { grid-column: span 5; }
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) { grid-column: 1 / -1; }
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(9), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(14), body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(16) { grid-column: span 2; }
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(2) { grid-column: 1 / -1; }
+    body.modoCartao.modoLv #tb tr.it:not(.aberto) td input.ean { width: 62%; }
+  }
   /* entrada de nota em cartões (várias linhas por item, estilo Gestão) — escolha em "Ver: Tabela / Cartões" */
   body.modoCartao #rolItens { overflow: visible; max-height: none; border: 0; background: transparent; box-shadow: none; border-radius: 0; }
   body.modoCartao #tabItens, body.modoCartao #tabItens thead, body.modoCartao #tabItens tbody { display: block; background: transparent; }
@@ -643,8 +691,6 @@
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a coluna com o código / referência do produto no fornecedor"><input type="checkbox" id="gCod" style="width:18px;height:18px" checked> Mostrar código / referência</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#eef8f1;border-radius:6px" title="liga em cada item a marcação do que chegou (para notas que vêm bagunçadas: vá marcando conforme encontra os pacotes). Fica guardado neste aparelho; o que for marcado aparece nos dois PCs."><input type="checkbox" id="gRec" style="width:18px;height:18px"> Conferir recebimento</label>
       <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px" title="mostra ou esconde a lista de boletos dentro da nota (o resumo continua aparecendo; a lista completa fica na aba Boletos)"><input type="checkbox" id="gBol" style="width:18px;height:18px" checked> Mostrar boletos</label>
-      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#fff7e0;border-radius:6px" title="filtra os itens da nota na tabela">Mostrar <select id="fIt"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option></select></label>
-      <label class="c" style="flex-direction:row;align-items:center;gap:6px;padding:4px 8px;background:#e8f0fe;border-radius:6px" title="bipe (ou digite e Enter) o código de barras de um produto: o sistema acha o item na nota. Se o item estiver com o código da caixa, o código bipado entra no lugar">Bipar produto <input id="bipIt" type="text" inputmode="numeric" maxlength="14" class="mono" placeholder="bipe para achar o item" style="width:170px"><a id="bipCam" style="cursor:pointer" title="ler com a câmera do celular">📷</a></label>
       <span class="legenda" title="na coluna Venda: cinza itálico = preço só sugerido pelo markup; verde negrito = preço que você definiu"><span style="display:inline-block;border:1px dashed #bbb;padding:0 4px;color:#8a94a6;font-style:italic;background:#fafbfd">9,50</span> sugerido · <span style="display:inline-block;border:1px solid #7fbf7f;padding:0 4px;color:#0b2a4a;font-weight:bold;background:#e6f6e6">9,50</span> definido (sugerido nunca vai ao Gestão) · linha <span style="display:inline-block;background:#e3eefc;padding:0 6px">azul</span> = preço definido e pronta · <span style="display:inline-block;background:#fde8e8;padding:0 6px">vermelha</span> = falta algo (passe o mouse na linha para ver)</span>
       <div class="quebra lin"></div>
       <button id="bEnt" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão da loja, pelo agente do PC 1. NÃO use junto com a importação do XML pelo Gestão, senão o estoque entra duas vezes.">Enviar ao Gestão (entrada completa)</button>
@@ -663,7 +709,7 @@
       <span id="soLocal"><button id="bSalvar" class="sec">Salvar trabalho</button>
       <label class="c" style="display:inline-flex">Reabrir trabalho<input type="file" id="fTrab" accept=".json"></label></span>
     </div>
-    <div class="painel"><div class="resumo" id="tot"></div><div id="avisos" class="aviso" style="margin-top:6px"></div></div>
+    <div class="painel"><div id="progEnt"></div><div class="resumo" id="tot"></div><div id="avisos" class="aviso" style="margin-top:6px"></div></div>
     <div class="painel" id="romInfo" style="display:none;background:#fffbea"></div>
     <div class="painel" id="pBol"></div>
     <div class="painel linha" id="pAdd" style="display:none">
@@ -674,8 +720,13 @@
       <span class="orig">Produto que já existe no Gestão vem com descrição, custo, venda e estoque atuais. Produto novo: digite a descrição e o NCM no detalhe.</span>
     </div>
     <div id="recResumo" class="painel"></div>
+    <div id="lvTopo">
+      <div class="lv-scan" title="bipe (ou digite e Enter) o código de barras de um produto: o sistema acha o item na nota. Se o item estiver com o código da caixa, o código bipado entra no lugar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M16 7v10"/></svg><input id="bipIt" type="text" inputmode="numeric" maxlength="14" placeholder="Bipe o código de barras do produto para achar o item na nota"><a id="bipCam" title="ler com a câmera do celular">📷</a></div>
+      <select id="fIt" style="display:none"><option value="">todos os itens</option><option value="naoenv">falta enviar ao Gestão</option><option value="env">já enviados</option><option value="sempv">sem preço digitado</option><option value="compv">com preço digitado</option></select>
+      <div class="lv-tabs" id="fItTabs" role="tablist"><button type="button" data-f="" class="on">Todos <span></span></button><button type="button" data-f="naoenv">Falta enviar <span></span></button><button type="button" data-f="env">Já enviados <span></span></button><button type="button" data-f="sempv">Sem preço <span></span></button><button type="button" data-f="compv">Com preço <span></span></button></div>
+    </div>
     <div id="vistaItens">
-      <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="tabela">Tabela</a><a data-iv="cartao">Cartões</a></span>
+      <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="lv" title="um cartão enxuto por item; o resto aparece em Detalhes">Compacto</a><a data-iv="cartao" title="cartão com todos os campos à mostra">Cartões</a><a data-iv="tabela">Tabela</a></span>
       <a id="recBt" class="rec-bt" title="liga/desliga a marcação do que chegou em cada item (o mesmo que a opção Conferir recebimento lá em cima)">☐ Conferir recebimento</a>
       <span class="legcor"><i class="lf"></i>falta algo para ir ao Gestão</span>
       <span class="legcor"><i class="lp"></i>preço definido</span>
@@ -1241,7 +1292,7 @@ function desenhar() {
   const tb = document.getElementById("tb"); tb.innerHTML = "";
   for (const it of itens) {
     const tr = document.createElement("tr"); tr.id = "l" + it.n; tr.classList.add("it");
-    if (it.rev) tr.classList.add("rev");
+    if (it.rev) tr.classList.add("rev"); if (abertos.has(it.n)) tr.classList.add("aberto");
     tr.innerHTML = `<td class="rv"><input type="checkbox" data-c="rev" title="preço conferido / item revisado"${it.rev ? " checked" : ""}></td><td><a data-d="1" title="categoria, família e estoque" style="cursor:pointer;color:#0b57d0;white-space:nowrap">${abertos.has(it.n) ? "▾" : "▸"} ${rot(it)}</a></td><td class="mono cc"><b>${it.cod || ""}</b></td>
       <td><input class="desc" type="text" maxlength="60" data-c="desc"><div class="orig" data-o="nm"></div><div class="orig">${it.xprod}${it.m ? ' <a data-x="1" title="tira este item da entrada (pede confirmação)" style="cursor:pointer;color:#b91c1c;float:right;margin-left:12px">remover item</a>' : ""}</div><div class="rec" data-rec><span>Chegou</span><input type="text" inputmode="decimal" data-r="q" placeholder="0" title="quantas embalagens / unidades da nota já foram encontradas"><span data-r="de"></span><button type="button" class="sec" data-r="tudo" title="encontrei a quantidade toda">✓ tudo</button><button type="button" class="sec" data-r="falta" title="terminou a conferência e isto não veio (toque de novo para desmarcar)">faltou</button><span class="rst" data-r="st"></span></div></td>
       ${it.m ? `<td class="n"><input class="p" type="text" inputmode="decimal" data-c="qtd" placeholder="qtd"><div class="orig">custo un. <input class="p" type="text" inputmode="decimal" data-c="vun" style="width:60px"></div></td><td class="n" data-o="vprod"></td><td class="n">${it.vipi || it.vst ? br((it.vipi || 0) + (it.vst || 0)) : "-"}</td>`
@@ -1291,7 +1342,7 @@ function desenhar() {
     tr.querySelector("[data-b]").addEventListener("click", () => abrirBusca(it));
     tr.querySelector("[data-cam]").addEventListener("click", () => lerCamera(c => usarEan(it, c)));
     tr.querySelector("[data-c=rev]").addEventListener("change", ev => { it.rev = ev.target.checked ? 1 : 0; tr.classList.toggle("rev", !!it.rev); it.tocado = true; totais(); guardar(it); });
-    tr.querySelector("[data-d]").addEventListener("click", () => { if (abertos.has(it.n)) abertos.delete(it.n); else abertos.add(it.n); tr.querySelector("[data-d]").textContent = (abertos.has(it.n) ? "▾ " : "▸ ") + rot(it); desenharDetalhe(it); });
+    tr.querySelector("[data-d]").addEventListener("click", () => { if (abertos.has(it.n)) abertos.delete(it.n); else abertos.add(it.n); tr.querySelector("[data-d]").textContent = (abertos.has(it.n) ? "▾ " : "▸ ") + rot(it); tr.classList.toggle("aberto", abertos.has(it.n)); desenharDetalhe(it); });
     const rx = tr.querySelector("[data-x]"); if (rx) rx.addEventListener("click", () => { if (rx.dataset.ok) removerItem(it); else { rx.dataset.ok = "1"; rx.textContent = "confirmar"; } });
     const dt = document.createElement("tr"); dt.id = "d" + it.n; dt.style.display = "none"; dt.innerHTML = `<td colspan="15" style="background:#f6f9fd;padding:8px 12px 10px 40px"></td>`; tb.appendChild(dt);
     atualizarLinha(it); desenharDetalhe(it);
@@ -1520,12 +1571,18 @@ function fltContar() {
   const env = i => !!(i.e1 || i.e2 || i.jg), n = { "": itens.length, naoenv: itens.filter(i => !env(i)).length, env: itens.filter(env).length, sempv: itens.filter(i => !precoDefinido(i)).length, compv: itens.filter(precoDefinido).length };
   const rot = { "": "todos os itens", naoenv: "falta enviar ao Gestão", env: "já enviados", sempv: "sem preço digitado", compv: "com preço digitado" };
   for (const o of sel.options) o.textContent = `${rot[o.value]} (${n[o.value]})`;
+  for (const b of document.querySelectorAll("#fItTabs button")) { b.querySelector("span").textContent = n[b.dataset.f]; b.classList.toggle("on", b.dataset.f === sel.value); }
 }
 function totais() {
   try { fltContar(); } catch (e) { }
   let custo = 0, difal = 0, semEan = 0, novos = 0, un = 0;
   for (const it of itens) { const k = calc(it); if (!(duasOn() && it.so2)) { custo += k.custoItem; difal += k.difal; un += k.qtdUn; } if (!it.ean || !gtinValido(it.ean)) semEan++; else if (cad && !it.aux && !buscaEan(it.ean)) novos++; }
   const base = cab.manual ? 0 : cab.vNF, ac = base ? (custo / base - 1) * 100 : 0;
+  { const pe = document.getElementById("progEnt"), n = itens.length, rv = itens.filter(i => i.rev).length, env = itens.filter(i => i.e1 || i.e2 || i.jg).length;
+    const pr = itens.filter(i => !(i.e1 || i.e2 || i.jg) && i.ean && gtinValido(i.ean) && precoDefinido(i)).length, pd = n - env - pr;
+    if (pe) pe.innerHTML = !n ? "" : `<div class="pe-top"><div><div class="pe-eye">Conferência</div><div class="pe-num">${rv} de ${n} itens revisados</div></div><div class="orig" style="font-size:12px"><b>${env}</b> já enviados · <b>${pr}</b> prontos para enviar${pd > 0 ? ` · <b style="color:var(--alerta)">${pd} pendentes</b>` : ""}</div></div>
+      <div class="pe-barra"><i style="width:${Math.round(rv / n * 100)}%"></i></div>
+      <div class="pe-msg" style="color:${pd > 0 ? "var(--alerta)" : "var(--ok)"}">${pd > 0 ? `⚠ ${pd} ${pd > 1 ? "itens precisam" : "item precisa"} de código de barras válido ou de preço digitado antes de ir ao Gestão.` : env === n ? "✓ Todos os itens já foram enviados ao Gestão." : "✓ Tudo pronto. Pode enviar ao Gestão."}</div>`; }
   document.getElementById("tot").innerHTML =
     `<div><small>Itens</small><b>${itens.length}</b></div><div><small>Revisados</small><b>${itens.filter(i => i.rev).length} de ${itens.length}</b></div><div><small>Unidades</small><b>${br(un, 0)}</b></div>` +
     `<div><small>Custo final total</small><b>R$ ${br(custo)}</b></div><div><small>DIFAL (fora dos boletos)</small><b>R$ ${br(difal)}</b></div>` +
@@ -3302,7 +3359,8 @@ function desenharRom() {
 document.getElementById("bRom").addEventListener("click", () => document.getElementById("fRom").click());
 document.getElementById("bipIt").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const v = ev.target.value.trim(); ev.target.value = ""; if (v) bipAchar(v); } });
 document.getElementById("bipCam").addEventListener("click", () => lerCamera(c => bipAchar(c)));
-document.getElementById("fIt").addEventListener("change", ev => { for (const v of ["naoenv", "env", "sempv", "compv"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
+for (const b of document.querySelectorAll("#fItTabs button")) b.addEventListener("click", () => { const f = document.getElementById("fIt"); f.value = b.dataset.f; f.dispatchEvent(new Event("change")); });
+document.getElementById("fIt").addEventListener("change", ev => { for (const b of document.querySelectorAll("#fItTabs button")) b.classList.toggle("on", b.dataset.f === ev.target.value); for (const v of ["naoenv", "env", "sempv", "compv"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });
 document.getElementById("fRom").addEventListener("change", async ev => {
   const fs = [...ev.target.files]; ev.target.value = "";
   try { await entradaPorRomaneio(fs); } catch (e) { msg("Não consegui ler o romaneio: " + (e.message || e)); }
@@ -6794,12 +6852,12 @@ document.getElementById("gDest").addEventListener("change", async ev => {
   e.addEventListener("change", () => { document.body.classList.toggle("semCod", !e.checked); try { localStorage.setItem("entradaxml:mostrarCod", e.checked ? "1" : "0"); } catch (x) {} }); })();
 // modo de ver os itens da entrada: tabela ou cartões (padrão: cartões no celular, tabela no computador; a escolha fica guardada no aparelho)
 function vistaItens(v) {
-  if (!v) { try { v = localStorage.getItem("entradaxml:itVista"); } catch (e) {} }
-  if (v !== "tabela" && v !== "cartao") v = matchMedia("(max-width: 760px)").matches ? "cartao" : "tabela";
-  document.body.classList.toggle("modoCartao", v === "cartao");
+  if (!v) { try { v = localStorage.getItem("entradaxml:itVista2"); } catch (e) {} }
+  if (v !== "tabela" && v !== "cartao" && v !== "lv") v = "lv"; // padrão novo: cartão compacto
+  document.body.classList.toggle("modoCartao", v === "cartao" || v === "lv"); document.body.classList.toggle("modoLv", v === "lv");
   for (const a of document.querySelectorAll(".ivista a")) a.classList.toggle("on", a.dataset.iv === v);
 }
-for (const a of document.querySelectorAll(".ivista a")) a.addEventListener("click", () => { try { localStorage.setItem("entradaxml:itVista", a.dataset.iv); } catch (e) {} vistaItens(a.dataset.iv); });
+for (const a of document.querySelectorAll(".ivista a")) a.addEventListener("click", () => { try { localStorage.setItem("entradaxml:itVista2", a.dataset.iv); } catch (e) {} vistaItens(a.dataset.iv); });
 vistaItens();
 document.getElementById("soPend").addEventListener("change", ev => document.body.classList.toggle("soPend", ev.target.checked));
 // busca por nome na entrada sem nota: lista do cadastro conforme digita; clicou, vira item com EAN, descrição, custo e venda

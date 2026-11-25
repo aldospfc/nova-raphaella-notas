@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="189">
+<meta name="versao" content="190">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -512,6 +512,7 @@
   .pr-etq { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; background: var(--muted, #f3f5f8); border: 1px solid var(--borda); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; } .pr-etq label { display: inline-flex; align-items: center; gap: 5px; color: var(--cinza); font-weight: 700; } .pr-etq label { max-width: 100%; min-width: 0; } .pr-etq select { max-width: 100%; min-width: 0; flex: 1 1 auto; width: auto; font-size: 13px; } .pr-etq select, .pr-etq input { height: 34px; } .pr-etq button { padding: 6px 12px; }
   .pr-card { position: relative; } .pr-card .pr-et { position: absolute; top: 8px; right: 8px; width: auto; padding: 4px 9px; font-size: 12px; z-index: 1; } .pr-card .nm { padding-right: 96px; }
   .us-ap { margin-top: 6px; font-size: 12px; } .us-apl { margin: 6px 0 0 12px; padding-left: 8px; border-left: 2px solid var(--borda); }
+  a.aux-add { cursor: pointer; color: #0b57d0; white-space: nowrap; } .ax-l { padding: 6px 2px; border-bottom: 1px solid var(--borda); font-size: 13px; }
   #nfProg { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; width: min(720px, calc(100vw - 20px)); z-index: 9500; background: #fff; border: 1px solid var(--borda); border-left: 5px solid var(--azul); border-radius: 12px; box-shadow: 0 10px 30px #0003; padding: 10px 12px; font-size: 13px; }
   #nfProg.fim { border-left-color: var(--ok); } #nfProg.fim.ruim { border-left-color: #b42318; }
   #nfProg .nfp-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } #nfProg .nfp-n { font-weight: 800; font-size: 12px; color: var(--cinza); } #nfProg .nfp-n.ok { color: var(--ok); } #nfProg .nfp-n.ruim { color: #b42318; }
@@ -1557,7 +1558,8 @@ function atualizarLinha(it) {
     h = `<span class="chip ok">auxiliar de <span class="mono">${it.aux}</span> ${pd || (na ? (na.desc || na.xprod) : "")}${!pd && !na ? ' — <b>principal não encontrado</b>' : ""}</span> <a data-ga="0" style="cursor:pointer;color:#0b57d0">desfazer</a>`;
   }
   else { const ex = buscaEan(it.ean); h = ex ? `<span class="chip ok">já no cadastro: ${ex}</span>` : `<span class="chip novo">${cad ? "produto novo" : "EAN ok"}</span>`;
-    if (cad && !(cadAux && cadAux.has(chave13(it.ean)))) h += ` <a data-ga="1" style="cursor:pointer;color:#0b57d0" title="este código passa a ser um segundo código de barras de outro produto (estoque e preço ficam no principal)">é auxiliar de…</a>`; }
+    if (cad && !(cadAux && cadAux.has(chave13(it.ean)))) h += ` <a data-ga="1" style="cursor:pointer;color:#0b57d0" title="use quando ESTE item é só mais uma cor/variação de um produto que já existe: o código dele passa a ser um segundo código de barras do produto principal (estoque e preço ficam no principal)">este item é auxiliar de…</a>`;
+    { const na = auxsDe(it).length; h += ` <a data-gx="1" class="aux-add" title="este produto é o principal (mãe): junte aqui os outros códigos de barras do mesmo produto (cores, variações). Bipando qualquer um deles, aparece este cadastro; o estoque fica somado nele">${na ? `<b>${na}</b> auxiliar${na > 1 ? "es" : ""} · ` : ""}＋ adicionar produto auxiliar</a>`; } }
   if (ehInterno(it.ean)) h += ` <span class="chip av" title="código interno antigo, da numeração da Loja 1; na Loja 2 esse número pode ser outro produto">código interno da Loja 1</span>`;
   if (ehDaCasa(it.ean)) h += ` <span class="chip ok" title="código da casa (faixa 040): o mesmo nas duas lojas">código da casa</span>`;
   if (it.ean && cad && !it.aux && !buscaEan(it.ean)) { if (!it.ncm || it.ncm.length < 8) h += ` <span class="chip falta" title="abra o item (▸) e informe o NCM">sem NCM</span>`; else if (!it.cest && !cestDe(it.ncm)) h += ` <span class="chip av" title="não achei CEST para este NCM no cadastro; se o produto tiver, informe no detalhe">CEST?</span>`; }
@@ -1589,6 +1591,7 @@ function atualizarLinha(it) {
   if (u) u.addEventListener("click", () => usarEan(it, it.sug.ean));
   const dun = o("st").querySelector("[data-dun]"); if (dun) dun.addEventListener("click", () => { usarEan(it, dun.dataset.dun); msg(`Código trocado para a unidade (${dun.dataset.dun}). Confira o divisor: quantas unidades vêm na caixa.`); });
   const gi = o("st").querySelector("[data-gi]"); if (gi) gi.addEventListener("click", () => gerarInterno(it));
+  { const gx = o("st").querySelector("[data-gx]"); if (gx) gx.addEventListener("click", () => abrirAuxiliares(it)); }
   const ga = o("st").querySelector("[data-ga]"); if (ga) ga.addEventListener("click", () => { if (ga.dataset.ga === "1") abrirBusca(it, true); else { it.aux = null; it.tocado = true; atualizarLinha(it); desenharDetalhe(it); totais(); guardar(it); } });
 }
 // próximo código interno: maior entre o último do Gestão, o último já gerado por aqui (nuvem) e os desta nota
@@ -1634,6 +1637,83 @@ async function gerarLoja2(it) {
     atualizarLinha(it); totais(); guardar(it);
     msg(`Código ${novo} criado para o item ${rot(it)} na Loja 2. No envio ele é cadastrado lá como produto novo, e fica guardado para as próximas notas.`);
   } finally { gerando2 = false; }
+}
+// ---------- códigos auxiliares de um item (ele é o produto MÃE) ----------
+// Produtos iguais que só mudam cor/variação vêm com códigos de barras diferentes. A mãe é o cadastro; os outros códigos viram auxiliares dela:
+// bipando qualquer um, o Gestão mostra o código e o nome da mãe, e o estoque fica somado nela.
+let cadAuxRev = null, cadAuxRevDe = null;
+function auxsGestao(ean) { // auxiliares que o Gestão já tem para este código principal
+  if (!cadAux) return [];
+  if (cadAuxRevDe !== cadAux) { cadAuxRev = new Map(); cadAuxRevDe = cadAux; for (const [a, pr] of cadAux) { if (!pr) continue; const k = chave13(pr); if (!cadAuxRev.has(k)) cadAuxRev.set(k, []); cadAuxRev.get(k).push(a); } }
+  return cadAuxRev.get(chave13(ean)) || [];
+}
+function auxsDe(it) {
+  if (!it.ean) return []; const k = chave13(it.ean), r = [];
+  for (const a of it.auxs || []) r.push({ cod: String(a), tipo: "novo" });
+  for (const o of itens) if (o !== it && o.aux && o.ean && chave13(o.aux) === k) r.push({ cod: o.ean, tipo: "nota", it: o });
+  for (const a of auxsGestao(it.ean)) if (!r.some(x => chave13(x.cod) === a)) r.push({ cod: a, tipo: "gestao" });
+  return r;
+}
+// o que fazer com um código bipado como auxiliar do item "it"
+function auxAvaliar(it, bruto) {
+  const c = String(bruto || "").replace(/\D/g, ""), k = chave13(c);
+  if (c.length < 8 || !gtinValido(c)) return { tipo: "erro", txt: `"${c || bruto}" não é um código de barras válido (confira os dígitos e bipe de novo).` };
+  if (k === chave13(it.ean)) return { tipo: "erro", txt: "Esse é o código do próprio produto principal." };
+  if (auxsDe(it).some(x => chave13(x.cod) === k)) return { tipo: "erro", txt: `O código ${c} já é auxiliar deste produto.` };
+  const p1 = cadInfo && cadInfo.get(k), p2 = cad2Info && cad2Info.get(k), outro = itens.find(o => o !== it && o.ean && chave13(o.ean) === k);
+  if (cadIdx && cadIdx.has(k) || (!p1 && p2 && !(cadAux && cadAux.has(k)))) { const p = (cadIdx && cadIdx.has(k) ? p1 : p2) || [], lj = cadIdx && cadIdx.has(k) ? 1 : 2;
+    return { tipo: "cadastro", c, nome: p[1] || (cadIdx && cadIdx.get(k)) || "", preco: Number(p[4]) || 0, loja: lj, preco2: p1 && p2 ? Number(p2[4]) || 0 : 0 }; }
+  if (cadAux && cadAux.has(k)) { const pr = cadAux.get(k); return { tipo: "erro", txt: `O código ${c} já é auxiliar de outro produto no Gestão: ${pr} · ${(cadIdx && cadIdx.get(chave13(pr))) || "?"}. Um código só pode ser auxiliar de um produto.` }; }
+  for (const o of itens) if (o !== it && (o.auxs || []).some(a => chave13(a) === k)) return { tipo: "erro", txt: `O código ${c} já foi posto como auxiliar do item ${rot(o)} desta nota (${o.desc || o.xprod}). Tire de lá primeiro.` };
+  if (outro) {
+    if (outro.aux) return { tipo: "erro", txt: `O item ${rot(outro)} desta nota (${outro.desc || outro.xprod}) já é auxiliar de ${outro.aux}.` };
+    if (auxsDe(outro).length) return { tipo: "erro", txt: `O item ${rot(outro)} desta nota (${outro.desc || outro.xprod}) já é principal de outros códigos; tire os auxiliares dele antes.` };
+    if (outro.e1 || outro.e2) return { tipo: "erro", txt: `O item ${rot(outro)} desta nota (${outro.desc || outro.xprod}) já foi enviado ao Gestão como produto próprio; não dá mais para virar auxiliar por aqui.` };
+    return { tipo: "nota", c, it: outro };
+  }
+  return { tipo: "novo", c };
+}
+function abrirAuxiliares(it) {
+  if (!it.ean || !gtinValido(it.ean)) return msg("Primeiro o item precisa de um código de barras válido (ele será o principal).");
+  if (it.aux) return msg(`Este item já é auxiliar de ${it.aux}. Só o produto principal recebe auxiliares.`);
+  const b = document.getElementById("busca"); b.style.display = "block";
+  const nomeIt = () => escH(it.desc || it.xprod || ""), pvAtual = () => { const k = calc(it); return it.pv != null ? it.pv : (k && k.venda) || 0; };
+  const redesenhar = () => { atualizarLinha(it); totais(); };
+  const desenhar = (aviso, cls) => {
+    const ax = auxsDe(it), rotT = { novo: "novo — grava no próximo envio ao Gestão", nota: "item desta nota — o estoque dele soma neste produto", gestao: "já está no Gestão" };
+    b.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b>Códigos auxiliares</b><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a></div>
+      <div style="margin:4px 0"><span class="chip ok">PRINCIPAL</span> <span class="mono">${escH(it.ean)}</span> <b>${nomeIt()}</b></div>
+      <div class="orig">Junte aqui os outros códigos de barras do mesmo produto (cor, variação). Bipando qualquer um deles, aparece o código e o nome do principal, e o estoque fica somado nele.</div>
+      <div class="linha" style="gap:8px;margin-top:8px"><input type="text" id="axIn" class="mono" inputmode="numeric" autocomplete="off" placeholder="bipe ou digite o código auxiliar e Enter" style="flex:1;min-width:0;height:44px;font-size:16px"><button id="axOk">Conferir</button></div>
+      <div id="axConf" style="margin-top:8px">${aviso ? `<div class="${cls || "aviso"}" style="padding:8px 10px;border-radius:8px;${cls === "ok" ? "background:var(--ok-suave, #e7f6ec);color:var(--ok)" : ""}">${aviso}</div>` : ""}</div>
+      <div style="margin-top:10px;font-weight:700">Auxiliares deste produto (${ax.length})</div>
+      <div id="axLista">${ax.length ? ax.map((x, i) => `<div class="ax-l"><span class="mono">${escH(x.cod)}</span> <span class="orig">${x.tipo === "nota" ? `item ${rot(x.it)}: ${escH(x.it.desc || x.it.xprod || "")} — ` : ""}${rotT[x.tipo]}</span>${x.tipo === "gestao" ? ` <span class="orig" title="para tirar um auxiliar que já está gravado, abra o produto na aba Produtos">(excluir: pela aba Produtos)</span>` : ` <a href="#" data-axx="${i}" style="color:#b42318">excluir</a>`}</div>`).join("") : `<div class="orig">Nenhum ainda.</div>`}</div>`;
+    b.querySelector("#bx").onclick = () => b.style.display = "none";
+    const inp = b.querySelector("#axIn"), conf = b.querySelector("#axConf"); setTimeout(() => inp.focus(), 30);
+    for (const a of b.querySelectorAll("[data-axx]")) a.onclick = ev => { ev.preventDefault(); const x = ax[Number(a.dataset.axx)];
+      if (x.tipo === "novo") { it.auxs = (it.auxs || []).filter(c => chave13(c) !== chave13(x.cod)); if (!it.auxs.length) it.auxs = null; it.tocado = true; guardar(it); }
+      else if (x.tipo === "nota") { x.it.aux = null; x.it.tocado = true; atualizarLinha(x.it); desenharDetalhe(x.it); guardar(x.it); }
+      redesenhar(); desenhar(`Tirei o código ${escH(x.cod)} dos auxiliares.`, "ok"); };
+    const conferir = () => { const v = inp.value.trim(); if (!v) return; const r = auxAvaliar(it, v);
+      if (r.tipo === "erro") { conf.innerHTML = `<div class="aviso" style="padding:8px 10px;border-radius:8px">${escH(r.txt)}</div>`; inp.select(); return; }
+      if (r.tipo === "cadastro") { const meu = pvAtual(), igual = r.preco > 0 && Math.abs(meu - r.preco) < 0.005;
+        conf.innerHTML = `<div class="aviso" style="padding:8px 10px;border-radius:8px"><b>O código ${escH(r.c)} já tem cadastro próprio</b>, então não pode virar auxiliar:<br><span class="mono">${escH(r.c)}</span> <b>${escH(r.nome)}</b> — preço de venda na Loja ${r.loja}: <b>R$ ${br(r.preco)}</b>${r.preco2 ? ` (Loja 2: R$ ${br(r.preco2)})` : ""}.<br>
+          ${r.preco > 0 ? (igual ? `O produto que você está lançando já está com o mesmo preço (R$ ${br(meu)}).` : `O produto que você está lançando está ${it.pv != null ? "com" : "com preço sugerido de"} <b>R$ ${br(meu)}</b>. Quer igualar ao deste cadastro?
+          <div class="linha" style="gap:8px;margin-top:6px"><button id="axIg">Igualar: pôr R$ ${br(r.preco)} neste item</button><button class="sec" id="axNao">Não, deixar como está</button></div>`) : "Esse cadastro está sem preço de venda."}</div>`;
+        const ig = conf.querySelector("#axIg"); if (ig) ig.onclick = () => { it.pv = r2(r.preco); it.tocado = true; redesenhar(); guardar(it); desenhar(`Preço deste item igualado a R$ ${br(r.preco)} (${escH(r.nome)}).`, "ok"); };
+        const nao = conf.querySelector("#axNao"); if (nao) nao.onclick = () => desenhar();
+        inp.select(); return; }
+      conf.innerHTML = `<div style="padding:8px 10px;border-radius:8px;border:1px solid var(--borda);background:#fff">Adicionar <span class="mono"><b>${escH(r.c)}</b></span> como auxiliar de <b>${nomeIt()}</b>?
+        ${r.tipo === "nota" ? `<br><span class="orig">É o item ${rot(r.it)} desta nota (${escH(r.it.desc || r.it.xprod || "")}): ele deixa de ser um produto separado e a quantidade dele entra no estoque do principal.</span>` : `<br><span class="orig">Código novo (não está no cadastro nem nesta nota). O vínculo é gravado no próximo envio deste item ao Gestão.</span>`}
+        <div class="linha" style="gap:8px;margin-top:6px"><button id="axSim">Adicionar</button><button class="sec" id="axNao">Cancelar</button></div></div>`;
+      conf.querySelector("#axSim").onclick = () => {
+        if (r.tipo === "nota") usarAuxiliar(r.it, it.ean); else { it.auxs = [...(it.auxs || []), r.c]; it.tocado = true; guardar(it); }
+        redesenhar(); desenhar(`Código ${escH(r.c)} adicionado. Pode bipar o próximo.`, "ok"); };
+      conf.querySelector("#axNao").onclick = () => desenhar();
+      setTimeout(() => conf.querySelector("#axSim").focus(), 30); };
+    b.querySelector("#axOk").onclick = conferir; inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); conferir(); } });
+  };
+  desenhar();
 }
 function usarAuxiliar(it, ePrincipal) {
   if (!it.ean) { it.ean = it.eanNota || ""; const i = document.querySelector(`#l${it.n} [data-c=ean]`); if (i) i.value = it.ean; }
@@ -1731,6 +1811,7 @@ function bipAchar(cod) {
   }
   c = chave13(txt.replace(/\D/g, "")); if (c.length < 8) { it = itens.find(i => String(i.cod || "").replace(/\D/g, "") === c && c); if (!it) return msg("Código muito curto."); msg(`Item ${rot(it)}: ${it.desc || it.xprod}.`); return bipMostrar(it); }
   it = itens.find(i => k(i.ean) === c);
+  if (!it) { const mae = itens.find(i => (i.auxs || []).some(a => k(a) === c)); if (mae) { msg(`${c} é código auxiliar do item ${rot(mae)}: ${mae.ean} · ${mae.desc || mae.xprod}.`); return bipMostrar(mae); } }
   if (!it) { const cx = itens.filter(i => k(eanUnidadeDeCaixa(i.ean) || eanUnidadeDeCaixa(i.eanNota)) === c || (i.eanNota && k(i.eanNota).length === 14 && k(i.eanNota).slice(1, 13) === c.slice(0, 12)));
     it = cx.find(i => !i.e1 && !i.e2 && !i.jg) || cx[0]; troca = !!it && !it.e1 && !it.e2 && !it.jg; }
   if (!it) it = itens.find(i => k(i.eanNota) === c);
@@ -1955,6 +2036,7 @@ function sqlPrecos(loja) {
     visto.add(ePr);
     const cod = ePr.padStart(13, "0"), margem = Math.floor((venda / custo - 1) * 10000 + 1e-6) / 100;
     if (it.aux && ePr === principalDe(it)) linhas.push(...sqlAuxiliar(it.ean.padStart(13, "0"), cod));
+    for (const a of it.auxs || []) linhas.push(...sqlAuxiliar(String(a).padStart(13, "0"), cod)); // códigos auxiliares bipados neste item (ele é o produto mãe)
     eans.push(cod);
     { const o = { e: cod, v: Number(venda.toFixed(2)), c: custo }; if (it.an && (it.desc || "").trim()) o.d = descSql(it); posDoEnvio[loja].push(o); }
     let cat = "";
@@ -2041,6 +2123,7 @@ function sqlEntrada(loja) {
     if (!(qL > 0)) { if (comAux) auxs.pop(); continue; }
     itensDoEnvio[loja].push(it.n);
     const kL = calcL(it, loja); if (!kL) { if (comAux) auxs.pop(); itensDoEnvio[loja].pop(); continue; }
+    for (const a of it.auxs || []) auxs.push([String(a).padStart(13, "0"), ePr.padStart(13, "0")]); // códigos auxiliares bipados neste item (ele é o produto mãe)
     const vL = duasOn() ? kL.custoItem : k.custoItem * qL / k.qtdUn, venL = loja === 2 ? (it.pv2 ?? k.venda) : k.venda, ecL = loja === 1 ? (it.ec ?? null) : null;
     const a = mapa.get(ePr);
     if (a) { a.qtd += qL; a.valor += vL; if (a.ec == null) a.ec = ecL; if (a.it.aux && !it.aux) a.it = it; }
@@ -2081,7 +2164,7 @@ function sqlEntrada(loja) {
 }
 
 // ---------- salvar / reabrir ----------
-const estado = () => ({ chave: cab.chave, manual: cab.manual ? cab.emit : null, gPct: gPct(), gMk: gMk(), itens: itens.map(i => ({ ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean, aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc, pct: i.pct, mk: i.mk, km: i.mkMem ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada })), meta: metaLocal });
+const estado = () => ({ chave: cab.chave, manual: cab.manual ? cab.emit : null, gPct: gPct(), gMk: gMk(), itens: itens.map(i => ({ ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean, aux: i.aux ?? null, auxs: i.auxs && i.auxs.length ? i.auxs : null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc, pct: i.pct, mk: i.mk, km: i.mkMem ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada })), meta: metaLocal });
 function guardar(it) {
   if (!db) { try { localStorage.setItem("entradaxml:" + cab.chave, JSON.stringify(estado())); } catch (e) {} return; }
   if (it) agendarItem(it); else agendarCfg();
@@ -2096,7 +2179,7 @@ function restaurar(s) {
 
 // ---------- trabalho compartilhado entre os PCs (página publicada) ----------
 const idItem = n => "i" + String(n).padStart(4, "0");
-const estadoItem = i => ({ bl: i.bl || null, ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean || "", aux: i.aux ?? null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc || "", pct: i.pct ?? null, mk: i.mk ?? null, km: i.mkMem ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada, rq: i.rq ?? null, rf: i.rf ? 1 : 0 });
+const estadoItem = i => ({ bl: i.bl || null, ...(i.m ? { m: 1, xprod: i.xprod, qtd: i.qtd, vun: i.vun, vipi: i.vipi || 0, vst: i.vst || 0, cod: i.cod || "" } : {}), jg: i.jg ? 1 : 0, an: i.an ? 1 : 0, e1: i.e1 || null, e2: i.e2 || null, ean2: i.ean2 || null, n: i.n, div: i.div, ean: i.ean || "", aux: i.aux ?? null, auxs: i.auxs && i.auxs.length ? i.auxs : null, rev: i.rev ? 1 : 0, l2e: i.l2e ?? null, l2u: i.l2u ?? null, pv2: i.pv2 ?? null, ncm: i.ncm || "", cest: i.cest || "", desc: i.desc || "", pct: i.pct ?? null, mk: i.mk ?? null, km: i.mkMem ?? null, pv: i.pv ?? null, cg: i.cg ?? null, cd: i.cd ?? null, cs: i.cs ?? null, cf: i.cf ?? null, val: i.val ?? null, ec: i.ec ?? null, fd: i.fd, tocado: !!i.tocado, descTocada: !!i.descTocada, rq: i.rq ?? null, rf: i.rf ? 1 : 0 });
 // fator dos boletos em meia nota: quanto o valor cheio (com os impostos da parte faturada) é maior que o valor da nota
 function fatorBoletos() {
   if (!cab || cab.manual || !itens.length) return 1;
@@ -2130,7 +2213,7 @@ function aplicarRemoto(g) {
   if (!it && cab.manual && g.m) { it = itemManual(g); Object.assign(it, { e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, an: g.an ? 1 : 0, div: g.div || 1, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, pct: g.pct ?? null, fd: g.fd || 1 }); itens.push(it); itens.sort((a, b) => a.n - b.n); clearTimeout(tDesenha); tDesenha = setTimeout(desenhar, 30); return; }
   if (!it || pend.has(it.n)) return;
   if (it.m) { it.xprod = g.xprod; it.qtd = g.qtd; it.vun = g.vun; it.vprod = r2(g.qtd * g.vun); it.vipi = g.vipi || 0; it.vst = g.vst || 0; }
-  Object.assign(it, { jg: g.jg ? 1 : 0, an: g.an ? 1 : 0, e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, div: g.div, ean: g.ean, aux: g.aux ?? null, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, ncm: g.ncm ?? it.ncm ?? "", cest: g.cest ?? it.cest ?? "", desc: g.desc, pct: g.pct, mk: g.mk, mkMem: g.km ?? null, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null, fd: g.fd, tocado: g.tocado, descTocada: g.descTocada, rq: g.rq ?? null, rf: g.rf ? 1 : 0 });
+  Object.assign(it, { jg: g.jg ? 1 : 0, an: g.an ? 1 : 0, e1: g.e1 || null, e2: g.e2 || null, ean2: g.ean2 || null, div: g.div, ean: g.ean, aux: g.aux ?? null, auxs: Array.isArray(g.auxs) && g.auxs.length ? g.auxs.map(String) : null, rev: g.rev ? 1 : 0, l2e: g.l2e ?? null, l2u: g.l2u ?? null, pv2: g.pv2 ?? null, ncm: g.ncm ?? it.ncm ?? "", cest: g.cest ?? it.cest ?? "", desc: g.desc, pct: g.pct, mk: g.mk, mkMem: g.km ?? null, pv: g.pv ?? null, cg: g.cg ?? null, cd: g.cd ?? null, cs: g.cs ?? null, cf: g.cf ?? null, val: g.val ?? null, ec: g.ec ?? null, fd: g.fd, tocado: g.tocado, descTocada: g.descTocada, rq: g.rq ?? null, rf: g.rf ? 1 : 0 });
   const tr = document.getElementById("l" + it.n); if (!tr) return;
   for (const inp of tr.querySelectorAll("input")) if (inp !== document.activeElement) { const c = inp.dataset.c; if (c === "rev") { inp.checked = !!it.rev; continue; } inp.value = (c === "qtd" || c === "vun") ? (it[c] ? String(it[c]).replace(".", ",") : "") : (it[c] ?? ""); }
   tr.classList.toggle("rev", !!it.rev);

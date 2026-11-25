@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="191">
+<meta name="versao" content="192">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -22,13 +22,15 @@
   * { box-sizing: border-box; }
   body { font-family: Nunito, Arial, Helvetica, sans-serif; font-size: 13px; margin: 0; color: var(--texto); background: var(--fundo); -webkit-font-smoothing: antialiased; }
   header { position: sticky; top: 0; z-index: 35; height: 52px; background: #fff; color: var(--texto); border-bottom: 1px solid var(--borda); padding: 0 20px 0 12px; display: flex; gap: 12px; align-items: center; }
-  header h1 { font-size: 15px; margin: 0; font-weight: 800; color: var(--azul); white-space: nowrap; display: flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; overflow: hidden; }
-  header h1 .cam-p { overflow: hidden; text-overflow: ellipsis; min-width: 0; } header h1 .cam-sec { color: var(--cinza); font-weight: 700; flex: none; } header h1 .cam-sep { color: var(--cinza); font-weight: 400; flex: none; }
-  header h1 a.cam-p { cursor: pointer; color: #0b57d0; text-decoration: none; flex: none; } header h1 a.cam-p:hover { text-decoration: underline; }
-  header h1 .cam-fim { flex: 0 1 auto; max-width: 46vw; }
-  header h1 a.cam-volta { cursor: pointer; flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--borda); display: grid; place-items: center; font-size: 20px; line-height: 1; color: var(--azul); text-decoration: none; background: #fff; }
-  header h1 a.cam-volta:hover { background: var(--muted, #eef0f3); }
-  @media (max-width: 760px) { header h1 .cam-sec, header h1 .cam-sec + .cam-sep { display: none; } header h1 .cam-fim { max-width: 38vw; } }
+  header h1 { font-size: 15px; margin: 0; font-weight: 800; color: var(--azul); white-space: nowrap; }
+  /* caminho (Seção › Tela › o que está aberto): faixa própria abaixo do topo, só quando há algo aberto para voltar */
+  #camBarra { position: sticky; top: 52px; z-index: 30; display: flex; align-items: center; gap: 8px; margin: -20px -24px 14px; padding: 7px 24px; background: #f6f8fb; border-bottom: 1px solid var(--borda); font-size: 13px; font-weight: 700; white-space: nowrap; min-width: 0; }
+  #camBarra .cam-p { overflow: hidden; text-overflow: ellipsis; min-width: 0; } #camBarra .cam-sec { color: var(--cinza); flex: none; } #camBarra .cam-sep { color: var(--cinza); font-weight: 400; flex: none; }
+  #camBarra a.cam-p { cursor: pointer; color: #0b57d0; text-decoration: none; flex: none; } #camBarra a.cam-p:hover { text-decoration: underline; }
+  #camBarra .cam-fim { flex: 0 1 auto; color: var(--texto); }
+  #camBarra a.cam-volta { cursor: pointer; flex: none; height: 28px; padding: 0 10px 0 8px; border-radius: 8px; border: 1px solid var(--borda); display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--azul); text-decoration: none; background: #fff; margin-right: 4px; }
+  #camBarra a.cam-volta:hover { background: var(--muted, #eef0f3); }
+  @media (max-width: 760px) { #camBarra { top: 50px; margin: -14px -12px 10px; padding: 6px 12px; } #camBarra .cam-sec, #camBarra .cam-sec + .cam-sep { display: none; } }
   header .hver { font-size: 10px; border: 1px solid var(--borda); border-radius: 4px; padding: 1px 5px; color: var(--cinza); white-space: nowrap; }
   main { padding: 20px 24px 60px; }
   .painel { background: #fff; border: 1px solid var(--borda); border-radius: 7px; padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--sombra); }
@@ -794,6 +796,7 @@
 <div id="veu"></div>
 <nav id="barraMob" aria-label="Atalhos"><button class="aba so-sep" data-v="separacao" title="Separação"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Separação</span></button><button class="aba so-sep" data-v="validades" title="Validades"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 2v3"/><path d="M17 15.5v1.7l1 .625"/><path d="M21 8.936V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h3.935"/><path d="M3 9h9.873"/><path d="M8 2v3"/><circle cx="17" cy="17" r="5"/></svg><span>Validades</span></button><button class="aba so-sep" data-v="etiquetas" title="Etiquetas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg><span>Etiquetas</span></button><button class="aba so-sep" data-v="produtos" title="Produtos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/></svg><span>Produtos</span></button><button class="aba" data-v="hoje" title="Hoje"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Hoje</span></button><button class="aba" data-v="entrada" title="Entrada"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></svg><span>Entrada</span></button><button class="aba" data-v="vendas" title="Vendas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/><path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/></svg><span>Vendas</span></button><button class="aba" data-v="boletos" title="Boletos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 16H8"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z"/></svg><span>Boletos</span></button><button id="bMenuMob" title="todas as abas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Menu</span></button></nav>
 <main id="principal" style="display:none">
+ <div id="camBarra" style="display:none"></div>
  <div id="vEntrada">
   <div class="painel ent-topo" id="entTopo">
     <div class="lv-inicio">
@@ -2390,11 +2393,14 @@ function caminhoPartes() {
 }
 let caminhoUlt = "";
 function caminhoDesenhar() {
-  const h = document.getElementById("hTitulo"); if (!h || !document.body.classList.contains("logado")) return;
-  const ps = caminhoPartes(), chave = ps.map(p => (p.f ? "*" : "") + p.t).join("›"); if (chave === caminhoUlt && h.firstChild) return; caminhoUlt = chave;
+  const h = document.getElementById("hTitulo"), bar = document.getElementById("camBarra"); if (!h || !bar || !document.body.classList.contains("logado")) return;
+  const ps = caminhoPartes(), chave = ps.map(p => (p.f ? "*" : "") + p.t).join("›"); if (chave === caminhoUlt) return; caminhoUlt = chave;
+  const tela = ps.find(p => !p.sec) || ps[0]; h.textContent = tela ? tela.t : "Nova Raphaella"; // no topo fica só o nome da tela; o caminho vai numa faixa própria, logo abaixo
   const volta = [...ps].reverse().find((p, i) => i > 0 && p.f); // nível de cima mais próximo: é para onde a seta leva
-  h.innerHTML = (volta ? `<a class="cam-volta" data-cam="${ps.indexOf(volta)}" title="${escH(volta.dica || "voltar")}">‹</a>` : "") + ps.map((p, i) => `${i ? '<span class="cam-sep">›</span>' : ""}${p.f && i < ps.length - 1 ? `<a class="cam-p${p.sec ? " cam-sec" : ""}" data-cam="${i}" title="${escH(p.dica || "voltar para " + p.t)}">${escH(p.t)}</a>` : `<span class="cam-p${p.sec ? " cam-sec" : ""}${i === ps.length - 1 ? " cam-fim" : ""}">${escH(p.t)}</span>`}`).join("");
-  for (const a of h.querySelectorAll("[data-cam]")) a.onclick = ev => { ev.preventDefault(); const p = ps[Number(a.dataset.cam)]; if (p && p.f) p.f(); };
+  if (!volta) { bar.style.display = "none"; bar.innerHTML = ""; return; } // nada aberto nesta tela: a faixa some
+  bar.style.display = "";
+  bar.innerHTML = `<a class="cam-volta" data-cam="${ps.indexOf(volta)}" title="${escH(volta.dica || "voltar")}">‹ <span>voltar</span></a>` + ps.map((p, i) => `${i ? '<span class="cam-sep">›</span>' : ""}${p.f && i < ps.length - 1 ? `<a class="cam-p${p.sec ? " cam-sec" : ""}" data-cam="${i}" title="${escH(p.dica || "voltar para " + p.t)}">${escH(p.t)}</a>` : `<span class="cam-p${p.sec ? " cam-sec" : ""}${i === ps.length - 1 ? " cam-fim" : ""}">${escH(p.t)}</span>`}`).join("");
+  for (const a of bar.querySelectorAll("[data-cam]")) a.onclick = ev => { ev.preventDefault(); const p = ps[Number(a.dataset.cam)]; if (p && p.f) p.f(); };
 }
 setInterval(() => { try { caminhoDesenhar(); } catch (e) { } }, 700); // acompanha o que abre e fecha em qualquer tela
 function mostrar(v, semHist) {

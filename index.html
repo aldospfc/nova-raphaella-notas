@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="193">
+<meta name="versao" content="194">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3091,6 +3091,7 @@ const emCurso = v => v && (v.status === "pendente" || v.status === "aplicando" |
 async function enviarAoGestao(tipo, comPos) {
   envioSoChegou = false;
   if (!supa) return baixarArquivo(tipo);
+  if (!cadInfo && !confirm("O cadastro do Gestão ainda não carregou nesta tela, então não dá para saber quais itens já existem (todos aparecem como novos).\n\nO envio não duplica produto que já existe, mas você fica sem ver o preço e a descrição atuais.\n\nO sistema está tentando carregar de novo. Enviar mesmo assim?")) return;
   if (tipo === "entrada" && confUsada()) { // conferência do recebimento: avisa o que não chegou e deixa escolher
     const pend = itens.filter(i => !i.jg && !(i.e1 || i.e2) && recSit(i) !== "ok");
     if (pend.length) { const r = await recPerguntaEnvio(pend); if (r === "cancelar") return; envioSoChegou = r === "chegou"; }
@@ -4152,11 +4153,22 @@ function dbSupabase(cli) {
   }).subscribe(st => { if (st === "SUBSCRIBED") sync("conectado — os dois PCs veem as mesmas notas", true); else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") sync("sem conexão em tempo real; recarregue a página", false); });
   return { doc: docRef, collection: colRef };
 }
+// Se a carga falhar (banco ocupado), tenta de novo sozinho em poucos segundos e avisa: sem o cadastro, os itens da nota não mostram "já no cadastro".
+let cadTent = 0, cadTentT = null;
 async function cadastroDaNuvem(silencioso) {
-  const { data, error } = await supa.rpc("cadastro_compacto", { p_loja: 1 });
-  if (error || !data) { msg("Não consegui carregar o cadastro da nuvem" + (error ? ": " + error.message : "") + "."); return; }
-  carregarCadastro(data, silencioso);
+  let data = null, error = null;
+  try { const r = await supa.rpc("cadastro_compacto", { p_loja: 1 }); data = r.data; error = r.error; } catch (e) { error = e; }
+  if (error || !data) {
+    cadTent++; const seg = Math.min(60, 8 * cadTent);
+    if (!cadInfo) document.getElementById("stCad").textContent = `o cadastro do Gestão ainda NÃO carregou (o banco demorou a responder) — nova tentativa em ${seg} s`;
+    if (cadTent === 1) msg(cadInfo ? "Não consegui atualizar o cadastro agora; continuo com a cópia que já está na tela e tento de novo sozinho." : "O cadastro do Gestão não carregou (o banco demorou a responder). Tento de novo sozinho em alguns segundos. Até carregar, os itens das notas aparecem sem o \"já no cadastro\" — espere antes de enviar.");
+    clearTimeout(cadTentT); cadTentT = setTimeout(() => cadastroDaNuvem(true), seg * 1000);
+    return;
+  }
+  const semCad = !cadInfo, voltou = cadTent > 0 && semCad; cadTent = 0; clearTimeout(cadTentT);
+  carregarCadastro(data, silencioso && !semCad);
   document.getElementById("stCad").textContent = `${data.produtos.length.toLocaleString("pt-BR")} produtos do Gestão da Loja 1, atualizados pelo agente em ${data.data}`;
+  if (voltou) msg("Cadastro do Gestão carregado. Os itens da tela já foram conferidos de novo com ele.");
   return true;
 }
 // O cadastro inteiro (dezenas de milhares de produtos) pesa no banco. De 5 em 5 min só se pergunta se ele mudou (um carimbo leve);

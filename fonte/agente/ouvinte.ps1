@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.7"
+$Versao = "2.8.8"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -524,7 +524,7 @@ function ImprimeEtiqueta($item) {
   return $ok
 }
 
-# 2.8.6: pedido "transf" = leitura da pasta de orcamentos do PDV (Server_PDV\transf), para o sistema aprender o formato
+# 2.8.6: pedido "orc_pos" = leitura da pasta de orcamentos do PDV (Server_PDV\transf), para o sistema aprender o formato
 #        do arquivo que o Gestao grava ao finalizar um orcamento. Nao grava, nao apaga, nao mexe em nada; so le essa pasta.
 #        Conteudo: "--LISTAR" (os 40 mais novos) e/ou "--LER nome.ext" (le um arquivo dessa pasta, sem subpastas).
 function LeTransf($item) {
@@ -597,7 +597,7 @@ function LeTransf($item) {
 function Aplica($item) {
   $id = [int]$item.id
   if ($item.tipo -eq "etiqueta" -or $item.tipo -eq "impressoras") { return (ImprimeEtiqueta $item) }
-  if ($item.tipo -eq "transf") { return (LeTransf $item) }
+  if ($item.tipo -eq "orc_pos") { return (LeTransf $item) }  # 2.8.8: tipo proprio ("transf" e a transferencia de estoque entre lojas, que grava no Gestao)
   $arq = Join-Path $Pasta ("fila_" + $id + ".sql")
   $saida = Join-Path $Pasta ("fila_" + $id + "_saida.txt")
   $erro = Join-Path $Pasta ("fila_" + $id + "_erro.txt")

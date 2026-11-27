@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="199">
+<meta name="versao" content="200">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -4432,6 +4432,31 @@ function vivoAtualizar() {
     else if (modo !== "dia" ? (document.getElementById("vdAte").value || "") >= hoje : (document.getElementById("vdDia").value || hoje) === hoje) vdPeriodo();
   }
 }
+// Dia de envio dos pedidos da SHOPEE (regra do Aldo, 27/11/2026): pedido que chegou até 12h sai no MESMO dia;
+// depois das 12h (ou em fim de semana/feriado), no próximo dia útil (segunda a sexta, fora feriado nacional).
+// Nunca passa do prazo que a Shopee deu (data prevista do Bling): se o prazo vence antes, vale o último dia útil até o prazo.
+// A hora do pedido é a hora em que ele chegou do Bling (criado_em), no horário de São Paulo. Devolve "aaaa-mm-dd" ou null.
+function feriadoNacional(iso) {
+  const a = Number(iso.slice(0, 4)), md = iso.slice(5);
+  if (["01-01", "04-21", "05-01", "09-07", "10-12", "11-02", "11-15", "11-20", "12-25"].includes(md)) return true;
+  // Sexta-feira Santa (2 dias antes da Páscoa)
+  const g = a % 19, c = Math.floor(a / 100), h = (c - Math.floor(c / 4) - Math.floor((8 * c + 13) / 25) + 19 * g + 15) % 30, i = h - Math.floor(h / 28) * (1 - Math.floor(29 / (h + 1)) * Math.floor((21 - g) / 11)),
+    j = (a + Math.floor(a / 4) + i + 2 - c + Math.floor(c / 4)) % 7, l = i - j, mes = 3 + Math.floor((l + 40) / 44), dia = l + 28 - 31 * Math.floor(mes / 4);
+  const sexta = new Date(Date.UTC(a, mes - 1, dia - 2)).toISOString().slice(0, 10);
+  return iso === sexta;
+}
+function diaUtil(iso) { const w = new Date(iso + "T12:00:00Z").getUTCDay(); return w !== 0 && w !== 6 && !feriadoNacional(iso); }
+function envioShopee(p) {
+  if (!p || !/shopee/i.test(p.canal || "") || !p.criado_em) return null;
+  const t = new Date(new Date(p.criado_em).getTime() - 3 * 3600e3); if (isNaN(t)) return null; // relógio de São Paulo
+  const dia0 = t.toISOString().slice(0, 10), minutos = t.getUTCHours() * 60 + t.getUTCMinutes();
+  const mais = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  let e = dia0;
+  if (minutos > 12 * 60 || !diaUtil(e)) do { e = mais(e, 1); } while (!diaUtil(e));
+  const lim = p.data_prevista && p.data_prevista >= dia0 ? p.data_prevista : null; // prazo da Shopee (ignora data anterior ao próprio pedido)
+  if (lim && lim < e) { e = lim; while (e > dia0 && !diaUtil(e)) e = mais(e, -1); }
+  return e;
+}
 // ===== Separação de pedidos online (Mercado Livre, Shopee… via Bling; a nuvem busca de 2 em 2 min) =====
 const SEP = { lista: [], canal: null, vistos: new Set(), primeira: true, sel: new Set(), abertos: new Set(), somaProx: false, somaLg: null, somaR: [], somaAb: new Set(), pegos: null, compacto: (() => { try { return localStorage.getItem("sepCompacto") === "1"; } catch (e) { return false; } })() };
 function sepIniciar() {
@@ -5212,7 +5237,7 @@ function sepDesenhar() {
   // fluxo: para separar → separado (aguardando despacho) → despachado (vira "Atendido" no Bling, que baixa o estoque)
   const diaSP = iso => new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(0, 10);
   const horaSP = iso => { const h = new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }); return h === "23:59" ? "" : h; };
-  const envio = p => (p.envio_limite ? diaSP(p.envio_limite) : null) || p.envio_em || p.data_prevista || null; // dia em que o pacote precisa sair (prazo do ML, à mão ou data prevista do Bling)
+  const envio = p => (p.envio_limite ? diaSP(p.envio_limite) : null) || p.envio_em || envioShopee(p) || p.data_prevista || null; // dia em que o pacote precisa sair (prazo do ML, à mão, regra da Shopee ou data prevista do Bling)
   const prazo = p => envio(p) || "9999-" + (p.data || ""); // sem data vai para o fim
   const naTela = p => p.situacao_id !== 12 && !p.despachado_em; // "Atendido" no Bling (nota emitida) não quer dizer que o pacote saiu
   const pend = L.filter(p => !p.separado_em && !p.ignorado_em && naTela(p)).sort((a, b) => prazo(a).localeCompare(prazo(b)) || String(a.criado_em).localeCompare(String(b.criado_em))), devolver = L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em),
@@ -5237,7 +5262,7 @@ function sepDesenhar() {
     const n = dias(e, hojeSP), cls = e < hojeSP ? "chip falta" : e === hojeSP ? "chip falta" : "chip", hr = p.envio_limite && horaSP(p.envio_limite) ? " " + horaSP(p.envio_limite) : "";
     const txt = e < hojeSP ? `enviar era ${dm(e)} · atrasado ${n} dia${n > 1 ? "s" : ""}` : "enviar " + nomeDia(e) + (hr ? " até" + hr : "");
     if (p.envio_limite) return `<span class="${cls}" title="prazo do Mercado Livre para o pacote sair">${txt}</span>`;
-    return `<a href="#" class="${cls}" data-envio="${p.id}" data-envio-d="${e}" title="${p.envio_em ? "data informada à mão" : "data prevista no Bling"} — clique para trocar">${txt}</a>`; };
+    return `<a href="#" class="${cls}" data-envio="${p.id}" data-envio-d="${e}" title="${p.envio_em ? "data informada à mão" : envioShopee(p) ? "Shopee: pedido que chega até 12h sai no mesmo dia; depois, no próximo dia útil" + (p.data_prevista ? " (prazo da Shopee: " + dm(p.data_prevista) + ")" : "") : "data prevista no Bling"} — clique para trocar">${txt}</a>`; };
   // links: página do pedido no marketplace e no Bling (a Shopee não aceita link direto pelo número: abre "Meus pedidos" e copia o número)
   const links = p => { const nl = String(p.numero_loja || ""), ml = /mercado/i.test(p.canal || ""), sh = /shopee/i.test(p.canal || "");
     const mk = ml && nl ? `<a href="https://www.mercadolivre.com.br/vendas/${encodeURIComponent(nl)}/detalhe" target="_blank" rel="noopener">abrir no Mercado Livre ↗</a>`

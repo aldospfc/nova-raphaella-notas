@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="198">
+<meta name="versao" content="199">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1834,10 +1834,42 @@ function bipAchar(cod) {
   if (!it) { const cx = itens.filter(i => k(eanUnidadeDeCaixa(i.ean) || eanUnidadeDeCaixa(i.eanNota)) === c || (i.eanNota && k(i.eanNota).length === 14 && k(i.eanNota).slice(1, 13) === c.slice(0, 12)));
     it = cx.find(i => !i.e1 && !i.e2 && !i.jg) || cx[0]; troca = !!it && !it.e1 && !it.e2 && !it.jg; }
   if (!it) it = itens.find(i => k(i.eanNota) === c);
+  if (!it && bipVizinhos(c)) return; // nota com o código do PACOTE: oferece os itens de código vizinho
   if (!it) return msg(`Não achei o código ${c} nesta nota. Se for um item que veio sem código, clique no campo EAN do item e bipe lá.`);
   if (troca) { usarEan(it, c); msg(`Item ${rot(it)}: estava com o código da CAIXA — troquei pelo código bipado (${c}). Confira o divisor (quantas unidades vêm na caixa)${it.div > 1 ? `: está ${it.div}` : ": está 1"}.`); }
   else msg(`Item ${rot(it)}: ${it.desc || it.xprod}${it.e1 || it.e2 ? " — já enviado ao Gestão" : ""}.`);
   bipMostrar(it);
+}
+// Código bipado que não está na nota, mas é VIZINHO do código de algum item (mesmo fabricante, numeração colada):
+// acontece quando a nota traz o código do PACOTE (cadernos PT4/PT5 da Foroni, por exemplo) e o produto tem outro código.
+// Mostra os itens candidatos para o usuário escolher; escolhido, o código bipado vira o código de barras do item.
+function bipVizinhos(c) {
+  if (!/^\d{12,14}$/.test(c)) return false;
+  const k = e => chave13(String(e || "").replace(/\D/g, "")), ref = e => Number(e.slice(0, -1)), cand = [];
+  for (const i of itens) { if (i.jg) continue;
+    const e = k(i.eanNota || i.ean); if (e.length !== c.length || e.slice(0, 7) !== c.slice(0, 7)) continue;
+    if (i.eanNota && i.ean && k(i.ean) !== k(i.eanNota) && gtinValido(i.ean)) continue; // este já recebeu o código do produto
+    const d = Math.abs(ref(e) - ref(c)); if (d && d <= 6) cand.push([d, i]); }
+  if (!cand.length) return false;
+  cand.sort((a, b) => a[0] - b[0] || (!!(a[1].e1 || a[1].e2) - !!(b[1].e1 || b[1].e2)) || a[1].n - b[1].n); cand.splice(6);
+  let fundo = document.getElementById("modalBip");
+  if (!fundo) { fundo = document.createElement("div"); fundo.id = "modalBip"; fundo.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:6vh 8px;overflow:auto"; fundo.innerHTML = `<div class="painel" style="width:min(680px,96vw);margin:0;max-height:none"></div>`; document.body.appendChild(fundo);
+    fundo.addEventListener("click", ev => { if (ev.target === fundo) fundo.style.display = "none"; });
+    document.addEventListener("keydown", ev => { if (ev.key === "Escape") fundo.style.display = "none"; }); }
+  fundo.style.display = "flex"; const bx = fundo.firstElementChild;
+  const noCad = cadIdx && cadIdx.get(c), pi = cadInfo && cadInfo.get(c);
+  bx.innerHTML = `<div class="linha" style="justify-content:space-between"><b>O código ${escH(c)} não está nesta nota</b><a href="#" id="bvX" style="color:var(--cinza)">fechar ✕</a></div>` +
+    (noCad ? `<div style="margin:8px 0;padding:8px 10px;background:#fff7d6;border-radius:6px"><b>No Gestão ele já existe:</b> ${escH(noCad)}${pi ? ` · R$ ${br(Number(pi[4]) || 0)} · estoque ${br(Number(pi[2]) || 0, 0)}` : ""}</div>` : "") +
+    `<div class="orig" style="margin:6px 0">Mas há ${cand.length > 1 ? "itens" : "um item"} com código vizinho, do mesmo fabricante. Algumas notas trazem o código do <b>pacote</b>, e o produto solto tem outro código. Qual destes você bipou?</div>` +
+    cand.map(([, i], x) => `<div data-i="${x}" style="border:1px solid var(--borda);border-radius:8px;padding:10px 12px;margin-top:6px;cursor:pointer"><b>${escH(rot(i))} · ${escH(i.desc || i.xprod)}</b><div class="orig" style="font-size:12px">código na nota: <span class="mono">${escH(i.eanNota || i.ean)}</span>${i.e1 || i.e2 ? ` · <b style="color:#b45309">já enviado ao Gestão com esse código</b>` : ""}</div></div>`).join("") +
+    `<div class="orig" style="margin-top:8px;font-size:12px">Ao escolher, o código bipado passa a ser o código de barras do item (o da nota continua guardado). Se não for nenhum, feche.</div>`;
+  bx.querySelector("#bvX").onclick = ev => { ev.preventDefault(); fundo.style.display = "none"; };
+  for (const el of bx.querySelectorAll("[data-i]")) el.onclick = () => { const i = cand[Number(el.dataset.i)][1]; fundo.style.display = "none";
+    if (i.e1 || i.e2) { msg(`Item ${rot(i)} já foi enviado ao Gestão com o código ${i.ean}. Para o código ${c} também passar no caixa, use "+ adicionar produto auxiliar" neste item e bipe o produto.`); return bipMostrar(i); }
+    const antes = i.ean || i.eanNota || ""; usarEan(i, c);
+    msg(`Item ${rot(i)}: troquei o código da nota (${antes}) pelo código bipado (${c}).${noCad ? " Esse produto já existe no Gestão." : ""}`); bipMostrar(i); };
+  msg(`Não achei o código ${c} nesta nota — veja os itens de código vizinho.`);
+  return true;
 }
 function bipMostrar(it) {
   let tr = document.getElementById("l" + it.n); if (!tr) return;

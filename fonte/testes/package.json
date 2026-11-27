@@ -1,0 +1,6 @@
+{
+  "name": "testes-sistema-lojas",
+  "private": true,
+  "description": "Testes das regras de ouro do Sistema das Lojas (rodam antes de cada publicação)",
+  "dependencies": { "jsdom": "^24.1.0" }
+}

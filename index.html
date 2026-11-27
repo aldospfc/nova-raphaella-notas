@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="196">
+<meta name="versao" content="197">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1818,9 +1818,18 @@ function bipAchar(cod) {
     msg(`Item ${rot(it)}: ${it.desc || it.xprod}${ach.length > 1 ? ` (e mais ${ach.length - 1} com esse nome — digite mais para afinar)` : ""}.`);
     return bipMostrar(it);
   }
-  c = chave13(txt.replace(/\D/g, "")); if (c.length < 8) { it = itens.find(i => String(i.cod || "").replace(/\D/g, "") === c && c); if (!it) return msg("Código muito curto."); msg(`Item ${rot(it)}: ${it.desc || it.xprod}.`); return bipMostrar(it); }
-  it = itens.find(i => k(i.ean) === c);
+  c = chave13(txt.replace(/\D/g, "")); if (!c) return msg("Código vazio.");
+  const curto = c.length < 8, livre = i => !i.e1 && !i.e2 && !i.jg; // curto: código da casa (0000000000499) ou código do fornecedor
+  { const ach = itens.filter(i => k(i.ean) === c); it = ach.find(livre) || ach[0] || null; }
   if (!it) { const mae = itens.find(i => (i.auxs || []).some(a => k(a) === c)); if (mae) { msg(`${c} é código auxiliar do item ${rot(mae)}: ${mae.ean} · ${mae.desc || mae.xprod}.`); return bipMostrar(mae); } }
+  if (!it) { // é o produto PRINCIPAL de itens desta nota (itens marcados como "auxiliar de")
+    const fl = itens.filter(i => i.aux && k(i.aux) === c);
+    if (fl.length) { it = fl.find(livre) || fl[0]; msg(`${c} é o produto principal de ${fl.length} item(ns) desta nota (${fl.map(rot).join(", ")}). Mostrando o item ${rot(it)}: ${it.desc || it.xprod}.`); return bipMostrar(it); } }
+  if (!it && cadAux && cadAux.get(c)) { // código auxiliar já gravado no Gestão: procura o principal dele nesta nota
+    const pr = cadAux.get(c), kp = k(pr), a2 = itens.filter(i => k(i.ean) === kp || (i.aux && k(i.aux) === kp));
+    if (a2.length) { it = a2.find(livre) || a2[0]; msg(`${c} é código auxiliar de ${pr} no Gestão — item ${rot(it)}: ${it.desc || it.xprod}.`); return bipMostrar(it); } }
+  if (!it && curto) { it = itens.find(i => String(i.cod || "").replace(/\D/g, "").replace(/^0+/, "") === c) || null; // código do fornecedor
+    if (!it) return msg(`Não achei o código ${c} nesta nota (nem como código de barras, nem como código do fornecedor).`); msg(`Item ${rot(it)}: ${it.desc || it.xprod}.`); return bipMostrar(it); }
   if (!it) { const cx = itens.filter(i => k(eanUnidadeDeCaixa(i.ean) || eanUnidadeDeCaixa(i.eanNota)) === c || (i.eanNota && k(i.eanNota).length === 14 && k(i.eanNota).slice(1, 13) === c.slice(0, 12)));
     it = cx.find(i => !i.e1 && !i.e2 && !i.jg) || cx[0]; troca = !!it && !it.e1 && !it.e2 && !it.jg; }
   if (!it) it = itens.find(i => k(i.eanNota) === c);
@@ -4142,6 +4151,7 @@ async function excluirNota(chave) {
 let supa = null;
 function dbSupabase(cli) {
   const ouvintes = new Set();
+  const filaUpd = new Map(); // documento → último "update" em andamento nesta aba
   const snapDoc = (path, row) => ({ id: path.split("/").pop(), exists: !!row, data: () => row ? JSON.parse(JSON.stringify(row.dados)) : undefined, metadata: { hasPendingWrites: false, fromCache: false } });
   const colecaoDe = path => path.split("/").slice(0, -1).join("/");
   const erroDe = e => ({ code: (e && (e.code || e.status)) || "unavailable", message: (e && e.message) || String(e) });
@@ -4149,11 +4159,18 @@ function dbSupabase(cli) {
     id: path.split("/").pop(), path,
     get: async () => { const { data, error } = await cli.from("docs").select("path,dados").eq("path", path).maybeSingle(); if (error) throw erroDe(error); return snapDoc(path, data); },
     set: async dados => { const { error } = await cli.from("docs").upsert({ path, colecao: colecaoDe(path), dados, atualizado_em: new Date().toISOString() }); if (error) throw erroDe(error); },
-    update: async patch => {
-      const { data, error } = await cli.from("docs").select("dados").eq("path", path).maybeSingle(); if (error) throw erroDe(error);
-      if (!data) throw { code: "invalid_argument", message: "documento não existe: " + path };
-      const dados = { ...data.dados, ...patch };
-      const { error: e2 } = await cli.from("docs").update({ dados, atualizado_em: new Date().toISOString() }).eq("path", path); if (e2) throw erroDe(e2);
+    // lê, junta e grava — um de cada vez por documento: dois "update" simultâneos (Loja 1 e Loja 2 terminando o envio
+    // no mesmo instante) liam a mesma cópia e o último apagava o que o outro tinha gravado (envio ficava "pendente" para sempre)
+    update: patch => {
+      const ant = filaUpd.get(path) || Promise.resolve();
+      const pr = ant.catch(() => {}).then(async () => {
+        const { data, error } = await cli.from("docs").select("dados").eq("path", path).maybeSingle(); if (error) throw erroDe(error);
+        if (!data) throw { code: "invalid_argument", message: "documento não existe: " + path };
+        const dados = { ...data.dados, ...patch };
+        const { error: e2 } = await cli.from("docs").update({ dados, atualizado_em: new Date().toISOString() }).eq("path", path); if (e2) throw erroDe(e2);
+      });
+      filaUpd.set(path, pr); pr.catch(() => {}).then(() => { if (filaUpd.get(path) === pr) filaUpd.delete(path); });
+      return pr;
     },
     delete: async () => { const { error } = await cli.from("docs").delete().eq("path", path); if (error) throw erroDe(error); },
     onSnapshot: (cb, erro) => {

@@ -173,6 +173,25 @@ secao("5. Duas notas: cada loja com o seu custo");
   confere("entrada Loja 2 com custo 12,000 (sem unificar)", e2.includes("12.000") && !e2.includes(" 11.333"), e2.slice(0, 300));
 }
 
+// ---------- 6. orçamento para o caixa ----------
+secao("6. Orçamento para o caixa (arquivo do POS)");
+{
+  // linhas reais geradas pelo Gestão (orçamento 28 e orçamentos antigos) — o sistema tem que gerar idêntico
+  const fis = ev("orFiscalDoGestao")(["CODIGO_BARRAS                   7908077451455", "ALIQUOTA                        3", "UNIDADE                         Un", "CUSTO_MEDIO                     14.89",
+    "S_NCM                           48202000", "F_ALIQNAC                       13.45", "F_ALIQNAC_EST                   18.00", "ICMS                            18.00", "S_CEST                          1902100", "",
+    "CODIGO_BARRAS                   0000000001267", "ALIQUOTA                        3", "UNIDADE                         Un", "CUSTO_MEDIO                     2.0000000", "S_NCM                           <null>", "ICMS                            0.00"].join("\r\n"));
+  const linha = ev("orLinhaCaixa");
+  const l1 = linha("7908077451455", "Caderno 1 Mat Back to Black", 1, 27, fis.get("7908077451455"));
+  confere("item com dados fiscais sai igual ao do Gestão", l1 === "17908077451455CADERNO 1 MAT BACK TO BLACK   0000010000027.0003UnC0000014.89T013.45N48202000S018.00102O018.0019021000000000.00", l1);
+  const l2 = linha("0000000001267", "PAPEL CARTAO", 4, 2, fis.get("0000000001267"));
+  confere("item sem NCM sai na forma curta, igual ao do Gestão", l2 === "10000000001267PAPEL CARTAO                  0000040000002.0003UnC0000002.000000000.00", l2);
+  const o = { num: 12, descPct: 10, itens: [{ ean: "7908077451455", qtd: 2, pv: 27 }] };
+  confere("número no caixa = 9 + nº do orçamento (8 dígitos)", ev("orNumCaixa")(o) === "90000012");
+  igual("desconto geral do orçamento vai embutido no preço do item (27 − 10% = 24,30)", ev("orPrecoCaixa")(o, o.itens[0]), 24.3);
+  igual("total do caixa = 2 × 24,30", ev("orTotalCaixa")(o), 48.6);
+  confere("descrição longa é cortada em 29 letras e sem acento", linha("7908077451455", "Etiqueta c/100 Estrela de Daví dourada", 1, 2.5, fis.get("7908077451455")).slice(14, 44) === "ETIQUETA C/100 ESTRELA DE DAV ");
+}
+
 // ---------- resultado ----------
 if (errosPagina.length) { falhas++; console.log("\n✘ a página teve erro ao carregar: " + errosPagina.slice(0, 3).join(" | ")); }
 console.log(`\n${ok} regras ok, ${falhas} com problema.`);

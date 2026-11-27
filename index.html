@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="200">
+<meta name="versao" content="201">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5526,11 +5526,12 @@ function orDesenharEd() {
   const c = orCfg(), sub = orSub(o), tot = orTotal(o), pg = orPagamento(tot, c), [st, cls] = OR_STATUS[o.status] || OR_STATUS.aberto;
   ed.innerHTML = `
     <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div><b style="font-size:16px">Orçamento nº ${o.num}</b> <span class="chip ${cls}">${st}</span></div>
+      <div><b style="font-size:16px">Orçamento nº ${o.num}</b> <span class="chip ${cls}">${st}</span>${o.caixaNum ? ` <span class="chip ${Math.abs((o.caixaTot || 0) - orTotalCaixa(o)) < 0.005 ? "ok" : "falta"}" title="no caixa: tecla O, digite este número e Enter">${Math.abs((o.caixaTot || 0) - orTotalCaixa(o)) < 0.005 ? "no caixa" : "mudou depois do envio — reenvie ao caixa"}: nº <b>${o.caixaNum}</b></span>` : ""}</div>
       <div class="linha" style="gap:6px;flex-wrap:wrap">
         <button class="sec" id="orImp" title="abre a versão para imprimir ou salvar em PDF">Imprimir / PDF</button>
         <button class="sec" id="orZap" title="copia o texto e abre o WhatsApp do cliente">Texto p/ WhatsApp</button>
         <button class="sec" id="orZapPdf" title="gera o PDF e abre o compartilhamento do celular para mandar no WhatsApp; no computador, baixa o PDF">PDF no WhatsApp</button>
+        <button id="orCaixa" title="grava este orçamento no caixa da loja: a caixa aperta O, digita o número e os itens caem na venda (aberta, para escolher desconto e pagamento)">Enviar ao caixa</button>
         <button class="sec" id="orCam" title="ler o código de barras com a câmera">📷 Bipar</button>
         <button class="sec" id="orDup" title="cria uma cópia deste orçamento">Duplicar</button>
         <button class="sec" id="orFecharB">Fechar</button>
@@ -5567,6 +5568,7 @@ function orDesenharEd() {
   g("orBuscarB").addEventListener("click", () => orBuscar());
   g("orQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); orBuscar(true); } });
   g("orImp").addEventListener("click", orImprimir); g("orZap").addEventListener("click", orWhats); g("orZapPdf").addEventListener("click", orPdfWhats); g("orFecharB").addEventListener("click", orFechar);
+  g("orCaixa").addEventListener("click", orEnviarCaixa);
   g("orCam").addEventListener("click", () => lerCamera(c => { const q = document.getElementById("orQ"); if (q) { q.value = c; orBuscar(true); } }));
   g("orDup").addEventListener("click", () => { const num = Math.max(0, ...[...OR.docs.values()].map(x => Number(x.num) || 0)) + 1; const n = { ...JSON.parse(JSON.stringify(o)), id: Date.now().toString(36), num, status: "aberto", criado: new Date().toISOString(), validade: orMaisDias(orCfg().validade_dias) }; OR.docs.set(n.id, n); OR.atual = n; orSalvar(true); orDesenharEd(); orDesenharLista(); });
   for (const b of ed.querySelectorAll("[data-st]")) b.addEventListener("click", () => { o.status = b.dataset.st; if (o.status === "venda") o.vendaEm = new Date().toISOString(); orSalvar(true); orDesenharEd(); orDesenharLista(); });
@@ -5618,6 +5620,81 @@ function orAddProduto(p) {
   if (ja) ja.qtd = (Number(ja.qtd) || 0) + 1;
   else o.itens.push({ ean: p.ean || "", desc: p.descricao || "", qtd: 1, pv: r2(Number(p.preco_venda) || 0), pvCad: r2(Number(p.preco_venda) || 0), est: p.estoque != null ? Number(p.estoque) : null, idg: p.id_gestao });
   orSalvar(); orDesenharEd(); setTimeout(() => { const q = document.getElementById("orQ"); if (q) q.focus(); }, 0);
+}
+// ---------- Orçamento direto no caixa (POS) ----------
+// O POS lê orçamentos de \Server_PDV\transf\<número de 8 dígitos>.txt (tecla O no caixa). O Gestão grava ali os dele (00000001…);
+// os do sistema usam a faixa própria 9xxxxxxx (9 + nº do orçamento). O caixa usa a quantidade e o preço do ARQUIVO e não confere a assinatura
+// da última linha (testado no caixa 2 da Loja 1 em 27/11/2026). Sem linha de pagamento, a venda cai aberta: desconto e pagamento são escolhidos no caixa.
+// Os dados fiscais de cada item (alíquota, NCM, CEST…) são lidos na hora do cadastro do Gestão, para a linha sair igual à que o Gestão gera.
+const orNumCaixa = o => "9" + String(Number(o.num) || 0).padStart(7, "0");
+const orPrecoCaixa = (o, i) => r2((Number(i.pv) || 0) * (1 - (Number(o.descPct) || 0) / 100)); // desconto geral do orçamento já embutido no preço de cada item
+const orTotalCaixa = o => r2((o.itens || []).reduce((a, i) => a + (Number(i.qtd) || 0) * orPrecoCaixa(o, i), 0));
+// uma linha de item no formato do POS; f = dados do cadastro do Gestão { aliq, un, custo, ncm, aliqnac, aliqest, icms, cest }
+function orLinhaCaixa(ean, desc, qtd, preco, f) {
+  const n2 = (v, larg) => (Number(v) || 0).toFixed(2).padStart(larg, "0");
+  const d = semAcento(String(desc || "").toUpperCase()).replace(/[^\x20-\x7e]/g, " ").replace(/\s+/g, " ").trim().slice(0, 29).padEnd(30);
+  const ncm = String(f.ncm || "").replace(/\D/g, "");
+  let l = "1" + String(ean).replace(/\D/g, "").padStart(13, "0").slice(-13) + d + String(Math.round(qtd)).padStart(6, "0") + n2(preco, 10)
+    + String(parseInt(f.aliq, 10) || 0).padStart(2, "0") + String(f.un || "Un").trim().slice(0, 2).padEnd(2) + "C" + n2(f.custo, 10);
+  if (ncm.length === 8) l += "T" + n2(f.aliqnac, 6) + "N" + ncm + "S" + n2(f.aliqest, 6) + "102" + "O" + n2(f.icms, 6) + String(f.cest || "").replace(/\D/g, "").padStart(7, "0").slice(0, 7);
+  return l + "0000000.00";
+}
+// resposta do Gestão (SET LIST ON) -> Map(código de 13 dígitos -> dados fiscais)
+function orFiscalDoGestao(txt) {
+  const m = new Map(); let r = null;
+  for (const ln of String(txt || "").split(/\r?\n/)) {
+    const x = /^([A-Z_0-9$]+)\s+(.*)$/.exec(ln.trim()); if (!x) continue;
+    const v = x[2].trim() === "<null>" ? "" : x[2].trim();
+    if (x[1] === "CODIGO_BARRAS") { r = {}; m.set(v.replace(/\D/g, "").padStart(13, "0"), r); continue; }
+    if (!r) continue;
+    const k = { ALIQUOTA: "aliq", UNIDADE: "un", CUSTO_MEDIO: "custo", S_NCM: "ncm", F_ALIQNAC: "aliqnac", F_ALIQNAC_EST: "aliqest", ICMS: "icms", S_CEST: "cest" }[x[1]];
+    if (k) r[k] = v;
+  }
+  return m;
+}
+async function orFilaEsperar(id, seg) {
+  for (let t = 0; t < seg; t += 2) {
+    await new Promise(r => setTimeout(r, 2000));
+    const r = await supa.from("fila").select("status, resultado, trava_motivo").eq("id", id).single();
+    if (r.data && ["aplicado", "erro", "aguardando"].includes(r.data.status)) return r.data;
+  }
+  return null;
+}
+async function orEnviarCaixa() {
+  const o = OR.atual; if (!o || !supa) return;
+  if (Number(o.loja) !== 1) return msg("Por enquanto o envio ao caixa funciona só na Loja 1 (caixa 2). Na Loja 2 falta configurar os caixas para ler orçamentos.");
+  const its = (o.itens || []).filter(i => (Number(i.qtd) || 0) > 0);
+  if (!its.length) return msg("O orçamento não tem itens.");
+  const ruim = its.find(i => !i.ean || !/^\d{4,14}$/.test(String(i.ean)) || !Number.isInteger(Number(i.qtd)) || !(orPrecoCaixa(o, i) > 0));
+  if (ruim) return msg(`Não dá para enviar ao caixa: "${ruim.desc}" precisa de código de barras, quantidade inteira e preço maior que zero.`);
+  const bt = document.getElementById("orCaixa"), rot = t => { const b = document.getElementById("orCaixa"); if (b) { b.disabled = !!t; b.textContent = t || "Enviar ao caixa"; } };
+  rot("lendo o cadastro…");
+  try {
+    // 1) dados fiscais dos itens, direto do Gestão (só leitura)
+    const cods = [...new Set(its.flatMap(i => { const e = String(i.ean); return [e, e.padStart(13, "0"), e.replace(/^0+/, "") || "0"]; }))];
+    const sql = "SET LIST ON;\r\nSELECT CODIGO_BARRAS, ALIQUOTA, UNIDADE, CUSTO_MEDIO, S_NCM, F_ALIQNAC, F_ALIQNAC_EST, ICMS, S_CEST FROM PRODUTOS WHERE CODIGO_BARRAS IN (" + cods.map(c => `'${c}'`).join(",") + ");\r\nROLLBACK;\r\n";
+    const a = await supa.from("fila").insert({ loja_id: 1, tipo: "teste", titulo: `Orcamento ${o.num}: leitura do cadastro para o caixa`, conteudo: sql, status: "pendente" }).select("id").single();
+    if (a.error) throw new Error(a.error.message);
+    const ra = await orFilaEsperar(a.data.id, 60);
+    if (!ra) throw new Error("o PC da Loja 1 não respondeu (está ligado?)");
+    if (ra.status !== "aplicado") throw new Error(ra.trava_motivo || "o Gestão recusou a leitura do cadastro");
+    const fis = orFiscalDoGestao(ra.resultado);
+    const sem = its.filter(i => !fis.has(String(i.ean).padStart(13, "0")));
+    if (sem.length) throw new Error(`produto sem cadastro no Gestão da Loja 1: ${sem.map(i => i.desc).slice(0, 3).join("; ")}`);
+    // 2) grava o arquivo na pasta que o caixa lê
+    rot("gravando no caixa…");
+    const num = orNumCaixa(o);
+    const linhas = its.map(i => orLinhaCaixa(i.ean, i.desc, Number(i.qtd), orPrecoCaixa(o, i), fis.get(String(i.ean).padStart(13, "0"))));
+    const corpo = [`--APAGAR ${num}.txt`, `--GRAVAR ${num}.txt`, ...linhas, "============|00000000000000000000", "--FIM"].join("\n");
+    const b = await supa.from("fila").insert({ loja_id: 1, tipo: "orc_pos", titulo: `Orcamento ${o.num} para o caixa (no ${num})`, conteudo: corpo, status: "pendente" }).select("id").single();
+    if (b.error) throw new Error(b.error.message);
+    const rb = await orFilaEsperar(b.data.id, 60);
+    if (!rb) throw new Error("o PC da Loja 1 não respondeu (está ligado?)");
+    if (rb.status !== "aplicado" || !/GRAVADO: /.test(rb.resultado || "")) throw new Error(/^ERRO/.test(rb.resultado || "") ? rb.resultado : rb.trava_motivo || "o programa do PC da loja ainda não está na versão que grava orçamentos; tente de novo em alguns minutos");
+    o.caixaNum = num; o.caixaEm = new Date().toISOString(); o.caixaTot = orTotalCaixa(o); orSalvar(true); orDesenharEd(); orDesenharLista();
+    alert(`Orçamento no caixa.\n\nNo caixa (com o caixa aberto): tecla O, digite ${num} e Enter.\n\n${its.length} item(ns) · total ${orBrl(o.caixaTot)}${o.descPct > 0 ? ` (desconto de ${br(o.descPct, 1)}% já nos preços)` : ""}\nA venda cai aberta: desconto e forma de pagamento são escolhidos no caixa.`);
+  } catch (e) { msg("Não consegui enviar ao caixa: " + (e.message || e)); }
+  finally { rot(""); }
 }
 // trocou a loja: busca os preços de cadastro da outra loja e, para quem estava com o preço do cadastro, atualiza
 async function orRepreco() {

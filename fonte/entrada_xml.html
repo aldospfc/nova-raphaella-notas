@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="197">
+<meta name="versao" content="198">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -726,6 +726,7 @@
   .fo-edit input, .fo-edit textarea { width: 100%; }
   .fo-notas { margin-top: 12px; font-size: 12px; }
   .fo-notas a { color: var(--loja1); font-weight: 700; cursor: pointer; text-decoration: underline; }
+  body.lvRod #toast { bottom: 132px; font-size: 14px; }
   #toast { position: fixed; right: 18px; bottom: 18px; z-index: 60; max-width: min(460px, 92vw); background: var(--azul); color: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 10px 30px rgba(27,45,75,.25); font-weight: 600; font-size: 12.5px; display: none; }
   @media (max-width: 900px) { .fo-det { grid-template-columns: 1fr; } .fo-campos { grid-template-columns: 1fr 1fr; } .fo-campos .larga { grid-column: span 2; } }
 
@@ -2019,8 +2020,10 @@ function gerarXml(modo) {
 }
 function msg(t) {
   document.getElementById("msg").textContent = t || "";
-  // fora da aba Entrada a linha de aviso fica escondida: mostra num balão no canto
-  if (t && typeof vista !== "undefined" && vista !== "entrada") { let b = document.getElementById("toast"); if (!b) { b = document.createElement("div"); b.id = "toast"; b.title = "clique para fechar"; b.onclick = () => b.style.display = "none"; document.body.appendChild(b); } b.textContent = t; b.style.display = "block"; clearTimeout(msg.t); msg.t = setTimeout(() => b.style.display = "none", 7000); }
+  // fora da aba Entrada a linha de aviso fica escondida, e na Entrada ela fica lá no alto (some quando a lista está rolada
+  // para baixo — o "não achei o código" do bipe parecia "não acontece nada"): nesses casos mostra num balão no canto
+  const foraDaTela = () => { try { const r = document.getElementById("msg").getBoundingClientRect(); return r.bottom < 0 || r.top > window.innerHeight; } catch (e) { return false; } };
+  if (t && typeof vista !== "undefined" && (vista !== "entrada" || foraDaTela())) { let b = document.getElementById("toast"); if (!b) { b = document.createElement("div"); b.id = "toast"; b.title = "clique para fechar"; b.onclick = () => b.style.display = "none"; document.body.appendChild(b); } b.textContent = t; b.style.display = "block"; clearTimeout(msg.t); msg.t = setTimeout(() => b.style.display = "none", 7000); }
 }
 // histórico de preços: tabela precos_hist na nuvem (gatilho registra toda mudança de custo/venda que o agente traz do Gestão; "inicial" = preço vigente quando o histórico começou, com a data da última alteração registrada no Gestão)
 const HP_ORIG = { inicial: "ponto de partida", gestao: "Gestão", site: "este site", cadastro: "cadastro novo" };
@@ -3874,6 +3877,17 @@ function desenharRom() {
 document.getElementById("bRom").addEventListener("click", () => document.getElementById("fRom").click());
 document.getElementById("bipIt").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); const v = ev.target.value.trim(); ev.target.value = ""; if (v) bipAchar(v); } });
 document.getElementById("bipCam").addEventListener("click", () => lerCamera(c => bipAchar(c)));
+// bipe sem precisar clicar no campo: com uma nota aberta na Entrada, o que for bipado/digitado FORA de um campo de texto
+// (logo depois de abrir a nota, depois de marcar "revisado", de clicar num cartão...) cai no campo de bipar
+document.addEventListener("keydown", ev => {
+  if (ev.defaultPrevented || ev.ctrlKey || ev.metaKey || ev.altKey || !ev.key || ev.key.length !== 1 || !/[0-9a-zA-ZÀ-ú]/.test(ev.key)) return;
+  if (typeof vista === "undefined" || vista !== "entrada" || !cab || !itens.length) return;
+  const bip = document.getElementById("bipIt"); if (!bip || bip.offsetParent === null || document.activeElement === bip) return;
+  const t = ev.target, tag = t && t.tagName;
+  if (t && (t.isContentEditable || tag === "TEXTAREA" || tag === "SELECT" || (tag === "INPUT" && !/^(checkbox|radio|button|submit|reset|file|range|color)$/i.test(t.type || "")))) return;
+  if ([...document.querySelectorAll("[id^=modal]")].some(m => getComputedStyle(m).display !== "none")) return; // janela aberta por cima
+  try { bip.focus({ preventScroll: true }); } catch (e) { bip.focus(); }
+});
 lvRodapeIniciar();
 for (const b of document.querySelectorAll("#fItTabs button")) b.addEventListener("click", () => { const f = document.getElementById("fIt"); f.value = b.dataset.f; f.dispatchEvent(new Event("change")); });
 document.getElementById("fIt").addEventListener("change", ev => { for (const b of document.querySelectorAll("#fItTabs button")) b.classList.toggle("on", b.dataset.f === ev.target.value); for (const v of ["naoenv", "env", "sempv", "compv", "l1", "l2", "l12"]) document.body.classList.toggle("f-" + v, ev.target.value === v); });

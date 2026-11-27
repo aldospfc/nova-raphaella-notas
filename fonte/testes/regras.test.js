@@ -190,7 +190,7 @@ secao("6. Orçamento para o caixa (arquivo do POS)");
   igual("desconto geral do orçamento vai embutido no preço do item (27 − 10% = 24,30)", ev("orPrecoCaixa")(o, o.itens[0]), 24.3);
   igual("total do caixa = 2 × 24,30", ev("orTotalCaixa")(o), 48.6);
   const oc = { num: 12, loja: 1, descPct: 0, itens: [{ ean: "7908077451455", desc: "CADERNO", qtd: 1, pv: 27 }], caixaNum: "90000012", caixaTot: 27 };
-  confere("PDF do orçamento enviado ao caixa leva o código de barras do número", /class="cx"[\s\S]*<svg class="bc"[\s\S]*90000012/.test(ev("orHtmlDoc")(oc, "pdf")));
+  confere("PDF do orçamento enviado ao caixa leva o código de barras do número", /class="cx"[\s\S]*class="bar"[\s\S]*90000012/.test(ev("orHtmlDoc")(oc, "pdf")));
   oc.itens[0].pv = 30;
   confere("orçamento alterado depois do envio não leva código de barras (evita bipar valor antigo)", !/class="cx"/.test(ev("orHtmlDoc")(oc, "pdf")));
   confere("descrição longa é cortada em 29 letras e sem acento", linha("7908077451455", "Etiqueta c/100 Estrela de Daví dourada", 1, 2.5, fis.get("7908077451455")).slice(14, 44) === "ETIQUETA C/100 ESTRELA DE DAV ");

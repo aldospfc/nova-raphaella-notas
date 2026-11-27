@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="202">
+<meta name="versao" content="203">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5626,6 +5626,12 @@ function orAddProduto(p) {
 // Os dados fiscais de cada item (alíquota, NCM, CEST…) são lidos na hora do cadastro do Gestão, para a linha sair igual à que o Gestão gera.
 const orNumCaixa = o => "9" + String(Number(o.num) || 0).padStart(7, "0");
 const orPrecoCaixa = (o, i) => r2((Number(i.pv) || 0) * (1 - (Number(o.descPct) || 0) / 100)); // desconto geral do orçamento já embutido no preço de cada item
+// código de barras (Code 128) em blocos HTML, com módulo de 2 px: o gerador de PDF desenha mal o SVG, e bloco inteiro sai nítido para o leitor
+function orBarrasHtml(cod) {
+  const r = etModulos(cod); if (!r.m) return "";
+  let h = ""; for (let i = 0; i < r.m.length;) { let j = i; while (r.m[j + 1] === r.m[i]) j++; h += `<i style="width:${(j - i + 1) * 2}px;background:${r.m[i] === "1" ? "#000" : "#fff"}"></i>`; i = j + 1; }
+  return `<div class="bar"><div>${h}</div><span>${escH(cod)}</span></div>`;
+}
 const orNoCaixa = o => !!(o && o.caixaNum && Math.abs((o.caixaTot || 0) - orTotalCaixa(o)) < 0.005); // está no caixa e não mudou desde o envio
 const orTotalCaixa = o => r2((o.itens || []).reduce((a, i) => a + (Number(i.qtd) || 0) * orPrecoCaixa(o, i), 0));
 // uma linha de item no formato do POS; f = dados do cadastro do Gestão { aliq, un, custo, ncm, aliqnac, aliqest, icms, cest }
@@ -5755,7 +5761,7 @@ function orHtmlDoc(o, modo) { // modo "print" (janela com window.print) ou "pdf"
  .rod span { color: #555; font-weight: 400; }
  .espaco { height: 60px; ${pdf ? "display:none" : ""} }
  .cx { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px dashed #1B2D4B; border-radius: 8px; padding: 8px 12px; font-size: 9pt; color: #1B2D4B; page-break-inside: avoid; }
- .cx svg { width: 190px; height: 62px; flex: none; } .cx b { font-size: 10.5pt; }
+ .cx .bar { flex: none; text-align: center; background: #fff; padding: 4px 20px 0; } .cx .bar div { height: 44px; white-space: nowrap; font-size: 0; line-height: 0; } .cx .bar i { display: inline-block; height: 44px; } .cx .bar span { font: 9pt Arial, sans-serif; letter-spacing: 2px; color: #000; } .cx b { font-size: 10.5pt; }
  tr { page-break-inside: avoid; } .pag, .obs { page-break-inside: avoid; }
  @media screen { body { max-width: 760px; margin: 20px auto; padding: 0 16px; } .rod { position: static; margin-top: 30px; } .espaco { display: none; } }
 </style></head><body>
@@ -5769,7 +5775,7 @@ ${o.descPct > 0 ? `<tr><td colspan="3" class="n">Subtotal</td><td class="n">${or
 <div class="pag"><h2>Formas de pagamento</h2>${orLinhasPag(c).map(([k, r]) => `<div><span>${escH(r)}</span><b>${k === "parcelado" ? (pg.n > 1 ? `${pg.n}× de ${orBrl(pg.parcela)}` : "não parcela") : orBrl(pg[k])}</b></div>`).join("")}</div>
 ${o.obs ? `<div class="obs"><b>Observações: </b>${escH(o.obs).replace(/\n/g, "<br>")}</div>` : ""}
 <div class="obs"><b>Validade: </b>${escH(c.obs_padrao)}</div>
-${orNoCaixa(o) ? `<div class="cx"><div><b>Para fechar na loja</b><br>Apresente este orçamento no caixa da Loja ${o.loja}.<br><span style="color:#555">Caixa: tecla O e bipe o código ao lado (ou digite ${o.caixaNum}).</span></div>${etSvgBarras(o.caixaNum, 40)}</div>` : ""}
+${orNoCaixa(o) ? `<div class="cx"><div><b>Para fechar na loja</b><br>Apresente este orçamento no caixa da Loja ${o.loja}.<br><span style="color:#555">Caixa: tecla O e bipe o código ao lado (ou digite ${o.caixaNum}).</span></div>${orBarrasHtml(o.caixaNum)}</div>` : ""}
 <div class="espaco"></div>
 <div class="rod"><div>${escH(c.rodape_loja1)}<br>${escH(c.rodape_loja2)}</div><div style="text-align:right"><span>${escH(c.rodape_site)}</span><br><span>orçamento nº ${o.num}</span></div></div>
 ${pdf ? "" : `<script>window.addEventListener("load", () => { (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(() => window.print(), 300)); });<\/script>`}
@@ -5791,11 +5797,11 @@ async function htmlParaPdf(html, nomeArq) {
   carregaNunito(); await carregaHtml2pdf();
   try { if (document.fonts) await Promise.race([document.fonts.load("900 16px Nunito").then(() => document.fonts.load("400 10px Nunito")), new Promise(r => setTimeout(r, 2500))]); } catch (_e) {}
   const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "", corpo = (html.match(/<body>([\s\S]*?)<\/body>/) || [])[1] || "";
-  const host = document.createElement("div"); host.style.cssText = "position:fixed;left:-20000px;top:0;width:794px;background:#fff;z-index:-1";
+  const host = document.createElement("div"); host.style.cssText = "position:absolute;left:-20000px;top:0;width:794px;background:#fff;z-index:-1"; // absolute no topo + scrollY 0: com a tela rolada o PDF saía deslocado (em branco em cima e cortado embaixo)
   host.innerHTML = `<style>${css.replace(/@page[^}]*}/g, "").replace(/body \{/g, ".orpdf {")}</style><div class="orpdf" style="padding:0;margin:0;max-width:none">${corpo}</div>`;
   document.body.appendChild(host);
   try {
-    return await html2pdf().set({ margin: [15, 15, 15, 15], filename: nomeArq, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: "#fff" }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } }).from(host.firstElementChild.nextElementSibling).outputPdf("blob");
+    return await html2pdf().set({ margin: [15, 15, 15, 15], filename: nomeArq, image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: "#fff", scrollX: 0, scrollY: 0 }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }, pagebreak: { mode: ["css", "legacy"] } }).from(host.firstElementChild.nextElementSibling).outputPdf("blob");
   } finally { host.remove(); }
 }
 async function orPdfWhats() {

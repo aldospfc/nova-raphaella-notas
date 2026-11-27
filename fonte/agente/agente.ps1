@@ -2,7 +2,7 @@
 # Roda sozinho pelo Agendador de Tarefas do Windows a cada 5 minutos. Quem grava no Gestao e' o ouvinte (ouvinte.ps1),
 # e so o que o site mandou pela fila.
 $ErrorActionPreference = "Stop"
-$Versao = "2.9.6"
+$Versao = "2.9.7"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "agente.log"
 $Trava = Join-Path $Pasta "rodando.lock"

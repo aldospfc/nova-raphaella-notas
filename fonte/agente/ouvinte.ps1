@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.5"
+$Versao = "2.8.6"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -524,10 +524,51 @@ function ImprimeEtiqueta($item) {
   return $ok
 }
 
+# 2.8.6: pedido "transf" = SO LEITURA da pasta de orcamentos do PDV (Server_PDV\transf), para o sistema aprender o formato
+#        do arquivo que o Gestao grava ao finalizar um orcamento. Nao grava, nao apaga, nao mexe em nada; so le essa pasta.
+#        Conteudo: "--LISTAR" (os 40 mais novos) e/ou "--LER nome.ext" (le um arquivo dessa pasta, sem subpastas).
+function LeTransf($item) {
+  $id = [int]$item.id; $ok = $false; $res = ""
+  try {
+    $raiz = "C:\Server_PDV"
+    if ($cfg.pos_pasta) { $raiz = Split-Path -Parent (Split-Path -Parent (([string]$cfg.pos_pasta).TrimEnd("\"))) }
+    $dir = Join-Path $raiz "transf"
+    if (-not (Test-Path $dir)) { throw ("pasta nao encontrada: " + $dir) }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.AppendLine("PASTA: " + $dir)
+    foreach ($ln in ([string]$item.conteudo -split "\r?\n")) {
+      $ln = $ln.Trim()
+      if ($ln -eq "--LISTAR") {
+        $arqs = @(Get-ChildItem $dir -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 40)
+        $subs = @(Get-ChildItem $dir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })
+        [void]$sb.AppendLine("ARQUIVOS (40 mais novos de " + @(Get-ChildItem $dir -File -ErrorAction SilentlyContinue).Count + "):")
+        foreach ($f in $arqs) { [void]$sb.AppendLine("  " + $f.Name + " | " + $f.Length + " bytes | " + $f.LastWriteTime.ToString("dd/MM/yyyy HH:mm:ss")) }
+        if ($subs.Count) { [void]$sb.AppendLine("SUBPASTAS: " + ($subs -join ", ")) }
+      } elseif ($ln.StartsWith("--LER ")) {
+        $nome = $ln.Substring(6).Trim()
+        if ($nome -match '[\\/:*?"<>|]' -or $nome.Contains("..")) { throw ("nome de arquivo invalido: " + $nome) }
+        $f = Join-Path $dir $nome
+        if (-not (Test-Path $f -PathType Leaf)) { [void]$sb.AppendLine("NAO ENCONTRADO: " + $nome); continue }
+        $bytes = [IO.File]::ReadAllBytes($f)
+        $nulos = @($bytes | Select-Object -First 4000 | Where-Object { $_ -eq 0 }).Count
+        [void]$sb.AppendLine("=== " + $nome + " (" + $bytes.Length + " bytes) ===")
+        if ($nulos -gt 0) { [void]$sb.AppendLine("BASE64:"); [void]$sb.AppendLine([Convert]::ToBase64String($bytes, 0, [Math]::Min($bytes.Length, 12000))) }
+        else { $t = [Text.Encoding]::GetEncoding(1252).GetString($bytes); if ($t.Length -gt 15000) { $t = $t.Substring(0, 15000) + "`r`n[...]" }; [void]$sb.AppendLine($t) }
+      }
+    }
+    $res = $sb.ToString(); $ok = $true
+  } catch { $res = "ERRO: " + $_.Exception.Message }
+  if ($res.Length -gt 19500) { $res = $res.Substring(0, 19500) + "`r`n[...]" }
+  $null = Funcao "fila_concluir" @{ id = $id; sucesso = $ok; resultado = $res }
+  Escreve ("Pedido " + $id + " (leitura da pasta transf): " + ($(if ($ok) { "ok" } else { $res })))
+  return $ok
+}
+
 # Executa um pedido da fila: grava o SQL num arquivo e roda pelo isql (igual ao .bat antigo)
 function Aplica($item) {
   $id = [int]$item.id
   if ($item.tipo -eq "etiqueta" -or $item.tipo -eq "impressoras") { return (ImprimeEtiqueta $item) }
+  if ($item.tipo -eq "transf") { return (LeTransf $item) }
   $arq = Join-Path $Pasta ("fila_" + $id + ".sql")
   $saida = Join-Path $Pasta ("fila_" + $id + "_saida.txt")
   $erro = Join-Path $Pasta ("fila_" + $id + "_erro.txt")

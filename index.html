@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="194">
+<meta name="versao" content="195">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1915,19 +1915,62 @@ function escolherItensParaCategoria(it) {
 }
 
 // ---------- busca manual no cadastro ----------
+// Busca livre em TODO o cadastro do Gestão: cada palavra digitada precisa aparecer na descrição (pedaço de palavra vale);
+// só números = código de barras (inteiro, um pedaço, ou um código auxiliar — que leva ao produto principal).
+function buscaCad(q, lim = 40) {
+  const t = semAcento(String(q || "").toUpperCase()).trim(); if (t.length < 2 || !cad) return [];
+  const junto = t.replace(/\s/g, ""), res = [];
+  if (/^\d{4,}$/.test(junto)) {
+    const k = junto.replace(/^0+/, "");
+    for (const c of cad) { const e0 = String(c[0]).replace(/^0+/, ""); if (e0 === k) res.push([3, c[0], c[1]]); else if (e0.includes(k)) res.push([1, c[0], c[1]]); }
+    if (cadAux && cadIdx) { const pr = cadAux.get(chave13(junto)); if (pr && cadIdx.has(chave13(pr)) && !res.some(x => chave13(x[1]) === chave13(pr))) res.push([3, pr, cadIdx.get(chave13(pr)) + " — o código digitado é auxiliar dele"]); }
+  } else {
+    const ws = t.split(/\s+/).filter(Boolean);
+    for (const c of cad) {
+      const d = c[3] || (c[3] = semAcento(String(c[1] || "").toUpperCase())); let ok = true, pts = 0;
+      for (const w of ws) { const i = d.indexOf(w); if (i < 0) { ok = false; break; } pts += (i === 0 || d[i - 1] === " ") ? 2 : 1; }
+      if (ok) res.push([pts - d.length / 1000, c[0], c[1]]);
+    }
+  }
+  res.sort((x, y) => y[0] - x[0]);
+  return res.slice(0, lim);
+}
 function abrirBusca(it, paraAux) {
   const b = document.getElementById("busca");
   if (!cad) { b.style.display = "block"; b.innerHTML = "A busca procura o produto na lista de produtos do Gestão, e essa lista ainda não foi carregada nesta tela. No topo, em “Cadastro do Gestão”, escolha o arquivo cadastro_gestao.json. <a style='cursor:pointer;color:#0b57d0' id='bx'>fechar</a>"; b.querySelector("#bx").onclick = () => b.style.display = "none"; return; }
   b.style.display = "block";
-  b.innerHTML = `<b>Item ${rot(it)}</b> — ${it.xprod}${paraAux ? `<br><span class="chip av">escolha o produto PRINCIPAL: o código ${it.ean || it.eanNota} vira um segundo código de barras dele</span>` : ""}<br><input type="text" id="bq" placeholder="palavras para buscar no cadastro" style="margin:6px 0"><div id="br"></div><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a>`;
+  b.innerHTML = `<b>Item ${rot(it)}</b> — ${it.xprod}${paraAux ? `<br><span class="chip av">escolha o produto PRINCIPAL: o código ${it.ean || it.eanNota} vira um segundo código de barras dele</span><br><span class="orig">pode ser um produto que já está no cadastro do Gestão ou um item novo desta nota</span>` : ""}<br><input type="text" id="bq" placeholder="${paraAux ? "nome (ou parte) ou código de barras do produto principal — pode bipar" : "nome (ou parte) ou código de barras para buscar no cadastro"}" style="margin:6px 0"><div id="br" style="max-height:340px;overflow:auto"></div><a style="cursor:pointer;color:#0b57d0" id="bx">fechar</a>`;
   const escolher = e => { if (paraAux) usarAuxiliar(it, e); else usarEan(it, e); b.style.display = "none"; };
-  const mostrar = lista => { const d = b.querySelector("#br"); d.innerHTML = "";
-    if (paraAux) for (const o of itens) if (o !== it && o.ean && gtinValido(o.ean) && !o.aux && !buscaEan(o.ean)) { const r = document.createElement("div"); r.className = "r"; r.innerHTML = `<span class="mono">${o.ean}</span> ${(o.desc || o.xprod).replace(/</g, "&lt;")} <span class="chip novo">item ${rot(o)} desta nota</span>`; r.onclick = () => escolher(o.ean); d.appendChild(r); }
-    if (!lista.length && !d.children.length) d.innerHTML = "<i>nada encontrado</i>";
-    for (const [s, e, ds] of lista) { const r = document.createElement("div"); r.className = "r"; r.innerHTML = `<span class="mono">${e}</span> ${ds}`; r.onclick = () => escolher(e); d.appendChild(r); } };
-  mostrar(ranking(it));
+  const meu = chave13(it.ean || it.eanNota || "");
+  const mostrar = q => { const d = b.querySelector("#br"); d.innerHTML = "";
+    const digitou = !!q && q.trim().length > 1;
+    const cabec = t => { const h = document.createElement("div"); h.className = "orig"; h.style.cssText = "margin:6px 0 2px;font-weight:700"; h.textContent = t; d.appendChild(h); };
+    const linhaCad = (e, ds) => { const pi = cadInfo && cadInfo.get(chave13(e)); const r = document.createElement("div"); r.className = "r"; r.dataset.e = e;
+      r.innerHTML = `<span class="mono">${escH(e)}</span> ${escH(ds)}` + (pi ? ` <span class="orig">· R$ ${br(Number(pi[4]) || 0)} · estoque ${br(Number(pi[2]) || 0, 0)}</span>` : ""); r.onclick = () => escolher(e); d.appendChild(r); };
+    const daNota = () => { if (!paraAux) return 0; let n = 0;
+      const ws = digitou ? semAcento(q.toUpperCase()).trim().split(/\s+/).filter(Boolean) : null;
+      for (const o of itens) if (o !== it && o.ean && gtinValido(o.ean) && !o.aux && !buscaEan(o.ean)) {
+        if (ws) { const alvo = semAcento(((o.desc || "") + " " + (o.xprod || "") + " " + o.ean).toUpperCase()); if (!ws.every(w => alvo.includes(w))) continue; }
+        if (!n) cabec("Itens novos desta nota");
+        const r = document.createElement("div"); r.className = "r"; r.dataset.e = o.ean; r.innerHTML = `<span class="mono">${o.ean}</span> ${escH(o.desc || o.xprod)} <span class="chip novo">item ${rot(o)} desta nota</span>`; r.onclick = () => escolher(o.ean); d.appendChild(r); n++; }
+      return n; };
+    if (digitou) { // digitou: primeiro o que já existe no Gestão (cadastro inteiro), depois os itens novos da nota
+      const lista = buscaCad(q).filter(x => !paraAux || chave13(x[1]) !== meu);
+      if (lista.length) { if (paraAux) cabec("Já cadastrados no Gestão" + (lista.length >= 40 ? " (os 40 primeiros — digite mais para afinar)" : "")); for (const [, e, ds] of lista) linhaCad(e, ds); }
+      const n = daNota();
+      if (!lista.length && !n) d.innerHTML = "<i>nada encontrado no cadastro nem na nota</i>";
+      return; }
+    const n = daNota(), lista = ranking(it).filter(x => !paraAux || chave13(x[1]) !== meu);
+    if (lista.length) { if (paraAux) cabec("Parecidos no cadastro do Gestão — digite acima para procurar qualquer produto"); for (const [, e, ds] of lista) linhaCad(e, ds); }
+    if (!lista.length && !n) d.innerHTML = "<i>digite o nome ou o código de barras do produto para procurar no cadastro</i>";
+  };
+  mostrar("");
   const q = b.querySelector("#bq"); q.focus();
-  q.addEventListener("input", () => mostrar(q.value.trim().length > 1 ? ranking(it, q.value) : ranking(it)));
+  q.addEventListener("input", () => mostrar(q.value));
+  q.addEventListener("keydown", ev => { if (ev.key !== "Enter") return; ev.preventDefault(); // bipou ou digitou e deu Enter: se sobrou um só (ou o código bateu inteiro), escolhe
+    const rs = [...b.querySelectorAll("#br .r")]; if (!rs.length) return;
+    const dig = q.value.replace(/\D/g, ""), exato = dig.length >= 8 ? rs.find(r => chave13(r.dataset.e || "") === chave13(dig)) : null;
+    if (exato) exato.click(); else if (rs.length === 1 || dig.length >= 8) rs[0].click(); });
   b.querySelector("#bx").onclick = () => b.style.display = "none";
 }
 

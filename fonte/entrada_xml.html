@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="195">
+<meta name="versao" content="196">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -6036,10 +6036,10 @@ async function hjCarregar() {
     await lerAgente();
     // saúde do sistema: pedidos ao Gestão recusados ou parados, e a ligação com o Bling
     const de2 = new Date(Date.now() - 2 * 864e5).toISOString();
-    const [rf, rb] = await Promise.all([
+    const [rf, rb, rz] = await Promise.all([
       supa.from("fila").select("id, loja_id, tipo, titulo, status, criado_em, aplicado_em, resultado").in("status", ["erro", "pendente", "aplicando", "aguardando"]).is("dispensado_em", null).not("tipo", "in", "(teste,diagnostico)").gte("criado_em", de2).order("id", { ascending: false }).limit(60),
-      supa.rpc("bling_saude")]);
-    HJ.sis = { fila: rf.data || [], bling: rb.data || null };
+      supa.rpc("bling_saude"), supa.rpc("saude_sistema")]);
+    HJ.sis = { fila: rf.data || [], bling: rb.data || null, saude: rz.error ? null : rz.data || null };
     { const rp = await supa.from("pedidos_online").select("id, canal, criado_em, separado_em, despachado_em, situacao_id, devolvido_em, ignorado_em, atendido_bling_em").or(`despachado_em.is.null,criado_em.gte.${new Date(Date.now() - 7 * 864e5).toISOString()}`).limit(600);
       const L = (rp.data || []).filter(p => !p.ignorado_em); HJ.ped = { pend: L.filter(p => !p.separado_em && !p.despachado_em && p.situacao_id !== 12), dev: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id === 12 && !p.devolvido_em), desp: L.filter(p => p.separado_em && !p.despachado_em && p.situacao_id !== 12) }; }
   } catch (e) { console.warn("hoje", e); falhou = true; }
@@ -6077,8 +6077,60 @@ function hjSistema(tcard, row) {
       if (B.notas_pendentes > 0) it.push(["av", `<strong>${B.notas_pendentes}</strong> entrada${B.notas_pendentes > 1 ? "s" : ""} de nota ainda sem ir ao Bling (tenta de novo sozinho)`]);
     }
   }
-  const corpo = it.length ? it.map(([c, t]) => row(c, t, alerta)).join("") : row("vazio", "Tudo funcionando: PCs online, vendas chegando" + (B && B.unificados > 0 ? ", Bling em dia" : ""), `<span class="badge ok">ok</span>`);
+  // saúde ampliada: cópias de segurança, versão dos programas das lojas, estação de etiquetas, Mercado Livre e tarefas automáticas
+  for (const [c, t, g] of hjSaudeItens().filter(x => x[0] !== "ok" && !x[4])) it.push([c === "falha" ? "erro" : "av", escH(g + ": " + t)]);
+  const verTudo = row("", `<a href="#" data-saude="1" style="color:inherit">Ver a saúde completa do sistema</a>`, "");
+  const corpo = (it.length ? it.map(([c, t]) => row(c, t, alerta)).join("") : row("vazio", "Tudo funcionando: PCs online, vendas chegando, cópias em dia, tarefas automáticas rodando" + (B && B.unificados > 0 ? ", Bling em dia" : ""), `<span class="badge ok">ok</span>`)) + (S.saude ? verTudo : "");
   return tcard("Sistema", ico, it.length ? `${it.length} aviso${it.length > 1 ? "s" : ""}` : "tudo certo", "produtos", corpo);
+}
+// Saúde ampliada do sistema (RPC saude_sistema): cada item é [estado, texto, grupo, quando]; estado = ok | atencao | falha.
+// O cartão "Sistema" mostra só o que não está ok; a janela "saúde completa" mostra tudo, inclusive o que está ok.
+const SAUDE_TAREFAS = { "promocoes_rodar": "Promoções por período", "estoque-unificado-bling": "Estoque do e-commerce com o Bling", "pedidos-online-bling": "Pedidos online do Bling", "envios-ml": "Envios do Mercado Livre", "avisos-enviar": "Envio das notificações", "avisos-boletos-manha": "Aviso de boletos (manhã)", "avisos-boletos-tarde": "Aviso de boletos (tarde)", "avisos-resumo-dia": "Resumo das vendas do dia" };
+function hjSaudeItens() {
+  const Z = HJ.sis && HJ.sis.saude; if (!Z) return [];
+  const agora = Date.now(), hNow = new Date().getHours(), min = d => d ? (agora - new Date(d)) / 60000 : Infinity;
+  const hm = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "nunca";
+  const out = [], va = Z.versao_alvo || {};
+  for (const l of Z.lojas || []) {
+    const g = "Loja " + l.id, mo = min(l.ouvinte_em), ma = min(l.ultimo_contato);
+    out.push([mo <= 15 ? "ok" : "falha", mo <= 15 ? "PC da loja ligado e recebendo pedidos do site" : "PC da loja sem contato (pedidos ao Gestão e aos caixas esperam ele ligar)", g, l.ouvinte_em, 1]); // 1 = o cartão já avisa por conta própria
+    out.push([ma <= 15 ? "ok" : ma <= 60 ? "atencao" : "falha", ma <= 15 ? "Cadastro do Gestão subindo para a nuvem" : "Cadastro do Gestão não sobe para a nuvem desde " + hm(l.ultimo_contato), g, l.ultimo_contato]);
+    if (!l.backup_em) out.push(["ok", "Cópia de segurança diária: primeira cópia registrada aparece aqui amanhã", g, null]);
+    else { const hb = min(l.backup_em) / 60; out.push([hb <= 30 ? "ok" : hb <= 54 ? "atencao" : "falha", hb <= 30 ? "Cópia de segurança diária em dia" : "Cópia de segurança não roda desde " + hm(l.backup_em), g, l.backup_em]); }
+    const novaHa = min(va.desde), atrasado = mo <= 15 && novaHa > 30 && ((va.agente && l.versao_agente !== va.agente) || (va.ouvinte && l.ouvinte_versao !== va.ouvinte));
+    out.push([atrasado ? "atencao" : "ok", atrasado ? `Programas da loja desatualizados (agente ${l.versao_agente || "?"} → ${va.agente}, ouvinte ${l.ouvinte_versao || "?"} → ${va.ouvinte})` : `Programas da loja na versão atual (agente ${l.versao_agente || "?"}, ouvinte ${l.ouvinte_versao || "?"})`, g, null]);
+  }
+  for (const e of Z.estacoes || []) {
+    const m = min(e.ouvinte_em), fora = hNow < 9 || hNow >= 21;
+    out.push([m <= 15 ? "ok" : fora ? "ok" : "atencao", m <= 15 ? "Ligada" : fora ? "Desligada (fora do horário da loja)" : "Sem contato desde " + hm(e.ouvinte_em) + " — etiquetas não imprimem", e.nome || "Estação", e.ouvinte_em]);
+  }
+  const M = Z.ml;
+  if (M) {
+    if (!M.ligado) out.push(["atencao", "Mercado Livre desligado do sistema", "Mercado Livre", null]);
+    else if (M.ultimo_erro) out.push(["falha", "Mercado Livre: " + String(M.ultimo_erro).slice(0, 140), "Mercado Livre", M.sync_em]);
+    else { const m = min(M.sync_em); out.push([m <= 15 ? "ok" : "falha", m <= 15 ? "Ligado; envios acompanhados" : "Acompanhamento dos envios parado desde " + hm(M.sync_em), "Mercado Livre", M.sync_em]); }
+  }
+  for (const t of Z.tarefas || []) {
+    const nome = SAUDE_TAREFAS[t.nome] || t.nome;
+    if (!t.ativa) out.push(["atencao", nome + ": tarefa automática desligada", "Tarefas automáticas", t.ultima]);
+    else if (!t.ultima_ok) out.push(["falha", nome + ": falhou na última vez" + (t.erro ? " (" + String(t.erro).slice(0, 100) + ")" : ""), "Tarefas automáticas", t.ultima]);
+    else out.push(["ok", nome + (t.falhas_24h ? ` (rodando; ${t.falhas_24h} falha${t.falhas_24h > 1 ? "s" : ""} nas últimas 24 h)` : ""), "Tarefas automáticas", t.ultima]);
+  }
+  return out;
+}
+function hjSaude() {
+  const L = hjSaudeItens(); if (!L.length) return msg("Não consegui ler a saúde do sistema agora. Tente de novo em instantes.");
+  let fundo = document.getElementById("modalS");
+  if (!fundo) { fundo = document.createElement("div"); fundo.id = "modalS"; fundo.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:6vh 8px;overflow:auto"; fundo.innerHTML = `<div class="painel" style="width:min(640px,96vw);margin:0;max-height:none"></div>`; document.body.appendChild(fundo); fundo.addEventListener("click", ev => { if (ev.target === fundo) fundo.style.display = "none"; }); }
+  fundo.style.display = "flex"; const bx = fundo.firstElementChild;
+  const cor = { ok: "#16a34a", atencao: "#d97706", falha: "#dc2626" }, rot = { ok: "ok", atencao: "atenção", falha: "falha" };
+  const hm = d => d ? new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  const grupos = [...new Set(L.map(x => x[2]))], ruins = L.filter(x => x[0] !== "ok").length;
+  bx.innerHTML = `<div class="linha" style="justify-content:space-between"><b>Saúde do sistema</b><a href="#" id="szX" style="color:var(--cinza)">fechar ✕</a></div>
+    <div class="orig" style="margin:6px 0">${ruins ? `${ruins} ponto${ruins > 1 ? "s" : ""} para olhar.` : "Tudo funcionando."} Atualizado ${hm(HJ.sis.saude.agora)}.</div>` +
+    grupos.map(g => `<div style="border-top:1px solid var(--borda);padding:8px 0"><b>${escH(g)}</b>` + L.filter(x => x[2] === g).map(([e, t, , q]) =>
+      `<div class="linha" style="justify-content:space-between;gap:8px;margin-top:4px"><span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${cor[e]};margin-right:6px" title="${rot[e]}"></span>${escH(t)}</span><span class="orig" style="font-size:12px;white-space:nowrap">${q ? hm(q) : ""}</span></div>`).join("") + `</div>`).join("");
+  bx.querySelector("#szX").onclick = ev => { ev.preventDefault(); fundo.style.display = "none"; };
 }
 // lista dos pedidos recusados: ver a mensagem do banco e dispensar o aviso (o pedido continua no histórico)
 function hjRecusados() {
@@ -6195,6 +6247,7 @@ function hjDesenhar() {
   el.querySelector("#hjAtu").addEventListener("click", () => { HJ.vendas = null; hjDesenhar(); hjCarregar(); });
   for (const x of el.querySelectorAll("[data-recusados]")) x.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); hjRecusados(); });
   for (const x of el.querySelectorAll("[data-trava]")) x.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); travaAbrir(); });
+  for (const x of el.querySelectorAll("[data-saude]")) x.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); hjSaude(); });
   el.querySelector("#hjZap").addEventListener("click", () => {
     const T = [`*Nova Raphaella — resumo de ${new Date(h + "T12:00:00").toLocaleDateString("pt-BR")}*`, ""];
     for (const l of [1, 2]) T.push(`Loja ${l}: vendas de hoje ${orBrl(vd(l, h))} (ontem ${orBrl(vd(l, ontem))}, média 7 dias ${orBrl(media7(l))})`);

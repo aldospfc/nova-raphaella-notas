@@ -130,6 +130,8 @@ Deno.serve(async (req: Request) => {
       tudo.site = s.data ?? [];
       const a = await sb.from("agente_arquivos").select("nome, conteudo, versao");
       tudo.agente = a.data ?? [];
+      // registra quando a loja baixou a cópia (o painel "Sistema" avisa se ficar mais de um dia sem)
+      await sb.from("lojas").update({ backup_em: new Date().toISOString() }).eq("id", loja_id);
       return json(tudo);
     }
 

@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.6"
+$Versao = "2.8.7"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -524,7 +524,7 @@ function ImprimeEtiqueta($item) {
   return $ok
 }
 
-# 2.8.6: pedido "transf" = SO LEITURA da pasta de orcamentos do PDV (Server_PDV\transf), para o sistema aprender o formato
+# 2.8.6: pedido "transf" = leitura da pasta de orcamentos do PDV (Server_PDV\transf), para o sistema aprender o formato
 #        do arquivo que o Gestao grava ao finalizar um orcamento. Nao grava, nao apaga, nao mexe em nada; so le essa pasta.
 #        Conteudo: "--LISTAR" (os 40 mais novos) e/ou "--LER nome.ext" (le um arquivo dessa pasta, sem subpastas).
 function LeTransf($item) {
@@ -536,8 +536,37 @@ function LeTransf($item) {
     if (-not (Test-Path $dir)) { throw ("pasta nao encontrada: " + $dir) }
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.AppendLine("PASTA: " + $dir)
-    foreach ($ln in ([string]$item.conteudo -split "\r?\n")) {
-      $ln = $ln.Trim()
+    # 2.8.7: gravacao SO de orcamentos de teste/do sistema na faixa propria 9xxxxxxx.txt (nunca sobrescreve; nao toca nos do Gestao):
+    #        "--GRAVAR 9xxxxxxx.txt" + linhas + "--FIM"; "--COPIAR origem.txt 9xxxxxxx.txt"; "--APAGAR 9xxxxxxx.txt"
+    $gravando = $null; $buf = New-Object System.Collections.ArrayList
+    foreach ($bruta in ([string]$item.conteudo -split "\r?\n")) {
+      if ($gravando) {
+        if ($bruta.Trim() -eq "--FIM") {
+          [IO.File]::WriteAllText($gravando, (($buf -join "`r`n") + "`r`n"), [Text.Encoding]::GetEncoding(1252))
+          [void]$sb.AppendLine("GRAVADO: " + (Split-Path -Leaf $gravando) + " (" + (Get-Item $gravando).Length + " bytes)")
+          $gravando = $null; $buf.Clear()
+        } else { [void]$buf.Add($bruta) }
+        continue
+      }
+      $ln = $bruta.Trim()
+      if ($ln.StartsWith("--GRAVAR ") -or $ln.StartsWith("--APAGAR ") -or $ln.StartsWith("--COPIAR ")) {
+        $partes = @($ln.Substring(9).Trim() -split "\s+")
+        $dest = $partes[$partes.Count - 1]
+        if ($dest -notmatch '^9\d{7}\.txt$') { throw ("so e permitido gravar/apagar na faixa 9xxxxxxx.txt: " + $dest) }
+        $fd = Join-Path $dir $dest
+        if ($ln.StartsWith("--APAGAR ")) { if (Test-Path $fd -PathType Leaf) { Remove-Item $fd -Force; [void]$sb.AppendLine("APAGADO: " + $dest) } else { [void]$sb.AppendLine("NAO EXISTIA: " + $dest) }; continue }
+        if (Test-Path $fd) { throw ("ja existe, nao sobrescrevo: " + $dest) }
+        if ($ln.StartsWith("--COPIAR ")) {
+          $orig = $partes[0]
+          if ($partes.Count -ne 2 -or $orig -notmatch '^\d{8}\.txt$') { throw ("origem invalida: " + $orig) }
+          $fo = Join-Path $dir $orig
+          if (-not (Test-Path $fo -PathType Leaf)) { throw ("origem nao encontrada: " + $orig) }
+          Copy-Item $fo $fd
+          [void]$sb.AppendLine("COPIADO: " + $orig + " -> " + $dest)
+          continue
+        }
+        $gravando = $fd; continue
+      }
       if ($ln -eq "--LISTAR") {
         $arqs = @(Get-ChildItem $dir -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 40)
         $subs = @(Get-ChildItem $dir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })

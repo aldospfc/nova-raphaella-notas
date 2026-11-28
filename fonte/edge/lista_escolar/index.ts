@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 // Le uma lista de material escolar (fotos, PDF ou texto) e devolve os itens ja casados com o catalogo de itens genericos da loja.
+// v4 (28/11/2026): tool_choice "auto" — o modelo atual recusa tool_choice forcado ("tool"/"any"); se a IA responder em texto, a 2a tentativa pede a ferramenta de novo.
 // Portado do app Streamlit "orcamento-listas" (lib/ia.py). Chave da Anthropic no segredo ANTHROPIC_API_KEY; modelo em ROMANEIO_MODELO (padrao Opus).
 
 const cors = {
@@ -101,7 +102,7 @@ Responda SEMPRE chamando a ferramenta registrar_lista, nunca em texto.`;
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model: modelo, max_tokens: 12000, system: sistema, tools: [FERRAMENTA], tool_choice: { type: "tool", name: "registrar_lista" }, messages: mensagens }),
+        body: JSON.stringify({ model: modelo, max_tokens: 12000, system: sistema, tools: [FERRAMENTA], tool_choice: { type: "auto" }, messages: mensagens }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) return resp({ ok: false, erro: "api", status: r.status, msg: "A API da Anthropic recusou o pedido: " + (j?.error?.message || ("erro " + r.status)), modelo });

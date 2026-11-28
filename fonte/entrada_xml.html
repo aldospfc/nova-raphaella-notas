@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="205">
+<meta name="versao" content="206">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5524,7 +5524,7 @@ function orDesenharEd() {
   const c = orCfg(), sub = orSub(o), tot = orTotal(o), pg = orPagamento(tot, c), [st, cls] = OR_STATUS[o.status] || OR_STATUS.aberto;
   ed.innerHTML = `
     <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div><b style="font-size:16px">Orçamento nº ${o.num}</b> <span class="chip ${cls}">${st}</span>${o.caixaNum ? ` <span class="chip ${Math.abs((o.caixaTot || 0) - orTotalCaixa(o)) < 0.005 ? "ok" : "falta"}" title="no caixa: tecla O, digite este número e Enter">${Math.abs((o.caixaTot || 0) - orTotalCaixa(o)) < 0.005 ? "no caixa" : "mudou depois do envio — reenvie ao caixa"}: nº <b>${o.caixaNum}</b></span>` : ""}</div>
+      <div><b style="font-size:16px">Orçamento nº ${o.num}</b> <span class="chip ${cls}">${st}</span>${o.vendaCupom ? ` <span class="chip ok" title="o sistema viu a venda no caixa e marcou sozinho">cupom ${escH(o.vendaCupom.coo)} · caixa ${escH(o.vendaCupom.pdv)} · ${orBrl(Number(o.vendaCupom.total) || 0)} · ${orData(o.vendaCupom.data)} ${escH(o.vendaCupom.hora || "")}</span>` : ""}${o.caixaNum ? ` <span class="chip ${Math.abs((o.caixaTot || 0) - orTotalCaixa(o)) < 0.005 ? "ok" : "falta"}" title="no caixa: tecla O, digite este número e Enter">${Math.abs((o.caixaTot || 0) - orTotalCaixa(o)) < 0.005 ? "no caixa" : "mudou depois do envio — reenvie ao caixa"}: nº <b>${o.caixaNum}</b></span>` : ""}</div>
       <div class="linha" style="gap:6px;flex-wrap:wrap">
         <button class="sec" id="orImp" title="abre a versão para imprimir ou salvar em PDF">Imprimir / PDF</button>
         <button class="sec" id="orZap" title="copia o texto e abre o WhatsApp do cliente">Texto p/ WhatsApp</button>
@@ -5710,7 +5710,7 @@ async function orEnviarCaixa() {
     if (rb.status !== "aplicado" || !/GRAVADO: /.test(rb.resultado || "")) throw new Error(/^ERRO/.test(rb.resultado || "") ? rb.resultado : rb.trava_motivo || "o programa do PC da loja ainda não está na versão que grava orçamentos; tente de novo em alguns minutos");
     await supa.from("orc_pos_arquivos").update({ gravado_em: new Date().toISOString() }).eq("loja_id", 1).eq("num", num);
     o.caixaNum = num; o.caixaEm = new Date().toISOString(); o.caixaTot = orTotalCaixa(o); orSalvar(true); orDesenharEd(); orDesenharLista();
-    alert(`Orçamento no caixa.\n\nNo caixa (com o caixa aberto): tecla O, digite ${num} e Enter.\n\n${its.length} item(ns) · total ${orBrl(o.caixaTot)}${o.descPct > 0 ? ` (desconto de ${br(o.descPct, 1)}% já nos preços)` : ""}\nA venda cai aberta: desconto e forma de pagamento são escolhidos no caixa.\n\nO orçamento fica disponível no caixa até ${orData(o.validade) || "ser fechado"}; quando a venda for feita, marque "Virou venda" para ele sair do caixa.`);
+    alert(`Orçamento no caixa.\n\nNo caixa (com o caixa aberto): tecla O, digite ${num} e Enter.\n\n${its.length} item(ns) · total ${orBrl(o.caixaTot)}${o.descPct > 0 ? ` (desconto de ${br(o.descPct, 1)}% já nos preços)` : ""}\nA venda cai aberta: desconto e forma de pagamento são escolhidos no caixa.\n\nO orçamento fica disponível no caixa até ${orData(o.validade) || "ser fechado"}; quando a venda for finalizada no caixa, o sistema marca "Virou venda" sozinho.`);
   } catch (e) { msg("Não consegui enviar ao caixa: " + (e.message || e)); }
   finally { rot(""); }
 }

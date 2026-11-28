@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="208">
+<meta name="versao" content="209">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -788,6 +788,7 @@
    <button class="aba" data-v="compras" title="Compras"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2.05 2.05 1.099-.028a1 1 0 0 1 1.008.815l2.69 14.347A1 1 0 0 0 7.83 18H18"/><path d="M4.563 5h16.435a1 1 0 0 1 .981 1.204l-1.026 6.226A2 2 0 0 1 18.962 14H6.25"/><circle cx="18" cy="20" r="2"/><circle cx="8" cy="20" r="2"/></svg><span>Compras</span><i class="nav-count" id="nc_compras"></i></button>
    <div class="nav-label">Loja</div>
    <button class="aba" data-v="orcamentos" title="Orçamentos"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg><span>Orçamentos</span><i class="nav-count" id="nc_orcamentos"></i></button>
+   <button class="aba" data-v="clientes" title="Clientes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Clientes</span></button>
    <button class="aba" data-v="promocoes" title="Promoções"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg><span>Promoções</span><i class="nav-count" id="nc_promocoes"></i></button>
    <button class="aba" data-v="etiquetas" title="Etiquetas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg><span>Etiquetas</span><i class="nav-count" id="nc_etiquetas"></i></button>
    <button class="aba" data-v="avisos" title="Avisos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14"/><path d="M8 6v8"/></svg><span>Avisos</span><i class="nav-count" id="nc_avisos"></i></button>
@@ -972,6 +973,22 @@
    <div id="vdCp" style="margin-top:6px"></div></div>
   <div class="painel" style="overflow:auto"><b>Últimos 30 dias</b> <span class="orig">— toque num dia para abrir</span><table style="margin-top:6px"><thead><tr><th>Dia</th><th class="n">Loja 1</th><th class="n">Loja 2</th><th class="n">Total</th><th class="n">Itens</th><th style="width:40%"></th></tr></thead><tbody id="vdDias"></tbody></table></div>
  </div></div>
+ <div id="vClientes" style="display:none">
+  <div class="painel">
+    <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><b>Clientes</b> <span class="orig">— quem já fez orçamento (junta sozinho por CPF, WhatsApp ou nome) e quem você cadastrar</span></div>
+      <div class="linha" style="gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="search" id="clBusca" placeholder="buscar: nome, CPF ou WhatsApp" style="width:220px">
+        <select id="clFiltro"><option value="todos">todos</option><option value="vencendo">orçamento vencendo (até 2 dias)</option><option value="abertos">com orçamento em aberto</option><option value="compraram">já compraram</option><option value="promo">aceitam promoções</option></select>
+        <button id="clNovo">Novo cliente</button>
+        <a href="#" id="clMsgLink" style="font-size:12px" title="textos usados nos botões de WhatsApp">mensagens</a>
+      </div>
+    </div>
+    <div id="clMsgBox" style="display:none;margin-top:8px"></div>
+    <div id="clLista" style="margin-top:8px"></div>
+  </div>
+  <div class="painel" id="clEd" style="display:none"></div>
+ </div>
  <div id="vOrcamentos" style="display:none">
   <div class="painel">
     <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1237,7 +1254,7 @@ function lerNota(texto) {
   const emit = filho(inf, "emit"), ide = filho(inf, "ide"), tot = filho(filho(inf, "total"), "ICMSTot");
   const c = { emit: txt(emit, "xNome"), cnpj: txt(emit, "CNPJ"), uf: txt(emit, "enderEmit/UF"), nnf: txt(ide, "nNF"),
               chave: (inf.getAttribute("Id") || "").replace(/^NFe/, ""), vProd: num(txt(tot, "vProd")), vIPI: num(txt(tot, "vIPI")),
-              vST: num(txt(tot, "vST")), vNF: num(txt(tot, "vNF")), dups: [] };
+              vST: num(txt(tot, "vST")), vNF: num(txt(tot, "vNF")), emi: (txt(ide, "dhEmi") || txt(ide, "dEmi") || "").slice(0, 10), dups: [] };
   const cobr = filho(inf, "cobr");
   if (cobr) for (const dp of cobr.children) if (dp.localName === "dup") c.dups.push({ n: txt(dp, "nDup"), venc: txt(dp, "dVenc"), valor: num(txt(dp, "vDup")), pago: null, nf: 1 });
   const lista = [];
@@ -2431,7 +2448,7 @@ async function salvarMeta(chave, patch) {
 }
 function redesenharTudo() { desenharNotas(); desenharBoletosNota(); desenharGerencia(); desenharBoletos(); desenharValidades(); desenharAvisos(); alertas(); botaoConcluir(); if (typeof hjDesenhar === "function") hjDesenhar(); }
 // cada aba vira uma entrada no histórico do navegador (#hoje, #notas…): o botão Voltar volta para a aba anterior em vez de sair do site
-const ABAS_V = ["hoje", "separacao", "ml", "margem", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "transf", "compras", "promocoes", "etiquetas"];
+const ABAS_V = ["hoje", "separacao", "ml", "margem", "entrada", "notas", "fornec", "produtos", "vendas", "boletos", "validades", "avisos", "orcamentos", "clientes", "transf", "compras", "promocoes", "etiquetas"];
 window.addEventListener("popstate", e => { const v = (e.state && e.state.v) || location.hash.slice(1) || "entrada"; if (ABAS_V.includes(v) && v !== vista) mostrar(v, true); });
 // abre um destino vindo de notificação: "separacao/<id do pedido>", "boletos"…
 function irDestino(h) {
@@ -2495,7 +2512,7 @@ function mostrar(v, semHist) {
   if (ehFunc() && !ABAS_FUNC.includes(v)) v = "separacao"; // funcionário só vê as telas liberadas
   if (!semHist && v !== vista) { try { history.pushState({ v }, "", "#" + v); } catch (e) {} }
   vista = v;
-  for (const [id, nome] of [["vSeparacao", "separacao"], ["vMl", "ml"], ["vMargem", "margem"], ["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
+  for (const [id, nome] of [["vSeparacao", "separacao"], ["vMl", "ml"], ["vMargem", "margem"], ["vEntrada", "entrada"], ["vNotas", "notas"], ["vBoletos", "boletos"], ["vProdutos", "produtos"], ["vVendas", "vendas"], ["vValidades", "validades"], ["vAvisos", "avisos"], ["vOrcamentos", "orcamentos"], ["vClientes", "clientes"], ["vHoje", "hoje"], ["vTransf", "transf"], ["vCompras", "compras"], ["vPromocoes", "promocoes"], ["vFornec", "fornec"], ["vEtiquetas", "etiquetas"]]) document.getElementById(id).style.display = nome === v ? "" : "none";
   for (const b of document.querySelectorAll(".aba")) b.classList.toggle("ativa", b.dataset.v === v || (v === "etiquetas" && b.dataset.v === "produtos"));
   etConta();
   caminhoDesenhar();
@@ -2506,6 +2523,7 @@ function mostrar(v, semHist) {
   redesenharTudo();
   if (v === "vendas") { vdCarregar(); rvIniciar(); }
   if (v === "orcamentos") orDesenharLista();
+  if (v === "clientes") clDesenharLista();
   if (v === "hoje") { hjDesenhar(); hjCarregar(); }
   if (v === "transf") tfDesenharLista();
   if (v === "compras") cpDesenhar();
@@ -2535,6 +2553,49 @@ const l2Pago = b => b && b.rec ? (b.recv != null ? Number(b.recv) || 0 : Number(
 const l2Falta = b => { const f = r2((Number(b && b.p2) || 0) - l2Pago(b)); return f > 0.009 ? f : 0; };
 const l2Txt = b => b.rec && l2Falta(b) ? ` <span style="color:#b42318;font-weight:700">já pagou R$ ${br(l2Pago(b))} · falta R$ ${br(l2Falta(b))}</span>` : "";
 const recPatch = (marcado, p2) => marcado ? { rec: new Date().toISOString(), recv: r2(Number(p2) || 0) } : { rec: null, recv: null };
+// ---- prazo dos boletos ("30/60/90") e adiar todos ----
+// "30/60/90", "7 14 21", "28,42,56" -> [30, 60, 90]; null se não der para entender
+function prazoDias(txt) {
+  const p = String(txt || "").trim().split(/[^0-9]+/).filter(Boolean).map(Number);
+  return p.length && p.length <= 24 && p.every(d => d >= 0 && d <= 720) ? p : null;
+}
+// soma dias a uma data AAAA-MM-DD (sem depender de fuso)
+function dataMaisDias(iso, n) { const [y, m, d] = String(iso).split("-").map(Number), t = new Date(Date.UTC(y, m - 1, d + n)); return t.toISOString().slice(0, 10); }
+// boleto que entra no prazo/adiamento: em aberto e que não é pagamento à vista
+const bolEditavel = b => !b.pago && b.fp !== "ant" && b.fp !== "ent";
+// Aplica o prazo. Cada jogo de boletos (Loja 1 e, se houver, Loja 2) é tratado separado.
+//  - mesmo número de boletos em aberto e de parcelas: só troca os vencimentos (valores não mudam)
+//  - nenhum boleto no jogo: cria as parcelas dividindo o valor da nota (centavos de diferença na última)
+//  - números diferentes: pergunta; com recriar=true troca os em aberto por parcelas novas dividindo o valor que eles somavam
+function boletosPorPrazo(bs, dias, base, vNF, recriar) {
+  const out = bs.map(b => ({ ...b })), jogos = [false, true].filter(l2 => !l2 || out.some(b => b.l2));
+  const dividir = (total, k) => { const c = Math.round(total * 100), q = Math.floor(c / k); return Array.from({ length: k }, (_, i) => (i === k - 1 ? c - q * (k - 1) : q) / 100); };
+  let final = out, msgs = [];
+  for (const l2 of jogos) {
+    const doJogo = final.filter(b => !!b.l2 === l2), abertos = doJogo.filter(bolEditavel), suf = l2 ? " L2" : "";
+    if (abertos.length === dias.length) { abertos.forEach((b, i) => { b.venc = dataMaisDias(base, dias[i]); }); msgs.push(`${dias.length} vencimento(s) ajustado(s)${l2 ? " (Loja 2)" : ""}`); continue; }
+    if (!doJogo.length) {
+      if (l2) continue;
+      if (!(vNF > 0)) return { erro: "Esta entrada não tem valor de nota para dividir: adicione os boletos com o valor e aplique o prazo de novo." };
+      const vs = dividir(vNF, dias.length);
+      final = [...final, ...dias.map((d, i) => ({ n: String(i + 1).padStart(3, "0") + suf, venc: dataMaisDias(base, d), valor: vs[i], pago: null, nf: 1 }))];
+      msgs.push(`${dias.length} boleto(s) criado(s) dividindo R$ ${br(vNF)}`); continue;
+    }
+    if (!abertos.length) { msgs.push(`nenhum boleto em aberto${l2 ? " na Loja 2" : ""}`); continue; }
+    if (!recriar) return { pergunta: `A nota tem ${abertos.length} boleto(s) em aberto${l2 ? " da Loja 2" : ""} e o prazo ${dias.join("/")} tem ${dias.length} parcela(s).\n\nTrocar esses ${abertos.length} por ${dias.length} parcela(s) novas, dividindo o mesmo valor (R$ ${br(abertos.reduce((a, b) => a + (Number(b.valor) || 0), 0))})? Os boletos já pagos não mudam.` };
+    const soma = abertos.reduce((a, b) => a + (Number(b.valor) || 0), 0), vs = dividir(soma, dias.length), nf = abertos.every(b => b.nf) ? 1 : undefined, pos = final.indexOf(abertos[0]);
+    const novos = dias.map((d, i) => { const b = { n: String(i + 1).padStart(3, "0") + suf, venc: dataMaisDias(base, d), valor: vs[i], pago: null }; if (nf) b.nf = 1; if (l2) b.l2 = 1; return b; });
+    final = final.filter(b => !abertos.includes(b)); final.splice(Math.min(pos, final.length), 0, ...novos);
+    msgs.push(`${abertos.length} boleto(s) trocado(s) por ${dias.length} parcela(s)${l2 ? " (Loja 2)" : ""}`);
+  }
+  return { boletos: final, msg: "Prazo " + dias.join("/") + " aplicado: " + msgs.join("; ") + "." };
+}
+// adia (ou antecipa, com número negativo) todos os boletos em aberto que têm vencimento; pagos e à vista não mudam
+function adiarBoletos(bs, nd) {
+  const out = bs.map(b => ({ ...b })), resumo = []; let n = 0;
+  for (const b of out) if (bolEditavel(b) && b.venc) { const novo = dataMaisDias(b.venc, nd); resumo.push(`${b.n || ""}: ${dataBr(b.venc)} → ${dataBr(novo)}`); b.venc = novo; n++; }
+  return { boletos: out, n, resumo };
+}
 function mudarBoleto(chave, i, patch) {
   const m = metaDe(chave); if (!m) return;
   const bs = (m.boletos || []).map(x => ({ ...x }));
@@ -2555,7 +2616,15 @@ function desenharBoletosNota() {
   // sem divisão item a item (nota já lançada, por exemplo), a parte da Loja 2 pode ser informada como um valor total e rateada pelos boletos
   const man = !r2_ && m && m.l2man > 0 && totalBol > 0 ? partesManualL2(m, bs, totalBol) : null, partes = r2_ ? r2_.partes : man;
   if (bs.length && (partes || bs.some(b => b.p2))) agendarPartesL2(cab.chave, partes);
-  p.innerHTML = `<a id="bolSeta" title="clique para esconder ou mostrar a lista de boletos" style="cursor:pointer;color:inherit;font-weight:bold;text-decoration:none">${document.body.classList.contains("semBol") ? "▸" : "▾"} Pagamento desta nota (boletos ou à vista)</a> <span class="orig">${bs.length ? bs.length + " boleto" + (bs.length > 1 ? "s" : "") + " · total a pagar R$ " + br(bs.reduce((a, b) => a + aPagar(m, b), 0)) + (fbDe(m) > 1 ? ` — meia nota: os boletos da nota estão multiplicados por ${String(fbDe(m)).replace(".", ",")}` : "") : "nenhum boleto lançado"}</span>${r2_ ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><b>Loja 2 paga R$ ${br(r2_.total2)}</b> = R$ ${br(r2_.bol)} dos boletos (${br(r2_.fracao * 100, 1)}%${r2_.porNota ? ", calculado nota por nota" : ""})${r2_.difal2 ? ` + R$ ${br(r2_.difal2)} da parte dela no DIFAL` : ""} · Loja 1 fica com R$ ${br(r2(totalBol - r2_.total2))}${r2_.difal2 ? " dos boletos, já descontado o DIFAL que a Loja 2 devolve" : ""}</div>` : ""}${!r2_ && bs.length ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><label title="use quando a nota já foi lançada sem dividir item a item: informe quanto a Loja 2 deve nesta nota e o valor é rateado pelos boletos na proporção de cada um">Loja 2 me deve nesta nota R$ <input type="text" inputmode="decimal" data-k="l2man" value="${m.l2man > 0 ? br(m.l2man) : ""}" placeholder="0,00" style="width:90px;text-align:right"></label>${man ? ` <span class="orig">= ${br(m.l2man / totalBol * 100, 1)}% dos boletos · Loja 1 fica com R$ ${br(r2(totalBol - m.l2man))}</span>` : ` <span class="orig">(rateio pelos boletos)</span>`}</div>` : ""}<div id="lBol"></div><button class="sec" id="bAddBol" style="margin-top:6px">Adicionar boleto</button> <button class="sec" id="bAddAnt" style="margin-top:6px" title="pedido pago antes de chegar (Pix/transferência antecipada): entra já como pago, com a data de hoje">+ À vista antecipado</button> <button class="sec" id="bAddEnt" style="margin-top:6px" title="pedido que você paga quando a mercadoria chega: fica em aberto até você marcar como pago">+ À vista na entrega</button>`;
+  p.innerHTML = `<a id="bolSeta" title="clique para esconder ou mostrar a lista de boletos" style="cursor:pointer;color:inherit;font-weight:bold;text-decoration:none">${document.body.classList.contains("semBol") ? "▸" : "▾"} Pagamento desta nota (boletos ou à vista)</a> <span class="orig">${bs.length ? bs.length + " boleto" + (bs.length > 1 ? "s" : "") + " · total a pagar R$ " + br(bs.reduce((a, b) => a + aPagar(m, b), 0)) + (fbDe(m) > 1 ? ` — meia nota: os boletos da nota estão multiplicados por ${String(fbDe(m)).replace(".", ",")}` : "") : "nenhum boleto lançado"}</span>${r2_ ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><b>Loja 2 paga R$ ${br(r2_.total2)}</b> = R$ ${br(r2_.bol)} dos boletos (${br(r2_.fracao * 100, 1)}%${r2_.porNota ? ", calculado nota por nota" : ""})${r2_.difal2 ? ` + R$ ${br(r2_.difal2)} da parte dela no DIFAL` : ""} · Loja 1 fica com R$ ${br(r2(totalBol - r2_.total2))}${r2_.difal2 ? " dos boletos, já descontado o DIFAL que a Loja 2 devolve" : ""}</div>` : ""}${!r2_ && bs.length ? `<div style="background:#f3f0ff;border-radius:6px;padding:4px 8px;margin-top:4px"><label title="use quando a nota já foi lançada sem dividir item a item: informe quanto a Loja 2 deve nesta nota e o valor é rateado pelos boletos na proporção de cada um">Loja 2 me deve nesta nota R$ <input type="text" inputmode="decimal" data-k="l2man" value="${m.l2man > 0 ? br(m.l2man) : ""}" placeholder="0,00" style="width:90px;text-align:right"></label>${man ? ` <span class="orig">= ${br(m.l2man / totalBol * 100, 1)}% dos boletos · Loja 1 fica com R$ ${br(r2(totalBol - m.l2man))}</span>` : ` <span class="orig">(rateio pelos boletos)</span>`}</div>` : ""}<div id="lBol"></div><button class="sec" id="bAddBol" style="margin-top:6px">Adicionar boleto</button> <button class="sec" id="bAddAnt" style="margin-top:6px" title="pedido pago antes de chegar (Pix/transferência antecipada): entra já como pago, com a data de hoje">+ À vista antecipado</button> <button class="sec" id="bAddEnt" style="margin-top:6px" title="pedido que você paga quando a mercadoria chega: fica em aberto até você marcar como pago">+ À vista na entrega</button>
+      <div class="linha" style="gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;padding-top:8px;border-top:1px dashed var(--borda)">
+        <label title="dias de cada parcela, separados por barra. Ex.: 30/60/90, 7/14/21, 28/42/56">Prazo <input type="text" id="bPrazo" inputmode="numeric" placeholder="30/60/90" style="width:100px" value="${h((m && m.prazo) || "")}"></label>
+        <label title="data de onde os dias começam a contar: a emissão da nota ou, se a entrega atrasou, a data combinada">a partir de <input type="date" id="bPrazoBase" value="${h((m && m.prazoBase) || cab.emi || "")}"></label>
+        <button class="sec" id="bPrazoOk" title="coloca os vencimentos pelo prazo; se a nota ainda não tem boletos, cria as parcelas dividindo o valor">Aplicar prazo</button>
+        <span style="color:var(--borda)">|</span>
+        <label title="empurra o vencimento de todos os boletos em aberto desta nota (os pagos não mudam). Use número negativo para antecipar">Adiar os em aberto <input type="number" id="bAdiarN" style="width:64px" placeholder="dias"> dias</label>
+        <button class="sec" id="bAdiarOk">Adiar</button>
+      </div>`;
   { const im = p.querySelector("[data-k=l2man]"); if (im) im.addEventListener("change", ev => { const v = pnum(ev.target.value) || 0; if (v > totalBol + 0.005) { ev.target.value = m.l2man > 0 ? br(m.l2man) : ""; return msg("A parte da Loja 2 não pode passar do total dos boletos (R$ " + br(totalBol) + ")."); } salvarMeta(cab.chave, { l2man: v > 0 ? r2(v) : null }); }); }
   p.querySelector("#bolSeta").addEventListener("click", () => { const g = document.getElementById("gBol"); g.checked = !g.checked; g.dispatchEvent(new Event("change")); });
   const l = p.querySelector("#lBol");
@@ -2569,6 +2638,22 @@ function desenharBoletosNota() {
     const rc = e.querySelector("[data-k=rec]"); if (rc) rc.addEventListener("change", ev => mudarBoleto(cab.chave, i, recPatch(ev.target.checked, partes && partes[i] > 0 ? partes[i] : b.p2)));
     const x = e.querySelector("[data-x]"); x.addEventListener("click", () => { if (x.dataset.ok) mudarBoleto(cab.chave, i, null); else { x.dataset.ok = "1"; x.textContent = "confirmar"; } });
     l.appendChild(e);
+  });
+  p.querySelector("#bPrazoOk").addEventListener("click", () => {
+    const dias = prazoDias(p.querySelector("#bPrazo").value), base = p.querySelector("#bPrazoBase").value;
+    if (!dias) return msg("Escreva o prazo com os dias separados por barra, por exemplo 30/60/90.");
+    if (!base) return msg("Escolha a data de onde o prazo começa a contar (emissão da nota ou data combinada).");
+    let r = boletosPorPrazo(bs, dias, base, cab.manual ? 0 : cab.vNF || 0, false);
+    if (r.pergunta) { if (!confirm(r.pergunta)) return; r = boletosPorPrazo(bs, dias, base, cab.manual ? 0 : cab.vNF || 0, true); }
+    if (r.erro) return msg(r.erro);
+    salvarMeta(cab.chave, { boletos: r.boletos, prazo: dias.join("/"), prazoBase: base }); msg(r.msg);
+  });
+  p.querySelector("#bAdiarOk").addEventListener("click", () => {
+    const nd = parseInt(p.querySelector("#bAdiarN").value, 10);
+    if (!nd) return msg("Digite quantos dias adiar (ou um número negativo para antecipar).");
+    const r = adiarBoletos(bs, nd); if (!r.n) return msg("Esta nota não tem boleto em aberto com vencimento para adiar.");
+    if (!confirm(`${nd > 0 ? "Adiar" : "Antecipar"} ${r.n} boleto(s) em aberto em ${Math.abs(nd)} dia(s)?\n\n${r.resumo.join("\n")}`)) return;
+    salvarMeta(cab.chave, { boletos: r.boletos }); msg(`${r.n} boleto(s) ${nd > 0 ? "adiado(s)" : "antecipado(s)"} em ${Math.abs(nd)} dia(s).`);
   });
   p.querySelector("#bAddBol").addEventListener("click", () => mudarBoleto(cab.chave, bs.length, { n: String(bs.length + 1).padStart(3, "0"), venc: "", valor: 0, pago: null }));
   { // à vista: valor = o que falta da nota (já com a meia nota); antecipado entra como pago, na entrega fica em aberto
@@ -5504,6 +5589,119 @@ function orSalvar(agora) {
 }
 function orAbrir(id) { const o = OR.docs.get(id); if (!o) return; OR.atual = o; OR.busca = []; orDesenharEd(); document.getElementById("orEd").scrollIntoView({ behavior: "smooth", block: "start" }); }
 function orFechar() { orSalvar(true); OR.atual = null; document.getElementById("orEd").style.display = "none"; orDesenharLista(); }
+// ---------- Clientes ----------
+// Não existe cadastro separado obrigatório: o cliente nasce do orçamento (nome, CPF, WhatsApp). O que for cadastrado/editado aqui
+// (observação, aceite de promoções, dados corrigidos) fica em "clientes/<id>" e é juntado aos orçamentos pela mesma chave.
+const CL = { cad: new Map(), aberto: null, cfg: null };
+const CL_MSG = { validade: "Olá, {nome}! Aqui é da Nova Raphaella. Seu orçamento nº {numero} (total {total}) é válido até {validade}. Quer que eu deixe separado para você? É só apresentar o orçamento no caixa da Loja {loja}.", promo: "Olá, {nome}! Aqui é da Nova Raphaella. Passando para avisar: " };
+const clDig = v => String(v || "").replace(/\D/g, "");
+const clTelChave = v => { const d = clDig(v); return d.length >= 8 ? d.slice(-8) : ""; };
+const clNomeChave = v => semAcento(String(v || "")).toLowerCase().replace(/\s+/g, " ").trim();
+// junta orçamentos e cadastros em clientes: mesma pessoa = mesmo CPF, ou mesmo WhatsApp (últimos 8 dígitos); só pelo nome quando não há nenhum dos dois
+function clMontar(orcs, cads) {
+  const lista = [], porCpf = new Map(), porTel = new Map(), porNome = new Map();
+  const achar = r => { const c = clDig(r.cpf), t = clTelChave(r.tel), n = clNomeChave(r.nome); return (c.length === 11 && porCpf.get(c)) || (t && porTel.get(t)) || (c.length !== 11 && !t && n && porNome.get(n)) || null; };
+  const indexar = cl => { const c = clDig(cl.cpf), t = clTelChave(cl.tel), n = clNomeChave(cl.nome); if (c.length === 11) porCpf.set(c, cl); if (t) porTel.set(t, cl); if (n && c.length !== 11 && !t) porNome.set(n, cl); };
+  const entra = (r, extra) => {
+    if (!clNomeChave(r.nome) && clDig(r.cpf).length !== 11 && !clTelChave(r.tel)) return null; // sem nenhuma identificação
+    let cl = achar(r);
+    if (!cl) { cl = { nome: "", cpf: "", tel: "", orcs: [], cad: null }; lista.push(cl); }
+    if (!cl.nome && r.nome) cl.nome = String(r.nome).trim(); if (!cl.cpf && clDig(r.cpf).length === 11) cl.cpf = r.cpf; if (!cl.tel && clTelChave(r.tel)) cl.tel = r.tel;
+    extra(cl); indexar(cl); return cl;
+  };
+  for (const c of cads) entra({ nome: c.nome, cpf: c.cpf, tel: c.tel }, cl => { cl.cad = c; if (c.nome) cl.nome = c.nome; if (c.cpf) cl.cpf = c.cpf; if (c.tel) cl.tel = c.tel; });
+  for (const o of [...orcs].sort((a, b) => (a.criado || "").localeCompare(b.criado || ""))) entra({ nome: o.cliente, cpf: o.cpf, tel: o.tel }, cl => cl.orcs.push(o));
+  const hj = new Date().toISOString().slice(0, 10);
+  for (const cl of lista) {
+    cl.abertos = cl.orcs.filter(o => (o.status === "aberto" || o.status === "enviado") && (!o.validade || o.validade >= hj));
+    cl.vendas = cl.orcs.filter(o => o.status === "venda");
+    cl.totalVendas = r2(cl.vendas.reduce((a, o) => a + orTotal(o), 0));
+    cl.ultimo = cl.orcs.length ? cl.orcs[cl.orcs.length - 1].criado || "" : (cl.cad && cl.cad.criado) || "";
+    cl.vence = cl.abertos.filter(o => o.validade).map(o => ({ o, d: Math.round((new Date(o.validade + "T00:00:00") - new Date(hj + "T00:00:00")) / 86400000) })).sort((a, b) => a.d - b.d)[0] || null;
+    cl.chave = clDig(cl.cpf).length === 11 ? "c" + clDig(cl.cpf) : clTelChave(cl.tel) ? "t" + clTelChave(cl.tel) : "n" + clNomeChave(cl.nome);
+  }
+  return lista.sort((a, b) => (b.ultimo || "").localeCompare(a.ultimo || ""));
+}
+const clTodos = () => clMontar([...OR.docs.values()], [...CL.cad.values()]);
+const clMsgCfg = () => ({ ...CL_MSG, ...(CL.cfg || {}) });
+// troca {nome}, {numero}, {validade}, {total}, {loja} no texto da mensagem
+function clTexto(modelo, cl, o) {
+  const prim = String(cl.nome || "").trim().split(/\s+/)[0] || "";
+  return String(modelo || "").replace(/\{nome\}/g, prim).replace(/\{numero\}/g, o ? o.num : "").replace(/\{validade\}/g, o ? orData(o.validade) : "").replace(/\{total\}/g, o ? orBrl(orTotal(o)) : "").replace(/\{loja\}/g, o ? o.loja : "").replace(/ ,/g, ",").replace(/Olá, !/g, "Olá!");
+}
+function clZap(cl, texto) {
+  const tel = clDig(cl.tel); if (!tel) return msg("Este cliente não tem WhatsApp cadastrado.");
+  window.open("https://wa.me/" + (tel.length <= 11 ? "55" + tel : tel) + "?text=" + encodeURIComponent(texto), "_blank");
+}
+function clDesenharLista() {
+  const el = document.getElementById("clLista"); if (!el) return;
+  const f = document.getElementById("clFiltro").value, bq = document.getElementById("clBusca").value, bt = clNomeChave(bq), bd = clDig(bq);
+  const todos = clTodos();
+  const lista = todos.filter(cl => bt || bd ? ((bt && clNomeChave(cl.nome).includes(bt)) || (bd && (clDig(cl.cpf).includes(bd) || clDig(cl.tel).includes(bd)))) :
+    f === "vencendo" ? cl.vence && cl.vence.d <= 2 : f === "abertos" ? cl.abertos.length : f === "compraram" ? cl.vendas.length : f === "promo" ? cl.cad && cl.cad.promo : true);
+  if (!lista.length) { el.innerHTML = `<div class="orig">${todos.length ? "Nenhum cliente nesta busca/filtro." : "Ainda não há clientes. Eles aparecem aqui quando um orçamento tem nome, CPF ou WhatsApp — ou clique em \"Novo cliente\"."}</div>`; return; }
+  el.innerHTML = `<div class="orig" style="margin-bottom:6px">${lista.length} cliente(s)</div><div class="bcards">` + lista.map(cl => `<div class="bcard" data-k="${escH(cl.chave)}" style="cursor:pointer">
+      <div class="linha" style="justify-content:space-between"><b>${escH(cl.nome || "(sem nome)")}</b>${cl.vence ? `<span class="chip ${cl.vence.d <= 2 ? "falta" : "av"}">orç. nº ${cl.vence.o.num} ${cl.vence.d === 0 ? "vence hoje" : cl.vence.d === 1 ? "vence amanhã" : "vence em " + cl.vence.d + " dias"}</span>` : ""}</div>
+      <div class="orig">${[cl.tel ? "WhatsApp " + escH(cl.tel) : "", cl.cpf ? "CPF " + escH(cl.cpf) : ""].filter(Boolean).join(" · ") || "sem contato"}</div>
+      <div class="orig">${cl.orcs.length} orçamento(s)${cl.abertos.length ? ` · ${cl.abertos.length} em aberto` : ""}${cl.vendas.length ? ` · ${cl.vendas.length} venda(s), ${orBrl(cl.totalVendas)}` : ""}${cl.ultimo ? ` · último em ${new Date(cl.ultimo).toLocaleDateString("pt-BR")}` : ""}</div>
+      ${cl.cad && cl.cad.promo ? `<div class="orig">aceita receber promoções</div>` : ""}
+    </div>`).join("") + `</div>`;
+  for (const c of el.querySelectorAll(".bcard")) c.addEventListener("click", () => clAbrir(c.dataset.k));
+}
+function clAbrir(chave) { CL.aberto = chave; clDesenharEd(); document.getElementById("clEd").scrollIntoView({ behavior: "smooth", block: "start" }); }
+function clSalvar(cl, patch) {
+  const cad = cl.cad || { id: Date.now().toString(36), criado: new Date().toISOString(), nome: cl.nome || "", cpf: cl.cpf || "", tel: cl.tel || "" };
+  Object.assign(cad, patch); CL.cad.set(cad.id, cad); cl.cad = cad;
+  if (db) db.doc("clientes/" + cad.id).set(cad).catch(e => msg("Não consegui salvar o cliente (" + (e.code || e.message) + ")."));
+  return cad;
+}
+function clDesenharEd() {
+  const el = document.getElementById("clEd"); if (!el) return;
+  const cl = CL.aberto === "novo" ? { nome: "", cpf: "", tel: "", orcs: [], abertos: [], vendas: [], totalVendas: 0, cad: null, chave: "novo" } : clTodos().find(x => x.chave === CL.aberto);
+  if (!cl) { el.style.display = "none"; return; }
+  el.style.display = ""; const cad = cl.cad || {}, M = clMsgCfg(), A = v => escH(v || "");
+  el.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b style="font-size:16px">${A(cl.nome) || "Novo cliente"}</b><a href="#" id="clX" style="color:var(--cinza)">fechar ✕</a></div>
+    <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:8px;align-items:flex-end">
+      <label class="c">Nome<input type="text" id="clNome" value="${A(cl.nome)}" style="width:240px"></label>
+      <label class="c">WhatsApp<input type="tel" id="clTel" value="${A(cl.tel)}" style="width:150px" placeholder="(11) 9...."></label>
+      <label class="c">CPF (opcional)<input type="text" inputmode="numeric" id="clCpf" value="${A(cl.cpf)}" style="width:130px" maxlength="14" placeholder="000.000.000-00"></label>
+      <label title="marque só se o cliente disse que quer receber ofertas pelo WhatsApp"><input type="checkbox" id="clPromo"${cad.promo ? " checked" : ""}> aceita receber promoções</label>
+      <button id="clGravar">Salvar</button>
+    </div>
+    <label class="c" style="margin-top:8px;display:block">Observações<textarea id="clObs" rows="2" style="width:100%" placeholder="escola dos filhos, preferências, combinado...">${A(cad.obs)}</textarea></label>
+    <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="sec" id="clOrc">Novo orçamento para este cliente</button>
+      <button class="sec" id="clZapLivre" title="abre a conversa no WhatsApp com a mensagem de promoção/aviso para você completar">WhatsApp: mensagem / promoção</button>
+    </div>
+    <div style="margin-top:12px"><b>Orçamentos</b> <span class="orig">${cl.orcs.length ? `— ${cl.orcs.length} no total${cl.vendas.length ? `, ${cl.vendas.length} viraram venda (${orBrl(cl.totalVendas)})` : ""}` : "— nenhum ainda"}</span></div>
+    <div id="clOrcs">${[...cl.orcs].reverse().map(o => { const [st, cls] = OR_STATUS[o.status] || OR_STATUS.aberto, ab = cl.abertos.includes(o);
+      return `<div class="linha" style="justify-content:space-between;gap:8px;align-items:center;border-top:1px solid var(--borda);padding:6px 0;flex-wrap:wrap">
+        <a href="#" data-orc="${o.id}"><b>Nº ${o.num}</b> · ${o.criado ? new Date(o.criado).toLocaleDateString("pt-BR") : ""} · Loja ${o.loja} · ${(o.itens || []).length} item(ns) · <b>${orBrl(orTotal(o))}</b></a>
+        <span><span class="chip ${cls}">${st}</span>${o.validade ? ` <span class="orig">válido até ${orData(o.validade)}</span>` : ""}${ab ? ` <button class="sec" data-val="${o.id}" title="abre o WhatsApp com o lembrete da validade deste orçamento">Lembrar validade</button>` : ""}</span></div>`; }).join("")}</div>`;
+  const g = id => el.querySelector("#" + id);
+  g("clX").onclick = ev => { ev.preventDefault(); CL.aberto = null; el.style.display = "none"; };
+  g("clGravar").onclick = () => {
+    const nome = g("clNome").value.trim(), tel = g("clTel").value.trim(), cpfD = clDig(g("clCpf").value);
+    if (!nome && !tel && !cpfD) return msg("Preencha pelo menos o nome, o WhatsApp ou o CPF.");
+    if (cpfD && !cpfValido(cpfD) && !confirm("O CPF parece incorreto (os dígitos não conferem). Salvar assim mesmo?")) return;
+    const cpf = cpfD.length === 11 ? cpfD.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : g("clCpf").value.trim();
+    clSalvar(cl, { nome, tel, cpf, obs: g("clObs").value.trim(), promo: g("clPromo").checked });
+    CL.aberto = cpfD.length === 11 ? "c" + cpfD : clTelChave(tel) ? "t" + clTelChave(tel) : "n" + clNomeChave(nome);
+    msg("Cliente salvo."); clDesenharLista(); clDesenharEd();
+  };
+  g("clOrc").onclick = () => { mostrar("orcamentos"); orNovo(); const o = OR.atual; if (o) { o.cliente = g("clNome").value.trim(); o.tel = g("clTel").value.trim(); o.cpf = g("clCpf").value.trim(); orSalvar(true); orDesenharEd(); orDesenharLista(); } };
+  g("clZapLivre").onclick = () => { if (!g("clPromo").checked && !confirm("Este cliente não está marcado como \"aceita receber promoções\". Enviar mesmo assim?")) return; clZap({ ...cl, tel: g("clTel").value }, clTexto(M.promo, { nome: g("clNome").value }, cl.abertos[0])); };
+  for (const a of el.querySelectorAll("[data-orc]")) a.onclick = ev => { ev.preventDefault(); mostrar("orcamentos"); orAbrir(a.dataset.orc); };
+  for (const b of el.querySelectorAll("[data-val]")) b.onclick = () => { const o = cl.orcs.find(x => x.id === b.dataset.val); clZap({ ...cl, tel: g("clTel").value || o.tel }, clTexto(M.validade, { nome: g("clNome").value || o.cliente }, o)); };
+}
+function clDesenharMsgs() {
+  const bx = document.getElementById("clMsgBox"), M = clMsgCfg();
+  bx.innerHTML = `<div class="orig">Textos dos botões de WhatsApp. Pode usar {nome}, {numero}, {validade}, {total} e {loja}.</div>
+    <label class="c" style="display:block;margin-top:6px">Lembrete de validade do orçamento<textarea id="clMV" rows="3" style="width:100%">${escH(M.validade)}</textarea></label>
+    <label class="c" style="display:block;margin-top:6px">Mensagem / promoção (começo do texto)<textarea id="clMP" rows="2" style="width:100%">${escH(M.promo)}</textarea></label>
+    <button id="clMSalvar" style="margin-top:6px">Salvar mensagens</button>`;
+  bx.querySelector("#clMSalvar").onclick = () => { CL.cfg = { validade: bx.querySelector("#clMV").value, promo: bx.querySelector("#clMP").value }; if (db) db.doc("config/clientes").set(CL.cfg).catch(e => msg("Não consegui salvar (" + (e.code || e.message) + ").")); msg("Mensagens salvas."); bx.style.display = "none"; };
+}
 function cpfValido(c) {
   const d = String(c || "").replace(/\D/g, ""); if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
   const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += Number(d[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
@@ -7665,10 +7863,16 @@ function etLigar() { if (!db) return; db.doc("config/etiquetas").onSnapshot(d =>
 function orLigar() {
   if (!db) return;
   db.collection("orcamentos").onSnapshot(s => { const atualId = OR.atual && OR.atual.id; OR.docs = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (atualId) { const a = OR.docs.get(atualId); if (a && JSON.stringify(a) !== JSON.stringify(OR.atual) && !OR.salvarT) { OR.atual = a; orDesenharEd(); } else if (a) OR.docs.set(atualId, OR.atual); } orDesenharLista(); }, () => {});
+  db.collection("clientes").onSnapshot(s => { CL.cad = new Map(s.docs.map(d => [d.id, { id: d.id, ...d.data() }])); if (vista === "clientes") { clDesenharLista(); if (CL.aberto && CL.aberto !== "novo" && !document.activeElement.closest("#clEd")) clDesenharEd(); } }, () => {});
+  db.doc("config/clientes").onSnapshot(d => { CL.cfg = d.exists ? d.data() : null; }, () => {});
   db.doc("config/orcamento").onSnapshot(d => { OR.cfg = d.exists ? d.data() : null; if (document.getElementById("orCfgBox").style.display !== "none") orDesenharCfg(); if (OR.atual) orDesenharEd(); }, () => {});
   document.getElementById("orNovo").addEventListener("click", orNovo);
   document.getElementById("orFiltro").addEventListener("change", orDesenharLista);
   document.getElementById("orBuscaCli").addEventListener("input", orDesenharLista);
+  document.getElementById("clBusca").addEventListener("input", clDesenharLista);
+  document.getElementById("clFiltro").addEventListener("change", clDesenharLista);
+  document.getElementById("clNovo").addEventListener("click", () => clAbrir("novo"));
+  document.getElementById("clMsgLink").addEventListener("click", ev => { ev.preventDefault(); const bx = document.getElementById("clMsgBox"); if (bx.style.display === "none") { clDesenharMsgs(); bx.style.display = ""; } else bx.style.display = "none"; });
   document.getElementById("orCfgLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("orCfgBox"); if (b.style.display === "none") { orDesenharCfg(); b.style.display = ""; } else b.style.display = "none"; });
   olLigar(); tfLigar(); cpLigar(); etLigar();
 }

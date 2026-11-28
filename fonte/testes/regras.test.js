@@ -205,6 +205,69 @@ secao("7. Cliente do orçamento");
   confere("CPF com todos os dígitos iguais é apontado", v("111.111.111-11") === false);
 }
 
+// ---------- 8. prazo e adiamento dos boletos ----------
+secao("8. Boletos: prazo (30/60/90) e adiar");
+{
+  const pd = ev("prazoDias"), bp = ev("boletosPorPrazo"), ad = ev("adiarBoletos"), md = ev("dataMaisDias");
+  confere("prazo 30/60/90 é entendido", JSON.stringify(pd("30/60/90")) === "[30,60,90]");
+  confere("prazo com espaço ou vírgula também (7 14, 21)", JSON.stringify(pd("7 14, 21")) === "[7,14,21]");
+  confere("prazo vazio ou absurdo é recusado", pd("") === null && pd("abc") === null && pd("30/9999") === null);
+  confere("soma de dias vira o mês e o ano certo", md("2026-12-15", 30) === "2027-01-14" && md("2027-01-31", 28) === "2027-02-28");
+  // nota sem boletos: cria as parcelas dividindo o valor, centavos na última
+  let r = bp([], [30, 60, 90], "2026-11-27", 1000, false);
+  confere("sem boletos: cria 3 parcelas com os vencimentos certos", r.boletos.length === 3 && r.boletos.map(b => b.venc).join() === "2026-12-27,2027-01-26,2027-02-25", JSON.stringify(r.boletos));
+  igual("soma das parcelas = valor da nota (1000)", r.boletos.reduce((a, b) => a + b.valor, 0), 1000, 0.001);
+  confere("centavos de diferença ficam na última parcela (333,33 / 333,33 / 333,34)", r.boletos.map(b => b.valor).join() === "333.33,333.33,333.34");
+  confere("parcelas criadas contam como boleto da nota (meia nota multiplica)", r.boletos.every(b => b.nf === 1));
+  // mesmo número de boletos em aberto: só troca os vencimentos; pago e à vista não mudam
+  const bs = [{ n: "001", venc: "2026-12-01", valor: 500, nf: 1, pago: "2026-12-01T10:00:00Z" }, { n: "002", venc: "2026-12-31", valor: 300, nf: 1, pago: null }, { n: "003", venc: "2027-01-30", valor: 200, nf: 1, pago: null }, { n: "À vista entrega", fp: "ent", venc: "2026-11-27", valor: 50, pago: null }];
+  r = bp(bs, [45, 75], "2026-11-27", 1000, false);
+  confere("2 em aberto + prazo de 2: só os vencimentos mudam", r.boletos[1].venc === "2027-01-11" && r.boletos[2].venc === "2027-02-10" && r.boletos[1].valor === 300 && r.boletos[2].valor === 200, JSON.stringify(r.boletos));
+  confere("boleto pago e pagamento na entrega não são tocados", r.boletos[0].venc === "2026-12-01" && r.boletos[3].venc === "2026-11-27");
+  // número diferente: pergunta antes; confirmando, troca os em aberto dividindo o mesmo valor
+  r = bp(bs, [30, 60, 90], "2026-11-27", 1000, false);
+  confere("parcelas em número diferente: pergunta antes de trocar", !!r.pergunta && !r.boletos);
+  r = bp(bs, [30, 60, 90], "2026-11-27", 1000, true);
+  const novos = r.boletos.filter(b => !b.pago && !b.fp);
+  confere("confirmando: 3 parcelas novas no lugar das 2 em aberto", novos.length === 3 && r.boletos.length === 5, JSON.stringify(r.boletos));
+  igual("as parcelas novas somam o mesmo valor que estava em aberto (500)", novos.reduce((a, b) => a + b.valor, 0), 500, 0.001);
+  // jogo da Loja 2 é tratado separado
+  const dois = [{ n: "001", venc: "2026-12-01", valor: 100, nf: 1, pago: null }, { n: "001 L2", venc: "2026-12-01", valor: 100, nf: 1, pago: null, l2: 1 }];
+  r = bp(dois, [30], "2026-11-27", 100, false);
+  confere("as duas lojas: cada jogo de boletos recebe o prazo", r.boletos.every(b => b.venc === "2026-12-27") && r.boletos[1].l2 === 1);
+  // adiar
+  const a1 = ad(bs, 10);
+  confere("adiar 10 dias: só os 2 em aberto com vencimento mudam", a1.n === 2 && a1.boletos[1].venc === "2027-01-10" && a1.boletos[2].venc === "2027-02-09" && a1.boletos[0].venc === "2026-12-01" && a1.boletos[3].venc === "2026-11-27", JSON.stringify(a1.boletos));
+  confere("adiar não altera os boletos originais antes de confirmar", bs[1].venc === "2026-12-31");
+  confere("número negativo antecipa", ad(bs, -5).boletos[1].venc === "2026-12-26");
+}
+
+// ---------- 9. clientes ----------
+secao("9. Clientes (juntados a partir dos orçamentos)");
+{
+  const orcs = [
+    { id: "a", num: 1, cliente: "Maria Silva", tel: "(11) 99935-7023", status: "venda", criado: "2026-11-01T10:00:00Z", loja: 1, itens: [{ qtd: 2, pv: 10 }], descPct: 0 },
+    { id: "b", num: 2, cliente: "maria silva", tel: "11999357023", cpf: "529.982.247-25", status: "aberto", validade: "2099-01-01", criado: "2026-11-20T10:00:00Z", loja: 1, itens: [{ qtd: 1, pv: 5 }], descPct: 0 },
+    { id: "c", num: 3, cliente: "Maria S.", cpf: "52998224725", status: "perdido", criado: "2026-11-25T10:00:00Z", loja: 2, itens: [], descPct: 0 },
+    { id: "d", num: 4, cliente: "João", status: "aberto", criado: "2026-11-26T10:00:00Z", loja: 1, itens: [], descPct: 0 },
+    { id: "e", num: 5, cliente: "", status: "aberto", criado: "2026-11-27T10:00:00Z", loja: 1, itens: [], descPct: 0 },
+  ];
+  const cl = ev("clMontar")(orcs, [{ id: "x", nome: "Maria da Silva", tel: "11 99935-7023", promo: true, obs: "escola A" }]);
+  const maria = cl.find(c => c.orcs.length === 3);
+  confere("mesmo WhatsApp ou mesmo CPF = mesma pessoa (3 orçamentos juntos)", !!maria && cl.length === 2, cl.map(c => c.nome + ":" + c.orcs.length).join(" | "));
+  confere("o cadastro feito à mão vale para o nome e guarda o aceite de promoções", maria && maria.nome === "Maria da Silva" && maria.cad.promo === true);
+  igual("total de vendas do cliente (2 × 10)", maria ? maria.totalVendas : -1, 20);
+  confere("orçamento em aberto e dentro da validade aparece como em aberto", maria && maria.abertos.length === 1 && maria.abertos[0].num === 2);
+  confere("orçamento sem nome, CPF nem WhatsApp não vira cliente", !cl.some(c => c.orcs.some(o => o.num === 5)));
+  const t = ev("clTexto")("Olá, {nome}! Orçamento nº {numero} vale até {validade}, total {total}, Loja {loja}.", { nome: "Maria da Silva" }, orcs[1]);
+  confere("mensagem troca nome, número, validade, total e loja", t === "Olá, Maria! Orçamento nº 2 vale até 01/01/2099, total R$ 5,00, Loja 1.", t);
+  // a tela desenha sem erro
+  w.Element.prototype.scrollIntoView = function () {}; // o navegador simulado não tem rolagem
+  w.OR_teste = orcs; ev("OR.docs = new Map(OR_teste.map(o => [o.id, o])); clDesenharLista(); clAbrir(clTodos().find(c => c.orcs.length === 3).chave)");
+  confere("tela de Clientes desenha a lista (2 clientes)", w.document.querySelectorAll("#clLista .bcard").length === 2);
+  confere("ficha do cliente mostra os 3 orçamentos e o botão de lembrar a validade", w.document.querySelectorAll("#clEd [data-orc]").length === 3 && w.document.querySelectorAll("#clEd [data-val]").length === 1);
+}
+
 // ---------- resultado ----------
 if (errosPagina.length) { falhas++; console.log("\n✘ a página teve erro ao carregar: " + errosPagina.slice(0, 3).join(" | ")); }
 console.log(`\n${ok} regras ok, ${falhas} com problema.`);

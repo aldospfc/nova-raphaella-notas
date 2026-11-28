@@ -196,6 +196,15 @@ secao("6. Orçamento para o caixa (arquivo do POS)");
   confere("descrição longa é cortada em 29 letras e sem acento", linha("7908077451455", "Etiqueta c/100 Estrela de Daví dourada", 1, 2.5, fis.get("7908077451455")).slice(14, 44) === "ETIQUETA C/100 ESTRELA DE DAV ");
 }
 
+// ---------- 7. cliente do orçamento ----------
+secao("7. Cliente do orçamento");
+{
+  const v = ev("cpfValido");
+  confere("CPF válido é aceito", v("529.982.247-25") === true);
+  confere("CPF com dígito errado é apontado", v("529.982.247-26") === false);
+  confere("CPF com todos os dígitos iguais é apontado", v("111.111.111-11") === false);
+}
+
 // ---------- resultado ----------
 if (errosPagina.length) { falhas++; console.log("\n✘ a página teve erro ao carregar: " + errosPagina.slice(0, 3).join(" | ")); }
 console.log(`\n${ok} regras ok, ${falhas} com problema.`);

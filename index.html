@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="207">
+<meta name="versao" content="208">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -975,9 +975,10 @@
  <div id="vOrcamentos" style="display:none">
   <div class="painel">
     <div class="linha" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div><b>Orçamentos</b> <span class="orig">— cliente de balcão ou WhatsApp; salva sozinho na nuvem; preço vem do cadastro da loja escolhida</span></div>
+      <div><b>Orçamentos</b> <span class="orig">— cliente de balcão ou WhatsApp; ficam todos guardados aqui (abertos, vendidos e perdidos); preço vem do cadastro da loja escolhida</span></div>
       <div class="linha" style="gap:8px;align-items:center">
-        <select id="orFiltro" title="quais orçamentos listar"><option value="abertos">abertos</option><option value="venda">viraram venda</option><option value="perdido">perdidos</option><option value="todos">todos</option></select>
+        <input type="search" id="orBuscaCli" placeholder="buscar: nome, CPF, WhatsApp ou nº" style="width:230px" title="procura em todos os orçamentos guardados, de qualquer situação">
+        <select id="orFiltro" title="quais orçamentos listar"><option value="todos">todos</option><option value="abertos">abertos</option><option value="venda">viraram venda</option><option value="perdido">perdidos</option></select>
         <button id="orNovo">Novo orçamento</button>
         <a href="#" id="orCfgLink" style="font-size:12px" title="descontos por forma de pagamento e rodapé do PDF">condições de pagamento</a>
       </div>
@@ -5503,10 +5504,18 @@ function orSalvar(agora) {
 }
 function orAbrir(id) { const o = OR.docs.get(id); if (!o) return; OR.atual = o; OR.busca = []; orDesenharEd(); document.getElementById("orEd").scrollIntoView({ behavior: "smooth", block: "start" }); }
 function orFechar() { orSalvar(true); OR.atual = null; document.getElementById("orEd").style.display = "none"; orDesenharLista(); }
+function cpfValido(c) {
+  const d = String(c || "").replace(/\D/g, ""); if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += Number(d[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
+}
 function orDesenharLista() {
   const el = document.getElementById("orLista"); if (!el) return;
   const f = document.getElementById("orFiltro").value;
-  const lista = [...OR.docs.values()].filter(o => f === "todos" ? true : f === "abertos" ? (o.status === "aberto" || o.status === "enviado") : o.status === f)
+  const bq = (document.getElementById("orBuscaCli") || {}).value || "", bt = semAcento(bq).toLowerCase().trim(), bd = bq.replace(/\D/g, "");
+  // com busca digitada procura em TODOS os orçamentos (qualquer situação): nome, CPF, WhatsApp ou número
+  const bate = o => semAcento(String(o.cliente || "")).toLowerCase().includes(bt) || (bd && (String(o.cpf || "").replace(/\D/g, "").includes(bd) || String(o.tel || "").replace(/\D/g, "").includes(bd) || String(o.num) === bd));
+  const lista = [...OR.docs.values()].filter(o => bt ? bate(o) : f === "todos" ? true : f === "abertos" ? (o.status === "aberto" || o.status === "enviado") : o.status === f)
     .sort((a, b) => (b.criado || "").localeCompare(a.criado || ""));
   if (!lista.length) { el.innerHTML = `<div class="orig">Nenhum orçamento ${f === "todos" ? "" : "nesta situação"}. Clique em "Novo orçamento".</div>`; return; }
   const h = hoje().toISOString().slice(0, 10);
@@ -5515,7 +5524,8 @@ function orDesenharLista() {
       <div class="linha" style="justify-content:space-between"><b>Nº ${o.num} · ${escH(o.cliente || "(sem nome)")}</b><span class="chip ${cls}">${st}</span></div>
       <div class="orig">Loja ${o.loja} · ${(o.itens || []).length} item(ns) · ${o.criado ? new Date(o.criado).toLocaleDateString("pt-BR") : ""}${o.validade ? ` · válido até ${orData(o.validade)}` : ""}${venc ? ' <span class="chip falta">vencido</span>' : ""}</div>
       <div style="font-size:18px;font-weight:bold;color:#1B2D4B">${orBrl(orTotal(o))}</div>
-      ${o.tel ? `<div class="orig">WhatsApp ${escH(o.tel)}</div>` : ""}
+      ${o.tel || o.cpf ? `<div class="orig">${[o.tel ? "WhatsApp " + escH(o.tel) : "", o.cpf ? "CPF " + escH(o.cpf) : ""].filter(Boolean).join(" · ")}</div>` : ""}
+      ${o.vendaCupom ? `<div class="orig">cupom ${escH(o.vendaCupom.coo)} · caixa ${escH(o.vendaCupom.pdv)} · ${orData(o.vendaCupom.data)}</div>` : ""}
     </div>`; }).join("") + `</div>`;
   for (const c of el.querySelectorAll(".bcard")) c.addEventListener("click", () => orAbrir(c.dataset.id));
   if (typeof hjDesenhar === "function") hjDesenhar();
@@ -5540,6 +5550,7 @@ function orDesenharEd() {
     <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:8px;align-items:flex-end">
       <label class="c">Cliente<input type="text" id="orCliente" value="${orA(o.cliente)}" style="width:220px" placeholder="nome"></label>
       <label class="c">WhatsApp<input type="tel" id="orTel" value="${orA(o.tel)}" style="width:140px" placeholder="(11) 9...."></label>
+      <label class="c" title="opcional; ajuda a achar o cliente depois">CPF (opcional)<input type="text" inputmode="numeric" id="orCpf" value="${orA(o.cpf)}" style="width:130px" placeholder="000.000.000-00" maxlength="14"></label>
       <label class="c">Loja (preços)<select id="orLoja"><option value="1" ${o.loja == 1 ? "selected" : ""}>Loja 1</option><option value="2" ${o.loja == 2 ? "selected" : ""}>Loja 2</option></select></label>
       <label class="c" title="depois desta data o orçamento sai do caixa sozinho e não pode mais ser puxado">Válido até (no caixa também)<input type="date" id="orVal" value="${o.validade || ""}"></label>
       <label class="c">Desconto geral %<input type="number" id="orDesc" min="0" max="100" step="0.5" value="${o.descPct || 0}" style="width:80px"></label>
@@ -5563,7 +5574,9 @@ function orDesenharEd() {
   orDesenharItens();
   const g = id => ed.querySelector("#" + id);
   const campo = (id, k, conv) => g(id).addEventListener("input", ev => { o[k] = conv ? conv(ev.target.value) : ev.target.value; orSalvar(); if (k === "descPct") orAtualizarTotais(); });
-  campo("orCliente", "cliente"); campo("orTel", "tel"); campo("orVal", "validade"); campo("orObs", "obs"); campo("orDesc", "descPct", v => Math.min(100, Math.max(0, parseFloat(v) || 0)));
+  campo("orCliente", "cliente"); campo("orTel", "tel"); campo("orCpf", "cpf");
+  // CPF: formata ao sair do campo e avisa (sem impedir) se os dígitos não conferem
+  g("orCpf").addEventListener("blur", ev => { const d = ev.target.value.replace(/\D/g, ""); if (!d) return; if (d.length === 11) { ev.target.value = o.cpf = d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4"); orSalvar(); } ev.target.style.borderColor = cpfValido(d) ? "" : "#b42318"; ev.target.title = cpfValido(d) ? "" : "CPF parece incorreto (confira os números)"; }); campo("orVal", "validade"); campo("orObs", "obs"); campo("orDesc", "descPct", v => Math.min(100, Math.max(0, parseFloat(v) || 0)));
   g("orLoja").addEventListener("change", ev => { o.loja = Number(ev.target.value); orSalvar(); orRepreco(); });
   // mudou a validade de um orçamento que já está no caixa: o caixa passa a valer até a nova data (sem precisar reenviar)
   g("orVal").addEventListener("change", () => { if (o.caixaNum && supa) supa.from("orc_pos_arquivos").update({ valido_ate: o.validade || null }).eq("orc_id", o.id).then(r => { if (r.error) msg("Não consegui atualizar a validade no caixa: " + r.error.message); else msg(`Validade no caixa atualizada: o orçamento pode ser puxado até ${orData(o.validade) || "ser fechado"}.`); }); });
@@ -7655,6 +7668,7 @@ function orLigar() {
   db.doc("config/orcamento").onSnapshot(d => { OR.cfg = d.exists ? d.data() : null; if (document.getElementById("orCfgBox").style.display !== "none") orDesenharCfg(); if (OR.atual) orDesenharEd(); }, () => {});
   document.getElementById("orNovo").addEventListener("click", orNovo);
   document.getElementById("orFiltro").addEventListener("change", orDesenharLista);
+  document.getElementById("orBuscaCli").addEventListener("input", orDesenharLista);
   document.getElementById("orCfgLink").addEventListener("click", ev => { ev.preventDefault(); const b = document.getElementById("orCfgBox"); if (b.style.display === "none") { orDesenharCfg(); b.style.display = ""; } else b.style.display = "none"; });
   olLigar(); tfLigar(); cpLigar(); etLigar();
 }

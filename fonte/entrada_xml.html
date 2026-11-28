@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="216">
+<meta name="versao" content="217">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3156,13 +3156,35 @@ function siteDesenhar(erro) {
 // do perfil funcionário (Pedidos online, Validades, Etiquetas e consulta de produtos sem custo). Para voltar, o PIN do sistema
 // (conferido no banco: pin_conferir; 5 erros = sai da conta). Vale para quem tem perfil completo; o funcionário já entra restrito.
 const LK = { ativo: false, definido: false, travado: false, minutos: 5, ult: Date.now(), volta: null, t: null };
-const LK_CH = "nr:travado", LK_ULT = "nr:ultuso", LK_PIN = "nr:pin";
+// v217: "travar" vale para TODOS os aparelhos (o banco guarda a hora da última trava geral, pin_travar/pin_status); o PIN destrava
+// só o aparelho em que foi digitado (cada aparelho guarda a hora em que foi destravado; se a trava geral é mais nova, fica travado).
+// Aparelho que nunca digitou o PIN começa travado. Ficar parado trava só o próprio aparelho.
+const LK_CH = "nr:travado", LK_ULT = "nr:ultuso", LK_PIN = "nr:pin", LK_DES = "nr:destravado", LK_GER = "nr:travageral";
+const lkMs = v => { const n = typeof v === "number" ? v : Date.parse(v || ""); return isFinite(n) ? n : 0; };
 const lkLs = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
-function lkDeveTravar() { const ult = Number(lkLs.get(LK_ULT)) || 0; return lkLs.get(LK_CH) === "1" || (lkLs.get(LK_PIN) === "1" && ult > 0 && Date.now() - ult > LK.minutos * 60000); }
+function lkDeveTravar() {
+  const ult = Number(lkLs.get(LK_ULT)) || 0, pin = lkLs.get(LK_PIN);
+  if (pin === "0") return false;                       // PIN ainda não definido: não há o que travar
+  if (pin !== "1") return true;                        // aparelho que ainda não consultou o banco: começa travado até saber
+  if (lkLs.get(LK_CH) === "1") return true;
+  const des = Number(lkLs.get(LK_DES)) || 0;
+  if (!des || (Number(lkLs.get(LK_GER)) || 0) > des) return true; // PIN nunca digitado aqui, ou trava geral mais nova que o último PIN digitado aqui
+  return ult > 0 && Date.now() - ult > LK.minutos * 60000;
+}
+// consulta o banco: se alguém travou o sistema depois do último PIN digitado neste aparelho, trava aqui também
+async function lkConferirGeral() {
+  if (!LK.ativo) return;
+  let r; try { r = await supa.rpc("pin_status"); } catch (e) { return; }
+  const d = r && r.data; if (!d) return;
+  LK.definido = !!d.definido; lkLs.set(LK_PIN, LK.definido ? "1" : "0");
+  if (!LK.definido) { if (LK.travado) { lkFecharCaixa(); lkAplicar(false); mostrar(LK.volta || "hoje", true); } return; }
+  const ger = lkMs(d.travado_em); lkLs.set(LK_GER, String(ger));
+  if (!LK.travado && ger > (Number(lkLs.get(LK_DES)) || 0)) lkTravar(true);
+}
 function lkBotao() {
   const b = document.getElementById("lkBtn"); if (!b) return;
   b.textContent = LK.travado ? "🔓 destravar" : "🔒 travar";
-  b.title = LK.travado ? "digitar o PIN para voltar a ver todas as telas" : "deixar só consulta de preço, etiquetas, validades e pedidos online (trava sozinho depois de " + LK.minutos + " min sem uso)";
+  b.title = LK.travado ? "digitar o PIN para voltar a ver todas as telas neste aparelho" : "trava o sistema em TODOS os aparelhos: fica só consulta de preço, etiquetas, validades e pedidos online. Cada aparelho só volta com o PIN digitado nele (parado " + LK.minutos + " min, este aparelho trava sozinho)";
 }
 function lkAplicar(travar) {
   LK.travado = travar; document.body.classList.toggle("perfil-sep", travar); document.body.classList.toggle("travado", travar);
@@ -3174,6 +3196,12 @@ function lkTravar(silencio) {
   if (!LK.definido) { if (!silencio) { if (window.__admin) lkDefinir(true); else msg("O PIN do sistema ainda não foi definido. Peça ao administrador."); } return; }
   LK.volta = vista;
   lkAplicar(true);
+  if (!silencio) { // clicou em "travar": trava geral, todos os aparelhos passam a pedir o PIN
+    lkLs.set(LK_DES, null);
+    (async () => { let r; try { r = await supa.rpc("pin_travar"); } catch (e) { r = { error: e }; }
+      if (r && r.data && r.data.ok) { lkLs.set(LK_GER, String(lkMs(r.data.travado_em))); msg("Sistema travado em todos os aparelhos. Cada um só volta com o PIN digitado nele."); }
+      else msg("Este aparelho foi travado, mas não consegui avisar os outros (" + ((r && r.error && (r.error.message || r.error.code)) || "sem resposta") + "). Tente travar de novo."); })();
+  }
   // fecha o que estava aberto e apaga da tela o que foi desenhado com custo
   try { const b = document.getElementById("busca"); if (b) { b.style.display = "none"; b.innerHTML = ""; } } catch (e) {}
   try { const ed = document.getElementById("prEd"); if (ed) { ed.style.display = "none"; ed.innerHTML = ""; } if (typeof PR !== "undefined") PR.grupo = null; const r = document.getElementById("prRes"); if (r) r.innerHTML = ""; const m = document.getElementById("prMsg"); if (m) m.textContent = ""; } catch (e) {}
@@ -3192,7 +3220,7 @@ function lkCaixa(html) {
 const LK_CAMPO = (id, rot) => `<label class="c" style="margin-top:10px">${rot}<input type="password" id="${id}" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" style="font-size:22px;letter-spacing:6px;text-align:center;width:100%"></label>`;
 function lkDestravar() {
   if (!LK.travado) return;
-  const c = lkCaixa(`<b style="font-size:16px">🔓 Destravar o sistema</b><div class="orig" style="margin-top:4px">Digite o PIN para voltar a ver todas as telas.</div>
+  const c = lkCaixa(`<b style="font-size:16px">🔓 Destravar o sistema</b><div class="orig" style="margin-top:4px">Digite o PIN para voltar a ver todas as telas <b>neste aparelho</b>. Os outros continuam travados.</div>
     ${LK_CAMPO("lkPinIn", "PIN")}<div id="lkErro" style="color:#b42318;font-size:12px;min-height:16px;margin-top:6px"></div>
     <div class="linha" style="gap:8px;justify-content:flex-end;margin-top:6px"><button class="sec" id="lkCancelar">Cancelar</button><button id="lkOk">Destravar</button></div>`);
   const inp = c.querySelector("#lkPinIn"), erro = c.querySelector("#lkErro"), ok = c.querySelector("#lkOk");
@@ -3203,9 +3231,9 @@ function lkDestravar() {
     ok.disabled = false; inp.value = "";
     const d = r && r.data;
     if (r.error || !d) { erro.textContent = "Não consegui conferir (" + ((r.error && (r.error.message || r.error.code)) || "sem resposta") + ")."; return; }
-    if (d.ok) { lkFecharCaixa(); LK.ult = Date.now(); lkLs.set(LK_ULT, String(LK.ult)); const v = LK.volta || "hoje"; lkAplicar(false); mostrar(v, true); return; }
-    if (d.bloqueado) { erro.textContent = "PIN errado 5 vezes. Saindo da conta…"; try { await supa.auth.signOut(); } catch (e) {} lkLs.set(LK_CH, null); location.reload(); return; }
-    if (d.definido === false) { lkFecharCaixa(); LK.definido = false; lkLs.set(LK_PIN, null); lkAplicar(false); mostrar(LK.volta || "hoje", true); return; }
+    if (d.ok) { lkFecharCaixa(); LK.ult = Date.now(); lkLs.set(LK_ULT, String(LK.ult)); lkLs.set(LK_DES, String(Math.max(lkMs(d.agora) || Date.now(), Number(lkLs.get(LK_GER)) || 0))); const v = LK.volta || "hoje"; lkAplicar(false); mostrar(v, true); return; } // destrava só este aparelho
+    if (d.bloqueado) { erro.textContent = "PIN errado 5 vezes. Saindo da conta…"; try { await supa.auth.signOut(); } catch (e) {} lkLs.set(LK_DES, null); location.reload(); return; } // entrar de novo não destrava: continua pedindo o PIN
+    if (d.definido === false) { lkFecharCaixa(); LK.definido = false; lkLs.set(LK_PIN, "0"); lkAplicar(false); mostrar(LK.volta || "hoje", true); return; }
     erro.textContent = "PIN incorreto." + (d.restam != null ? " Restam " + d.restam + " tentativa" + (d.restam === 1 ? "" : "s") + "." : ""); inp.focus();
   };
   ok.onclick = tentar; inp.addEventListener("keydown", ev => { if (ev.key === "Enter") tentar(); });
@@ -3223,7 +3251,8 @@ function lkDefinir(depoisTravar) {
     if (a.value !== b.value) { erro.textContent = "Os dois campos estão diferentes."; return; }
     ok.disabled = true; let r; try { r = await supa.rpc("pin_definir", { p_pin: a.value }); } catch (e) { r = { error: e }; } ok.disabled = false;
     if (r.error || !r.data || !r.data.ok) { erro.textContent = (r.data && r.data.msg) || "Não consegui salvar (" + ((r.error && (r.error.message || r.error.code)) || "sem resposta") + ")."; return; }
-    LK.definido = true; lkLs.set(LK_PIN, "1"); lkFecharCaixa(); msg("PIN salvo. O sistema trava sozinho depois de " + LK.minutos + " min sem uso.");
+    LK.definido = true; lkLs.set(LK_PIN, "1"); { const ag = lkMs(r.data.agora) || Date.now(); lkLs.set(LK_GER, String(ag)); lkLs.set(LK_DES, String(ag)); } // trocar o PIN trava os outros aparelhos; este segue aberto
+    lkFecharCaixa(); msg("PIN salvo. Os outros aparelhos foram travados e pedem o PIN novo.");
     if (depoisTravar) lkTravar(true);
   };
   ok.onclick = salvar; b.addEventListener("keydown", ev => { if (ev.key === "Enter") salvar(); });
@@ -3240,7 +3269,9 @@ function lkIniciar() {
   LK.definido = lkLs.get(LK_PIN) === "1";
   if (lkDeveTravar()) { LK.definido = true; lkTravar(true); }
   LK.ult = Date.now();
-  supa.rpc("pin_status").then(r => { if (r && r.data) { LK.definido = !!r.data.definido; lkLs.set(LK_PIN, LK.definido ? "1" : null); if (!LK.definido && LK.travado) { lkAplicar(false); mostrar(LK.volta || "hoje", true); } } }, () => {});
+  lkConferirGeral(); // e de minuto em minuto (e ao voltar para a aba): se alguém travou o sistema em outro aparelho, trava aqui também
+  setInterval(() => { if (!LK.travado && document.visibilityState !== "hidden") lkConferirGeral(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !LK.travado) lkConferirGeral(); });
   let gravado = 0;
   const uso = () => { if (LK.travado) return; LK.ult = Date.now(); if (LK.ult - gravado > 15000) { gravado = LK.ult; lkLs.set(LK_ULT, String(LK.ult)); } };
   for (const ev of ["mousedown", "keydown", "touchstart", "wheel", "mousemove"]) window.addEventListener(ev, uso, { passive: true, capture: true });

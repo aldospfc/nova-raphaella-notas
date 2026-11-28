@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="214">
+<meta name="versao" content="215">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -460,6 +460,8 @@
   body.perfil-sep nav#abas .aba:not([data-v="separacao"]):not([data-v="validades"]):not([data-v="etiquetas"]):not([data-v="produtos"]), body.perfil-sep nav#abas .nav-label, body.perfil-sep #barraMob .aba:not(.so-sep), body.perfil-sep #alertas, body.perfil-sep #bMenu { display: none !important; }
   body.perfil-sep #vEtiquetas .et-lote, body.perfil-sep #vEtiquetas details, body.perfil-sep #vValidades [data-promo], body.perfil-sep #prEcom { display: none !important; }
   #barraMob .so-sep { display: none; } body.perfil-sep #barraMob .so-sep { display: flex; }
+  body.travado #avSino, body.travado #usuario a.so-adm, body.travado #lkPin, body.travado #travaChip { display: none !important; }
+  #lkBtn { font-weight: 700; }
   .nav-badge { margin-left: auto; background: #e08a00; color: #fff; border-radius: 10px; padding: 0 7px; font-size: 11px; line-height: 18px; }
   .sep-ped { border: 1px solid var(--borda); border-radius: 10px; background: #fff; padding: 12px 14px; margin-bottom: 10px; }
   .sep-ped.novo { border-color: #e08a00; box-shadow: 0 0 0 2px #ffe2b3; }
@@ -3070,6 +3072,102 @@ async function travaAbrir() {
   const pl = b.querySelector("[data-pl]"); if (pl) pl.onclick = async () => { if (!confirm(`Liberar ${P.length} promoção(ões)? Elas entram no horário agendado.`)) return; feito(await supa.rpc("promo_liberar", { p_ids: P.map(p => p.id) }), "Promoções liberadas."); };
   const pc = b.querySelector("[data-pc]"); if (pc) pc.onclick = async () => feito(await supa.from("promocoes").update({ status: "cancelada", encerrada_em: new Date().toISOString() }).in("id", P.map(p => p.id)), "Promoções canceladas.");
 }
+// ===================== Modo balcão (trava por PIN) =====================
+// Quando o sistema fica aberto no computador da loja: depois de LK.minutos sem uso (ou no botão "travar") ficam só as telas
+// do perfil funcionário (Pedidos online, Validades, Etiquetas e consulta de produtos sem custo). Para voltar, o PIN do sistema
+// (conferido no banco: pin_conferir; 5 erros = sai da conta). Vale para quem tem perfil completo; o funcionário já entra restrito.
+const LK = { ativo: false, definido: false, travado: false, minutos: 5, ult: Date.now(), volta: null, t: null };
+const LK_CH = "nr:travado", LK_ULT = "nr:ultuso", LK_PIN = "nr:pin";
+const lkLs = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+function lkDeveTravar() { const ult = Number(lkLs.get(LK_ULT)) || 0; return lkLs.get(LK_CH) === "1" || (lkLs.get(LK_PIN) === "1" && ult > 0 && Date.now() - ult > LK.minutos * 60000); }
+function lkBotao() {
+  const b = document.getElementById("lkBtn"); if (!b) return;
+  b.textContent = LK.travado ? "🔓 destravar" : "🔒 travar";
+  b.title = LK.travado ? "digitar o PIN para voltar a ver todas as telas" : "deixar só consulta de preço, etiquetas, validades e pedidos online (trava sozinho depois de " + LK.minutos + " min sem uso)";
+}
+function lkAplicar(travar) {
+  LK.travado = travar; document.body.classList.toggle("perfil-sep", travar); document.body.classList.toggle("travado", travar);
+  lkLs.set(LK_CH, travar ? "1" : null); lkBotao();
+  const sub = document.getElementById("prSub"); if (sub) sub.textContent = travar ? "— consulta de preço e estoque (Loja 1 e Loja 2)" : "— consultar e alterar preço, custo, estoque, nome e categoria no Gestão (Loja 1 e Loja 2)";
+}
+function lkTravar(silencio) {
+  if (!LK.ativo || LK.travado) return;
+  if (!LK.definido) { if (!silencio) { if (window.__admin) lkDefinir(true); else msg("O PIN do sistema ainda não foi definido. Peça ao administrador."); } return; }
+  LK.volta = vista;
+  lkAplicar(true);
+  // fecha o que estava aberto e apaga da tela o que foi desenhado com custo
+  try { const b = document.getElementById("busca"); if (b) { b.style.display = "none"; b.innerHTML = ""; } } catch (e) {}
+  try { const ed = document.getElementById("prEd"); if (ed) { ed.style.display = "none"; ed.innerHTML = ""; } if (typeof PR !== "undefined") PR.grupo = null; const r = document.getElementById("prRes"); if (r) r.innerHTML = ""; const m = document.getElementById("prMsg"); if (m) m.textContent = ""; } catch (e) {}
+  lkFecharCaixa();
+  mostrar(ABAS_FUNC.includes(vista) ? vista : "produtos", true);
+}
+function lkFecharCaixa() { const c = document.getElementById("lkCaixa"); if (c) c.remove(); }
+function lkCaixa(html) {
+  lkFecharCaixa();
+  const c = document.createElement("div"); c.id = "lkCaixa";
+  c.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:grid;place-items:center";
+  c.innerHTML = `<div style="background:#fff;border-radius:10px;padding:22px 24px;width:320px;max-width:calc(100vw - 24px);box-shadow:0 10px 40px rgba(0,0,0,.3)">${html}</div>`;
+  c.addEventListener("mousedown", ev => { if (ev.target === c) lkFecharCaixa(); });
+  document.body.appendChild(c); return c;
+}
+const LK_CAMPO = (id, rot) => `<label class="c" style="margin-top:10px">${rot}<input type="password" id="${id}" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" style="font-size:22px;letter-spacing:6px;text-align:center;width:100%"></label>`;
+function lkDestravar() {
+  if (!LK.travado) return;
+  const c = lkCaixa(`<b style="font-size:16px">🔓 Destravar o sistema</b><div class="orig" style="margin-top:4px">Digite o PIN para voltar a ver todas as telas.</div>
+    ${LK_CAMPO("lkPinIn", "PIN")}<div id="lkErro" style="color:#b42318;font-size:12px;min-height:16px;margin-top:6px"></div>
+    <div class="linha" style="gap:8px;justify-content:flex-end;margin-top:6px"><button class="sec" id="lkCancelar">Cancelar</button><button id="lkOk">Destravar</button></div>`);
+  const inp = c.querySelector("#lkPinIn"), erro = c.querySelector("#lkErro"), ok = c.querySelector("#lkOk");
+  const tentar = async () => {
+    const pin = inp.value.trim(); if (!/^\d{4,6}$/.test(pin)) { erro.textContent = "O PIN tem de 4 a 6 números."; return; }
+    ok.disabled = true; erro.textContent = "";
+    let r; try { r = await supa.rpc("pin_conferir", { p_pin: pin }); } catch (e) { r = { error: e }; }
+    ok.disabled = false; inp.value = "";
+    const d = r && r.data;
+    if (r.error || !d) { erro.textContent = "Não consegui conferir (" + ((r.error && (r.error.message || r.error.code)) || "sem resposta") + ")."; return; }
+    if (d.ok) { lkFecharCaixa(); LK.ult = Date.now(); lkLs.set(LK_ULT, String(LK.ult)); const v = LK.volta || "hoje"; lkAplicar(false); mostrar(v, true); return; }
+    if (d.bloqueado) { erro.textContent = "PIN errado 5 vezes. Saindo da conta…"; try { await supa.auth.signOut(); } catch (e) {} lkLs.set(LK_CH, null); location.reload(); return; }
+    if (d.definido === false) { lkFecharCaixa(); LK.definido = false; lkLs.set(LK_PIN, null); lkAplicar(false); mostrar(LK.volta || "hoje", true); return; }
+    erro.textContent = "PIN incorreto." + (d.restam != null ? " Restam " + d.restam + " tentativa" + (d.restam === 1 ? "" : "s") + "." : ""); inp.focus();
+  };
+  ok.onclick = tentar; inp.addEventListener("keydown", ev => { if (ev.key === "Enter") tentar(); });
+  c.querySelector("#lkCancelar").onclick = lkFecharCaixa; setTimeout(() => inp.focus(), 30);
+}
+function lkDefinir(depoisTravar) {
+  if (!window.__admin || LK.travado) return;
+  const c = lkCaixa(`<b style="font-size:16px">${LK.definido ? "Trocar o PIN do sistema" : "Definir o PIN do sistema"}</b>
+    <div class="orig" style="margin-top:4px">De 4 a 6 números. É um PIN só para o sistema todo: ele destrava as telas quando o sistema está travado no modo balcão.</div>
+    ${LK_CAMPO("lkN1", "Novo PIN")}${LK_CAMPO("lkN2", "Repita o PIN")}<div id="lkErro" style="color:#b42318;font-size:12px;min-height:16px;margin-top:6px"></div>
+    <div class="linha" style="gap:8px;justify-content:flex-end;margin-top:6px"><button class="sec" id="lkCancelar">Cancelar</button><button id="lkOk">Salvar</button></div>`);
+  const a = c.querySelector("#lkN1"), b = c.querySelector("#lkN2"), erro = c.querySelector("#lkErro"), ok = c.querySelector("#lkOk");
+  const salvar = async () => {
+    if (!/^\d{4,6}$/.test(a.value)) { erro.textContent = "O PIN precisa ter de 4 a 6 números."; return; }
+    if (a.value !== b.value) { erro.textContent = "Os dois campos estão diferentes."; return; }
+    ok.disabled = true; let r; try { r = await supa.rpc("pin_definir", { p_pin: a.value }); } catch (e) { r = { error: e }; } ok.disabled = false;
+    if (r.error || !r.data || !r.data.ok) { erro.textContent = (r.data && r.data.msg) || "Não consegui salvar (" + ((r.error && (r.error.message || r.error.code)) || "sem resposta") + ")."; return; }
+    LK.definido = true; lkLs.set(LK_PIN, "1"); lkFecharCaixa(); msg("PIN salvo. O sistema trava sozinho depois de " + LK.minutos + " min sem uso.");
+    if (depoisTravar) lkTravar(true);
+  };
+  ok.onclick = salvar; b.addEventListener("keydown", ev => { if (ev.key === "Enter") salvar(); });
+  c.querySelector("#lkCancelar").onclick = lkFecharCaixa; setTimeout(() => a.focus(), 30);
+}
+function lkIniciar() {
+  const u = document.getElementById("usuario"); if (!u || !supa || document.getElementById("lkBtn")) return;
+  LK.ativo = true;
+  const sair = [...u.querySelectorAll("a")].find(x => x.textContent === "sair");
+  const b = document.createElement("a"); b.id = "lkBtn"; b.onclick = () => LK.travado ? lkDestravar() : lkTravar(); u.insertBefore(b, sair || null);
+  if (window.__admin) { const p = document.createElement("a"); p.id = "lkPin"; p.textContent = "PIN"; p.title = "definir ou trocar o PIN que destrava o sistema"; p.onclick = () => lkDefinir(false); u.insertBefore(p, sair || null); }
+  lkBotao();
+  // recarregar a página não destrava: volta travado se estava travado, ou se ficou parado além do tempo
+  LK.definido = lkLs.get(LK_PIN) === "1";
+  if (lkDeveTravar()) { LK.definido = true; lkTravar(true); }
+  LK.ult = Date.now();
+  supa.rpc("pin_status").then(r => { if (r && r.data) { LK.definido = !!r.data.definido; lkLs.set(LK_PIN, LK.definido ? "1" : null); if (!LK.definido && LK.travado) { lkAplicar(false); mostrar(LK.volta || "hoje", true); } } }, () => {});
+  let gravado = 0;
+  const uso = () => { if (LK.travado) return; LK.ult = Date.now(); if (LK.ult - gravado > 15000) { gravado = LK.ult; lkLs.set(LK_ULT, String(LK.ult)); } };
+  for (const ev of ["mousedown", "keydown", "touchstart", "wheel", "mousemove"]) window.addEventListener(ev, uso, { passive: true, capture: true });
+  clearInterval(LK.t); LK.t = setInterval(() => { if (!LK.travado && LK.definido && Date.now() - LK.ult > LK.minutos * 60000) lkTravar(true); }, 15000);
+  window.addEventListener("storage", ev => { if (ev.key !== LK_CH) return; if (ev.newValue === "1" && !LK.travado) { LK.definido = true; lkTravar(true); } else if (ev.newValue !== "1" && LK.travado) { lkFecharCaixa(); lkAplicar(false); mostrar(LK.volta || "hoje", true); } });
+}
 // ===================== Avaliações de atendimento =====================
 // O cliente avalia pelo site (novaraphaella.com.br/atendimento → função de borda "enviar-avaliacao" → tabela avaliacoes_atendimento).
 // O gatilho do banco aplica o limite diário por aparelho e marca as suspeitas. Só administrador lê (RLS eh_admin()).
@@ -4498,8 +4596,9 @@ async function entrarNoSistema(sessao) {
     return;
   }
   sepIniciar();
-  if (r.data.admin) { const b = document.createElement("a"); b.textContent = "usuários"; b.title = "incluir, editar e remover quem acessa o sistema"; b.onclick = usuariosAbrir; u.appendChild(b); }
+  if (r.data.admin) { const b = document.createElement("a"); b.textContent = "usuários"; b.className = "so-adm"; b.title = "incluir, editar e remover quem acessa o sistema"; b.onclick = usuariosAbrir; u.appendChild(b); }
   travaVerificar(); setInterval(travaVerificar, 60000);
+  if (lkDeveTravar()) document.body.classList.add("perfil-sep", "travado"); // recarregou travado: já começa restrito, antes de desenhar qualquer tela
   document.getElementById("lCad").style.display = "none";
   document.getElementById("soLocal").style.display = "none";
   db = dbSupabase(supa);
@@ -4513,6 +4612,7 @@ async function entrarNoSistema(sessao) {
     if (hv === "separacao" && harg) SEP.foco = Number(harg) || null;
     if (ABAS_V.includes(hv)) { if (hv !== vista) mostrar(hv, true); } else if (window.innerWidth < 800) mostrar("hoje", true);
     try { history.replaceState({ v: vista }, "", "#" + vista); } catch (e) {} }
+  lkIniciar();
 }
 // ===== Usuários (só administrador com a verificação em duas etapas): quem entra no sistema e com que acesso =====
 const US = { lista: [], edit: null };

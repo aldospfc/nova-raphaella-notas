@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="212">
+<meta name="versao" content="213">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -4620,6 +4620,11 @@ async function sepEtiquetas(ids) {
         for (const b64 of (p && p.pdf) || []) { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); window.open(URL.createObjectURL(new Blob([u], { type: "application/pdf" })), "_blank"); }
       }
     }
+  } else if (d.pdf && d.pdf.length) {
+    // a Shopee (pelo Bling) pode entregar a etiqueta só em PDF: abre para imprimir pelo navegador
+    for (const b64 of d.pdf) { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); window.open(URL.createObjectURL(new Blob([u], { type: "application/pdf" })), "_blank"); }
+    supa.rpc("pedido_etiqueta_impressa", { p_ids: ids.map(Number) }).then(() => sepCarregar());
+    msg(`Etiqueta${d.pdf.length > 1 ? "s" : ""} em PDF aberta${d.pdf.length > 1 ? "s" : ""} em outra aba: imprima pelo navegador${erros.length ? " · " + erros.join(" · ") : ""}`);
   } else msg("Nenhuma etiqueta disponível: " + (erros.join(" · ") || "o ML ainda não liberou"));
   sepVigiar(ids, "etq");
 }

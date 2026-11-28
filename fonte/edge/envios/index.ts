@@ -14,6 +14,8 @@ import { unzipSync, strFromU8 } from "https://esm.sh/fflate@0.8.2";
 // v3 (22/11/2026): nfe acha a nota gerada pelo próprio pedido quando o Bling não devolve o id.
 // v4 (22/11/2026): sync com ids confere só esses pedidos (rápido, usado logo depois de emitir NF ou imprimir etiqueta).
 // v5 (24/11/2026): sync também acompanha despachados de até 30 dias ainda não entregues no ML (a caminho → entregue; despachado sem ter saído).
+// v6 (28/11/2026): etiqueta da Shopee — o Bling devolve um .zip (antes ia o zip cru para a Zebra); abre o zip e separa ZPL de PDF.
+//     sync confere de novo no Bling os pedidos fora do ML ainda sem nota (nota emitida depois não aparecia e o botão de etiqueta não vinha).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -85,7 +87,7 @@ async function emitirNfe(id: number): Promise<{ ok: boolean; msg: string; nf?: n
   const ped = (await bling(`/pedidos/vendas/${id}`)).data || {}; await espera(350);
   let nf = Number(ped?.notaFiscal?.id) || 0;
   if (nf) { const n = (await bling(`/nfe/${nf}`)).data || {}; await espera(350); const st = Number(n.situacao);
-    if ([5, 6, 7].includes(st)) return { ok: true, msg: "já tinha NF autorizada (nº " + (n.numero || "?") + ")", nf };
+    if ([5, 6, 7].includes(st)) { await rest(`pedidos_online?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ nf_id: nf }) }); return { ok: true, msg: "já tinha NF autorizada (nº " + (n.numero || "?") + ")", nf }; }
     if (st === 2 || st === 9) nf = 0; }
   if (!nf) {
     // 1º passo (como "Gerar nota fiscal" no pedido): cria a NF pendente no Bling
@@ -117,9 +119,15 @@ async function etiquetas(ids: number[], formato: string) {
   for (const p of ps.filter(p => Number(p.loja_bling) !== LOJA_ML)) {
     try {
       const j = await bling(`/logisticas/etiquetas?formato=${formato === "pdf" ? "PDF" : "ZPL"}&idsVendas[]=${p.id}`); await espera(350);
+      let achou = 0;
       for (const e of (j?.data || [])) { if (!e?.link) continue; const r = await fetch(e.link); if (!r.ok) continue;
-        if (formato === "pdf") { const b = new Uint8Array(await r.arrayBuffer()); let bin = ""; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000)); out.pdf.push(btoa(bin)); }
-        else out.zpl.push(await r.text()); }
+        // o Bling entrega um .zip com a etiqueta dentro (ZPL em texto ou PDF); arquivo solto também é aceito
+        const b = new Uint8Array(await r.arrayBuffer());
+        const arqs: Uint8Array[] = b[0] === 0x50 && b[1] === 0x4b ? Object.values(unzipSync(b)) : [b];
+        for (const c of arqs) { if (!c.length) continue; achou++;
+          if (c[0] === 0x25 && c[1] === 0x50 && c[2] === 0x44 && c[3] === 0x46) { let bin = ""; for (let i = 0; i < c.length; i += 0x8000) bin += String.fromCharCode(...c.subarray(i, i + 0x8000)); out.pdf.push(btoa(bin)); }
+          else out.zpl.push(strFromU8(c)); } }
+      if ((j?.data || []).length && !achou) out.erros.push(`${p.cliente || p.numero_loja}: o Bling devolveu a etiqueta vazia`);
       if (!(j?.data || []).length) out.erros.push(`${p.cliente || p.numero_loja}: o Bling não devolveu etiqueta (a Shopee já liberou o envio?)`);
     } catch (e) { out.erros.push(`${p.cliente || p.numero_loja}: ${String((e as Error).message).slice(0, 160)}`); }
   }
@@ -143,16 +151,20 @@ async function sincronizar(ids: number[] = []) {
   // + despachados de até 30 dias que o ML ainda não deu como entregues (a caminho, ou marcados como despachados sem ter saído)
   const desde = new Date(Date.now() - 2 * 864e5).toISOString(), desde30 = new Date(Date.now() - 30 * 864e5).toISOString();
   const filtro = ids.length ? `id=in.(${ids.join(",")})` : `or=(despachado_em.is.null,despachado_em.gte.${encodeURIComponent(desde)},and(despachado_em.gte.${encodeURIComponent(desde30)},ml_status.in.(shipped,ready_to_ship,pending,handling)))&ignorado_em=is.null`;
-  const ps: any[] = (await rest(`pedidos_online?select=id,canal,loja_bling,numero_loja,frete,logistica,ml_envio,ml_status,despachado_em,ignorado_em,situacao_id&${filtro}&order=data.asc&limit=250`)) || [];
+  const ps: any[] = (await rest(`pedidos_online?select=id,canal,loja_bling,numero_loja,frete,logistica,ml_envio,ml_status,despachado_em,ignorado_em,situacao_id,nf_id,rastreio&${filtro}&order=data.asc&limit=250`)) || [];
   const rel = { pedidos: ps.length, ml: 0, frete: 0, enviados: 0, cancelados: 0, erros: [] as string[] };
   for (const p of ps) {
     const alt: Record<string, unknown> = {};
     try {
       // nome do frete no Bling (uma vez)
-      if (!p.frete) {
+      // fora do ML (Shopee): enquanto não saiu e ainda está sem nota, sem frete ou sem rastreio, confere de novo (a nota e a etiqueta chegam depois do pedido)
+      const fora = Number(p.loja_bling) !== LOJA_ML, falta = fora && !p.despachado_em && Number(p.situacao_id) !== 12 && (!(Number(p.nf_id) > 0) || p.frete === "—" || !p.rastreio);
+      if (!p.frete || falta) {
         const b = await blingPedido(p.id); await espera(350);
         const s = String(((b?.transporte?.volumes || [])[0] || {}).servico || "");
-        if (b) { alt.frete = s || "—"; rel.frete++; if (Number(p.loja_bling) !== LOJA_ML && !p.logistica) alt.logistica = freteShopee(s); }
+        if (b) { if (!p.frete || (s && p.frete !== s)) { alt.frete = s || "—"; rel.frete++; } if (fora && !p.logistica && s) alt.logistica = freteShopee(s);
+          if (fora) { const nf = Number(b?.notaFiscal?.id) || 0, rs = (b?.transporte?.volumes || []).map((v: any) => v.codigoRastreamento).filter(Boolean).join(" ");
+            if (nf && nf !== Number(p.nf_id)) alt.nf_id = nf; if (rs && rs !== p.rastreio) alt.rastreio = rs; } }
       }
       // Mercado Livre
       if (mlOk && Number(p.loja_bling) === LOJA_ML && p.numero_loja && !(p.despachado_em && /delivered|not_delivered|cancelled/.test(p.ml_status || ""))) {

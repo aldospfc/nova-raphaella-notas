@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="215">
+<meta name="versao" content="216">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -3072,6 +3072,87 @@ async function travaAbrir() {
   const pl = b.querySelector("[data-pl]"); if (pl) pl.onclick = async () => { if (!confirm(`Liberar ${P.length} promoção(ões)? Elas entram no horário agendado.`)) return; feito(await supa.rpc("promo_liberar", { p_ids: P.map(p => p.id) }), "Promoções liberadas."); };
   const pc = b.querySelector("[data-pc]"); if (pc) pc.onclick = async () => feito(await supa.from("promocoes").update({ status: "cancelada", encerrada_em: new Date().toISOString() }).in("id", P.map(p => p.id)), "Promoções canceladas.");
 }
+// ===================== Enviar ao site (produto do cadastro das lojas → Sanity, com prévia) =====================
+// Botão no produto aberto (aba Produtos). A função de borda "site-produtos" prepara (fotos pelo Serper, texto pela IA) e só
+// publica o que for aprovado aqui. Produto que já está no site não é enviado de novo.
+const ST = { g: null, d: null, foto: "" };
+function siteFechar() { const c = document.getElementById("stCaixa"); if (c) c.remove(); ST.g = ST.d = null; ST.foto = ""; }
+function siteCaixa(html) {
+  let c = document.getElementById("stCaixa");
+  if (!c) { c = document.createElement("div"); c.id = "stCaixa"; c.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;overflow:auto;padding:24px 12px"; document.body.appendChild(c); }
+  c.innerHTML = `<div style="background:#fff;border-radius:10px;padding:18px 20px;max-width:860px;margin:0 auto;box-shadow:0 10px 40px rgba(0,0,0,.3)">${html}</div>`;
+  return c;
+}
+const stAtr = t => escH(t).replace(/"/g, "&quot;");
+async function siteChamar(corpo) {
+  try { const { data, error } = await supa.functions.invoke("site-produtos", { body: corpo });
+    if (error) { let m = error.message || String(error); try { const j = await error.context.json(); if (j && j.msg) m = j.msg; } catch (e) {} return { ok: false, msg: m }; }
+    return data || { ok: false, msg: "sem resposta" };
+  } catch (e) { return { ok: false, msg: e.message || String(e) }; }
+}
+async function siteAbrir(g) {
+  if (!supa || !g || !g.ean) return;
+  ST.g = g; ST.foto = "";
+  const base = g[1] || g[2];
+  siteCaixa(`<b style="font-size:16px">🌐 Enviar ao site</b> <a href="#" id="stX" style="float:right;font-size:12px">fechar</a>
+    <div style="margin-top:6px"><b>${escH(base.descricao || "")}</b> <span class="mono orig">${escH(g.ean)}</span></div>
+    <div class="orig" style="margin-top:10px">Preparando: procurando fotos e escrevendo o texto… (leva de 10 a 30 segundos)</div>`).querySelector("#stX").onclick = ev => { ev.preventDefault(); siteFechar(); };
+  const d = await siteChamar({ acao: "preparar", ean: String(g.ean) });
+  if (ST.g !== g) return; // fechou enquanto preparava
+  ST.d = d; siteDesenhar();
+}
+function siteDesenhar(erro) {
+  const g = ST.g, d = ST.d; if (!g || !d) return;
+  const base = g[1] || g[2], cab = `<b style="font-size:16px">🌐 Enviar ao site</b> <a href="#" id="stX" style="float:right;font-size:12px">fechar</a>
+    <div style="margin-top:6px" class="orig">No cadastro: <b>${escH(base.descricao || "")}</b> <span class="mono">${escH(g.ean)}</span></div>`;
+  let c;
+  if (!d.ok) c = siteCaixa(cab + `<div class="chip falta" style="margin-top:10px">${escH(d.msg || "Não consegui preparar.")}</div>`);
+  else if (d.publicado) c = siteCaixa(cab + `<div class="chip ok" style="margin-top:10px;font-size:13px">✅ Publicado no site</div><div class="orig" style="margin-top:6px">Página: <span class="mono">${escH(d.slug || "")}</span>. Pode levar alguns minutos para aparecer no site.</div>`);
+  else if (d.ja_no_site) c = siteCaixa(cab + `<div class="chip av" style="margin-top:10px;font-size:13px">Este produto já está no site</div><div style="margin-top:6px">${escH(d.ja_no_site.nome || "")} <span class="orig mono">${escH(d.ja_no_site.slug || "")}</span></div><div class="orig" style="margin-top:4px">Para mudar foto ou texto, edite direto no Sanity.</div>`);
+  else {
+    const s = d.sugestao || {}, v = ST.form || { nome: s.nome || "", marca: s.marca || "", categoria_id: s.categoria_id || "", descricao: s.descricao || "", disponibilidade: d.disponibilidade || "Ambas as lojas", url: "" };
+    const conf = { alta: ["ok", "a IA achou o produto com segurança"], media: ["av", "a IA se baseou só no nome do cadastro: confira"], baixa: ["falta", "a IA ficou em dúvida sobre qual é o produto: confira tudo"] }[s.confianca] || ["av", ""];
+    const imgs = d.imagens || [];
+    c = siteCaixa(cab + `
+      ${(d.avisos || []).map(a => `<div class="chip av" style="display:block;margin-top:8px">${escH(a)}</div>`).join("")}
+      ${(d.parecidos || []).length ? `<div style="margin-top:8px;background:#fff8e1;border-radius:6px;padding:6px 8px;font-size:12px"><b>Já existem no site produtos parecidos</b> (confira se não é o mesmo, cadastrado sem código de barras):<br>${d.parecidos.map(p => "• " + escH(p.nome)).join("<br>")}</div>` : ""}
+      <div class="orig" style="margin-top:10px">Confira e ajuste o texto. <span class="chip ${conf[0]}" style="margin-top:0">${conf[1]}</span>${s.observacao ? ` <span>${escH(s.observacao)}</span>` : ""}</div>
+      <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:8px;align-items:flex-end">
+        <label class="c" style="flex:1;min-width:280px">Nome no site (até 120)<input type="text" id="stNome" maxlength="120" value="${stAtr(v.nome)}" style="width:100%"></label>
+        <label class="c">Marca (fabricante)<input type="text" id="stMarca" maxlength="60" value="${stAtr(v.marca)}" style="width:170px"></label>
+      </div>
+      <div class="linha" style="gap:10px;flex-wrap:wrap;margin-top:8px;align-items:flex-end">
+        <label class="c">Categoria<select id="stCat">${(d.categorias || []).map(k => `<option value="${stAtr(k._id)}"${k._id === v.categoria_id ? " selected" : ""}>${escH(k.nome)}</option>`).join("")}</select></label>
+        <label class="c">Disponível em<select id="stDisp">${["Ambas as lojas", "Loja 1 - Jardim Soraia", "Loja 2 - Limoeiro"].map(x => `<option${x === v.disponibilidade ? " selected" : ""}>${x}</option>`).join("")}</select></label>
+      </div>
+      <label class="c" style="margin-top:8px">Descrição curta (até 500)<textarea id="stDesc" maxlength="500" rows="4" style="width:100%">${escH(v.descricao)}</textarea></label>
+      <div style="margin-top:10px"><b>Foto</b> <span class="orig">— clique na foto certa (confira cor, tamanho e embalagem). “ver” abre a foto grande.</span></div>
+      <div id="stFotos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:6px">${imgs.map((i, n) => `<div data-foto="${n}" style="border:3px solid ${ST.foto === i.url ? "#0b57d0" : "var(--borda)"};border-radius:8px;padding:4px;cursor:pointer;background:#fff">
+          <img src="${stAtr(i.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:120px;object-fit:contain;display:block">
+          <div class="orig" style="font-size:10px;line-height:1.3;margin-top:3px;overflow:hidden;max-height:26px" title="${stAtr(i.titulo)}">${escH(i.dominio)}${i.w ? ` · ${i.w}×${i.h}` : ""}<br>achada pelo ${escH(i.origem)}</div>
+          <a href="${stAtr(i.url)}" target="_blank" rel="noopener noreferrer" data-ver="1" style="font-size:11px">ver</a></div>`).join("") || `<span class="orig">Nenhuma foto encontrada. Cole um endereço abaixo.</span>`}</div>
+      <label class="c" style="margin-top:8px">…ou cole o endereço de uma foto (https://…)<input type="text" id="stUrl" value="${stAtr(v.url)}" placeholder="https://" style="width:100%"></label>
+      <div id="stErro" style="color:#b42318;font-size:12px;min-height:16px;margin-top:8px">${escH(erro || "")}</div>
+      <div class="linha" style="gap:8px;justify-content:flex-end;margin-top:4px"><button class="sec" id="stCancelar">Cancelar</button><button id="stPublicar">Publicar no site</button></div>`);
+    const q = id => c.querySelector(id), ler = () => ({ nome: q("#stNome").value, marca: q("#stMarca").value, categoria_id: q("#stCat").value, descricao: q("#stDesc").value, disponibilidade: q("#stDisp").value, url: q("#stUrl").value.trim() });
+    for (const el of c.querySelectorAll("[data-foto]")) el.onclick = ev => { if (ev.target.closest("[data-ver]")) return; ST.form = ler(); ST.form.url = ""; ST.foto = imgs[Number(el.dataset.foto)].url; siteDesenhar(); };
+    q("#stUrl").addEventListener("input", () => { if (q("#stUrl").value.trim() && ST.foto) { ST.foto = ""; for (const el of c.querySelectorAll("[data-foto]")) el.style.borderColor = "var(--borda)"; } });
+    q("#stCancelar").onclick = siteFechar;
+    q("#stPublicar").onclick = async () => {
+      const f = ler(), foto = f.url || ST.foto, er = q("#stErro");
+      if (f.nome.trim().length < 5) { er.textContent = "Escreva o nome do produto."; return; }
+      if (!f.marca.trim()) { er.textContent = "Preencha a marca (o site exige)."; return; }
+      if (!foto) { er.textContent = "Escolha uma foto, ou cole o endereço de uma."; return; }
+      ST.form = f; q("#stPublicar").disabled = true; er.style.color = "var(--cinza)"; er.textContent = "Publicando… (baixando a foto e criando a página)";
+      const r = await siteChamar({ acao: "publicar", ean: String(g.ean), nome: f.nome, marca: f.marca, categoria_id: f.categoria_id, descricao: f.descricao, disponibilidade: f.disponibilidade, imagem_url: foto });
+      if (ST.g !== g) return;
+      if (r.ok) { ST.form = null; ST.d = r; siteDesenhar(); return; }
+      if (r.foto) ST.foto = "";
+      siteDesenhar(r.msg || "Não consegui publicar.");
+    };
+  }
+  c.querySelector("#stX").onclick = ev => { ev.preventDefault(); ST.form = null; siteFechar(); };
+}
 // ===================== Modo balcão (trava por PIN) =====================
 // Quando o sistema fica aberto no computador da loja: depois de LK.minutos sem uso (ou no botão "travar") ficam só as telas
 // do perfil funcionário (Pedidos online, Validades, Etiquetas e consulta de produtos sem custo). Para voltar, o PIN do sistema
@@ -3098,7 +3179,7 @@ function lkTravar(silencio) {
   // fecha o que estava aberto e apaga da tela o que foi desenhado com custo
   try { const b = document.getElementById("busca"); if (b) { b.style.display = "none"; b.innerHTML = ""; } } catch (e) {}
   try { const ed = document.getElementById("prEd"); if (ed) { ed.style.display = "none"; ed.innerHTML = ""; } if (typeof PR !== "undefined") PR.grupo = null; const r = document.getElementById("prRes"); if (r) r.innerHTML = ""; const m = document.getElementById("prMsg"); if (m) m.textContent = ""; } catch (e) {}
-  lkFecharCaixa();
+  lkFecharCaixa(); try { siteFechar(); } catch (e) {}
   mostrar(ABAS_FUNC.includes(vista) ? vista : "produtos", true);
 }
 function lkFecharCaixa() { const c = document.getElementById("lkCaixa"); if (c) c.remove(); }
@@ -3656,7 +3737,7 @@ async function prAbrir(g) {
       <label class="c">CEST<input class="p" type="text" inputmode="numeric" id="prCest" maxlength="7" placeholder="não mexer" style="width:90px" title="em branco não mexe no CEST do cadastro"></label>
     </div>${difNome ? `<div style="margin-top:4px;background:#fff8e1;border-radius:6px;padding:6px 8px">Na Loja 2 o nome hoje é: <b>${escH(g[2].descricao)}</b><br><label style="font-weight:bold"><input type="checkbox" id="prIgualar"> usar o nome acima também na Loja 2</label> <span class="orig">— corrija o nome no campo acima se precisar; marcado, ele é gravado nas lojas que você escolher abaixo</span></div>` : ""}
     <div class="pr-lojas">${bloco(1)}${bloco(2)}</div>
-    <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><button id="prGravarPos" title="grava no Gestão e manda preço, custo e nome direto para os caixas da loja, sem a Carga Completa">Gravar no Gestão e enviar ao POS</button><span id="prAviso" class="orig"></span></div>
+    <div class="linha" style="margin-top:8px;gap:10px"><button id="prGravar">Gravar no Gestão</button><button id="prGravarPos" title="grava no Gestão e manda preço, custo e nome direto para os caixas da loja, sem a Carga Completa">Gravar no Gestão e enviar ao POS</button><button class="sec" id="prSite" title="monta a página deste produto no site novaraphaella.com.br: procura fotos, escreve o texto e mostra uma prévia para você aprovar">🌐 Enviar ao site</button><span id="prAviso" class="orig"></span></div>
     <div class="pr-split"><div class="painel pr-sub"><b>Histórico de preços</b> <span class="orig">— custo e venda nas duas lojas; mudanças feitas no Gestão aparecem em até 5 minutos</span><div id="prHist" style="margin-top:6px">carregando…</div></div>
 </div></div>`;
   prEtqLigar(ed, g);
@@ -3688,6 +3769,7 @@ async function prAbrir(g) {
   }
   ed.querySelector("#prGravar").onclick = () => prGravar(false);
   ed.querySelector("#prGravarPos").onclick = () => prGravar(true);
+  ed.querySelector("#prSite").onclick = () => { ST.form = null; siteAbrir(g); };
   if (ed.scrollIntoView) ed.scrollIntoView({ block: "start" });
 }
 // validades já lançadas para o produto aberto (pelo código de barras): mudar data/quantidade das avulsas e dar baixa

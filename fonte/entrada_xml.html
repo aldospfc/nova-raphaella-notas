@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="211">
+<meta name="versao" content="212">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -4823,15 +4823,20 @@ function ckAbrePedido(p, cod) {
     ckAviso(avisos.length ? "Atenção: " + avisos.join(" · ") : `Pedido ${p.numero_loja || p.numero} — bipe os produtos`, avisos.length ? "erro" : "");
     ckDesenha(); return canc ? "CANCELADO" : "pedido " + (p.numero_loja || p.numero);
 }
+// E-commerce sem clique: pedido conferido inteiro bipando já sai como despachado (vira "Atendido" no Bling sozinho).
+// Mercado Livre fica de fora: o próprio ML avisa quando o pacote sai, e marcar antes daria "despachado, mas o ML diz que não saiu".
+// A mesma regra está na função pedido_conferir do banco (é ela que grava).
+function ckSaiSozinho(p, falta) { return !!p && !falta && !/mercado/i.test(p.canal || "") && !p.despachado_em && !p.ignorado_em && Number(p.situacao_id) !== 12 && p.ml_status !== "cancelled"; }
 function ckTalvezFim() { if (CK.ped && CK.linhas.length && CK.linhas.every(l => l.lido >= l.qtd)) ckGravar(""); }
 async function ckGravar(falta) {
   const p = CK.ped; if (!p) return;
   const dados = { itens: CK.linhas.map(l => ({ nome: l.nome, cod: l.cod, gtin: l.gtin, kit: l.kit, qtd: l.qtd, lido: l.lido, manual: l.manual })), falta: falta || null, completo: !falta, aparelho: matchMedia("(pointer: coarse)").matches ? "celular" : "pc" };
   const { error } = await supa.rpc("pedido_conferir", { p_id: p.id, p_dados: dados });
   if (error) { ckSom("erro"); return ckAviso("Não gravou: " + error.message, "erro"); }
-  p.conferido_em = new Date().toISOString(); p.separado_em = p.separado_em || p.conferido_em;
+  const sai = ckSaiSozinho(p, falta);
+  p.conferido_em = new Date().toISOString(); p.separado_em = p.separado_em || p.conferido_em; if (sai) p.despachado_em = p.conferido_em;
   ckSom(falta ? "ok" : "fim");
-  ckAviso(falta ? `Pedido ${p.numero_loja || p.numero} fechado COM FALTA (${falta}). Bipe a próxima etiqueta.` : `✅ Pedido ${p.numero_loja || p.numero} conferido. Pode fechar a caixa e bipar a próxima etiqueta.`, falta ? "erro" : "ok");
+  ckAviso(falta ? `Pedido ${p.numero_loja || p.numero} fechado COM FALTA (${falta}). Bipe a próxima etiqueta.` : `✅ Pedido ${p.numero_loja || p.numero} conferido${sai ? " e despachado: vira Atendido no Bling sozinho" : /mercado/i.test(p.canal || "") ? ": o Mercado Livre marca a saída sozinho" : ""}. Pode fechar a caixa e bipar a próxima etiqueta.`, falta ? "erro" : "ok");
   CK.ped = null; CK.linhas = []; ckDesenha();
 }
 function ckDesenha() {
@@ -5465,7 +5470,7 @@ function sepDesenhar() {
       <details class="soma-peds" data-somad="${i}"${SEP.somaAb.has(r.k) ? " open" : ""}><summary>${r.peds.length === 1 ? "1 pedido" : r.peds.length + " pedidos"}</summary>${r.peds.map(e => `<div><b>${q(e.q)}×</b> ${escH(e.p.cliente || "")} <span class="orig">· ${escH(LG[lg(e.p)] || "")} · pedido ${escH(e.p.numero_loja || String(e.p.numero || ""))}${e.kit ? " · dentro do kit " + escH(e.kit) : ""}</span></div>`).join("")}</details></div></div>`).join("") + `</div>`
       : `<div class="painel"><b style="color:var(--ok)">Nada para separar${SEP.somaProx ? "" : " hoje"}.</b></div>`;
   }
-  if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
+  if (SEP.aba === "sep") h += aguard.length ? `<div class="sep-dica"><div><b>${aguard.length} aguardando despacho</b><span>Pedido conferido inteiro bipando já sai daqui sozinho. Nos outros, toque em <b>Despachei</b> quando o pacote sair: vira "Atendido" no Bling e o estoque baixa.${SEP.ml ? " Os do Mercado Livre saem sozinhos quando o ML registra o envio." : ""}</span></div>${aguard.length > 1 ? `<button id="sepTodos">Despachei todos (${aguard.length})</button>` : ""}</div>` +
     aguard.map(p => card(p, `<div class="sep-sepinfo">✓ separado ${dh(p.separado_em)}${p.separado_por ? " por " + escH(String(p.separado_por).split("@")[0]) : ""}${p.conferido_em ? ` · <b>${p.conferencia && p.conferencia.falta ? "conferido com falta: " + escH(p.conferencia.falta) : "conferido bipando"}</b>` : ` · <span style="color:#b54708">sem conferência</span>`} · <a href="#" data-desf="${p.id}">voltar para separar</a></div><div class="sep-acoes">${botoesEnvio(p)}<button class="sep-bt" data-desp="${p.id}">🚚 Despachei</button></div>`)).join("")
     : `<div class="painel"><span class="orig">Nenhum pedido separado esperando despacho.</span></div>`;
   const nDiv = (SEP.estados || {}).divergente || 0;

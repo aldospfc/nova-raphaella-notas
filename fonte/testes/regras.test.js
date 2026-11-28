@@ -304,6 +304,17 @@ secao("10. Nota de devolução de compra (rascunho no Bling)");
   confere("compra com ST vira x.411; de fora do estado vira 6.xxx", st({ cfop: "5403", cst: "10", vicmsst: 3 }) === "5411" && st({ cfop: "6102", cst: "00", vicmsst: 0 }) === "6202" && st({ cfop: "6403", cst: "10", vicmsst: 1 }) === "6411");
 }
 
+// ---------- 11. e-commerce sem clique ----------
+secao("11. E-commerce sem clique (conferiu bipando → despachado)");
+{
+  const sai = ev("ckSaiSozinho");
+  confere("Shopee conferido inteiro sai como despachado sozinho", sai({ canal: "Shopee", situacao_id: 6 }, "") === true);
+  confere("Mercado Livre NÃO sai sozinho (quem avisa a saída é o ML)", sai({ canal: "Mercado Livre", situacao_id: 6 }, "") === false);
+  confere("conferência fechada COM FALTA não despacha", sai({ canal: "Shopee", situacao_id: 6 }, "faltou 1 caneta") === false);
+  confere("pedido cancelado não despacha", sai({ canal: "Shopee", situacao_id: 12 }, "") === false && sai({ canal: "Shopee", situacao_id: 6, ignorado_em: "2026-11-28" }, "") === false);
+  confere("pedido já despachado não é marcado de novo", sai({ canal: "Shopee", situacao_id: 6, despachado_em: "2026-11-28" }, "") === false);
+}
+
 // ---------- resultado ----------
 if (errosPagina.length) { falhas++; console.log("\n✘ a página teve erro ao carregar: " + errosPagina.slice(0, 3).join(" | ")); }
 console.log(`\n${ok} regras ok, ${falhas} com problema.`);

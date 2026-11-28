@@ -293,6 +293,13 @@ secao("10. Nota de devolução de compra (rascunho no Bling)");
   igual("devolução total fecha com a nota de origem (132 + 69,50 + 4,52)", tudo.t.vnf, 206.02);
   const demais = montar(nota, { 1: 40 }, "x", null, { 1: 12 });
   confere("não deixa devolver mais do que o saldo (já devolveu 12 de 48, pede 40)", demais.erros.length === 1 && demais.itens.length === 0, JSON.stringify(demais.erros));
+  confere("fornecedor de SP com ICMS 18% em todos os itens: usa a natureza que calcula o ICMS sozinha", m.nat.icms === "auto" && m.nat.aliq === 18 && m.nfe.naturezaOperacao.id === 15112032159);
+  const xmlSimples = xml.replace(/<ICMS00>.*?<\/ICMS00>/g, "<ICMSSN102><orig>0</orig><CSOSN>102</CSOSN></ICMSSN102>");
+  const ms = montar(ev("dvLerXml")(xmlSimples), { 1: 2 }, "x", null, {});
+  confere("fornecedor do Simples (sem ICMS destacado): natureza base e nenhum ICMS a informar", ms.nat.icms === "nenhum" && ms.nfe.naturezaOperacao.id === 14220696243);
+  const xmlMisto = xml.replace("<pICMS>18.0000</pICMS><vICMS>12.51</vICMS>", "<pICMS>12.0000</pICMS><vICMS>8.34</vICMS>");
+  const mm = montar(ev("dvLerXml")(xmlMisto), { 1: 2, 2: 1 }, "x", null, {});
+  confere("alíquotas diferentes na mesma devolução: natureza base e ICMS digitado no Bling", mm.nat.icms === "manual" && mm.nfe.naturezaOperacao.id === 14220696243);
   const st = ev("dvCfop");
   confere("compra com ST vira x.411; de fora do estado vira 6.xxx", st({ cfop: "5403", cst: "10", vicmsst: 3 }) === "5411" && st({ cfop: "6102", cst: "00", vicmsst: 0 }) === "6202" && st({ cfop: "6403", cst: "10", vicmsst: 1 }) === "6411");
 }

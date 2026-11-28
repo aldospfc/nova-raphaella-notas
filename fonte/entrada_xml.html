@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="210">
+<meta name="versao" content="211">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -7422,6 +7422,9 @@ function foDetalhe(f) {
 // referenciada, CFOP espelho (x.202, ou x.411 quando a compra veio com ST), mesmos unitários da origem, ICMS e IPI da origem proporcionais
 // à quantidade devolvida, informados nas informações complementares (Res. CGSN 140/2018, art. 59, §7) e, no Bling, item a item.
 const DV_CNPJ_L1 = "26834196000103";
+// Naturezas de operação no Bling da Nova Raphaella (criadas em 28/11/2026). A "base" usa CSOSN 102 (sem ICMS); as outras usam CSOSN 900 com a
+// alíquota fixa e base 100%, e o Bling calcula o ICMS de cada item sozinho. O sistema escolhe pela alíquota de ICMS da nota de compra.
+const DV_NAT = { base: 14220696243, 18: 15112032159, 12: 15112032160, 7: 15112032161, 4: 15112032163 };
 function dvLerXml(texto) {
   const d = new DOMParser().parseFromString(texto, "application/xml");
   const inf = d.getElementsByTagNameNS(NS, "infNFe")[0]; if (!inf) throw new Error("Não achei a NF-e no XML guardado desta nota.");
@@ -7463,14 +7466,19 @@ function dvMontar(nota, qtds, motivo, f, ja) {
   const obs = `DEVOLUCAO ${total ? "TOTAL" : "PARCIAL"} REFERENTE A NF-E N. ${nota.nnf}, SERIE ${nota.serie}, EMITIDA EM ${dataBr(nota.emissao)}, CHAVE ${nota.chave}. MOTIVO: ${semAc(motivo) || "____"}. ` +
     `VALORES DO IMPOSTO CONFORME NF DE ORIGEM: BASE DE CALCULO ICMS R$ ${br(t.vbc)} - ICMS R$ ${br(t.vicms)} - IPI R$ ${br(t.vipi)}${t.vicmsst > 0 ? ` - BASE ICMS ST R$ ${br(t.vbcst)} - ICMS ST R$ ${br(t.vicmsst)}` : ""} (RES. CGSN 140/2018, ART. 59, PAR. 7). ` +
     `DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE IPI.`;
+  // natureza: se todos os itens devolvidos têm a mesma alíquota (18, 12, 7 ou 4), sem ST, sem desconto/frete e com a base igual ao valor do produto,
+  // o Bling calcula o ICMS sozinho; fornecedor sem ICMS destacado (Simples) usa a natureza base e não há ICMS a informar; o resto é digitado no Bling.
+  const aliqs = [...new Set(itens.map(i => i.picms))], semIcms = itens.length > 0 && itens.every(i => !(i.vicms > 0));
+  const simples = itens.length > 0 && aliqs.length === 1 && DV_NAT[aliqs[0]] && itens.every(i => { const o = nota.itens.find(x => x.n === i.n); return !i.st && !(o.vdesc > 0) && !(o.vfrete > 0) && !(o.voutro > 0) && Math.abs(o.vbc - o.vprod) < 0.011; });
+  const nat = simples ? { id: DV_NAT[aliqs[0]], icms: "auto", aliq: aliqs[0] } : { id: DV_NAT.base, icms: semIcms ? "nenhum" : "manual" };
   const e = nota.emit, agora = new Date(), z = v => String(v).padStart(2, "0");
   const nfe = { tipo: 1, finalidade: 4, dataOperacao: `${agora.getFullYear()}-${z(agora.getMonth() + 1)}-${z(agora.getDate())} ${z(agora.getHours())}:${z(agora.getMinutes())}:${z(agora.getSeconds())}`,
     contato: { nome: e.razao, tipoPessoa: "J", numeroDocumento: e.cnpj, ie: e.ie || "", contribuinte: e.ie ? 1 : 9, telefone: (f && f.fone) || e.fone || "", email: (f && f.email) || "",
       endereco: { endereco: e.logradouro, numero: e.numero, complemento: e.complemento || "", bairro: e.bairro, cep: e.cep, municipio: e.municipio, uf: e.uf } },
-    observacoes: obs, documentoReferenciado: { modelo: "55", data: nota.emissao, numero: nota.nnf, serie: nota.serie, chaveAcesso: nota.chave },
+    naturezaOperacao: { id: nat.id }, observacoes: obs, documentoReferenciado: { modelo: "55", data: nota.emissao, numero: nota.nnf, serie: nota.serie, chaveAcesso: nota.chave },
     transporte: { fretePorConta: 9 },
     itens: itens.map(i => { const o = { codigo: i.ean || i.cod, descricao: i.desc, unidade: i.un, quantidade: i.qtd, valor: i.vun, tipo: "P", classificacaoFiscal: dvNcm(i.ncm), origem: Number(i.orig) || 0 }; if (i.cest) o.cest = dvCest(i.cest); return o; }) };
-  return { itens, t, total, obs, nfe, erros, temST: itens.some(i => i.st), cfops: [...new Set(itens.map(i => i.cfop))] };
+  return { itens, t, total, obs, nfe, erros, nat, temST: itens.some(i => i.st), cfops: [...new Set(itens.map(i => i.cfop))] };
 }
 const DV = { nota: null, f: null, ja: {}, ant: [], qt: {}, feito: null };
 async function dvAbrir(chave, f) {
@@ -7509,11 +7517,18 @@ function dvDesenhar() {
         ${m.temST ? `<div style="color:#b42318;margin-top:4px"><b>Atenção:</b> há item comprado com substituição tributária (ICMS-ST R$ ${br(m.t.vicmsst)}). A devolução sai com CFOP x.411 e o ICMS-ST da origem precisa ser informado item a item no Bling — confirme com a contabilidade antes de emitir.</div>` : ""}</div>
       <label class="c" style="display:block;margin-top:8px">Informações complementares (vão na nota)<textarea id="dvObs" rows="4" style="width:100%" readonly>${escH(m.obs)}</textarea></label>` : `<div class="orig" style="margin-top:8px">Digite a quantidade a devolver de cada item.</div>`}
     ${fx ? `<div class="dvbox" style="margin-top:10px;border-left:4px solid #16a34a"><b>Rascunho nº ${escH(fx.numero || "")} criado no Bling.</b> <a href="${escH(fx.link)}" target="_blank" rel="noopener" style="font-weight:700">Abrir no Bling</a> — ainda NÃO foi emitida.
-        <div style="margin-top:6px"><b>Antes de emitir, no Bling</b> (os impostos da devolução não vão pela integração; o Bling só aceita item a item):</div>
-        <ol style="margin:4px 0 0 18px;padding:0"><li>Desligue o "Cálculo automático" de impostos.</li><li>Em cada item (lápis): aba ICMS → CSOSN 900, % base 100, e os valores da tabela abaixo; aba IPI → "Sem IPI", % devolução 100 e o valor de IPI da tabela.</li><li>Ligue de novo o cálculo automático e confira: o total da nota tem que dar <b>R$ ${br(m.t.vnf)}</b>.</li><li>Confira o e-mail do fornecedor no contato${f && f.email ? ` (${escH(f.email)})` : " — <b>este fornecedor está sem e-mail no cadastro</b>"} e emita.</li></ol>
-        <div class="rolagem" style="margin-top:6px"><table><thead><tr><th>Item</th><th>Origem</th><th>CSOSN</th><th class="n">Base ICMS</th><th class="n">% ICMS</th><th class="n">Valor ICMS</th><th class="n">IPI devolvido</th></tr></thead><tbody>
-          ${m.itens.map(i => `<tr><td>${escH(i.desc)}</td><td>${escH(i.orig)}</td><td>900</td><td class="n">${br(i.vbc)}</td><td class="n">${br(i.picms)}</td><td class="n">${br(i.vicms)}</td><td class="n">${i.vipi ? br(i.vipi) : "—"}</td></tr>`).join("")}
-          <tr><td colspan="3"><b>Totais</b></td><td class="n"><b>${br(m.t.vbc)}</b></td><td></td><td class="n"><b>${br(m.t.vicms)}</b></td><td class="n"><b>${br(m.t.vipi)}</b></td></tr></tbody></table></div></div>`
+        ${(() => { const icmsM = m.nat.icms === "manual", ipiM = m.t.vipi > 0, email = `Confira o e-mail do fornecedor no contato${f && f.email ? ` (${escH(f.email)})` : " — <b>este fornecedor está sem e-mail no cadastro</b>"} e emita.`;
+          const tab = `<div class="rolagem" style="margin-top:6px"><table><thead><tr><th>Item</th><th>Origem</th>${icmsM ? `<th>CSOSN</th><th class="n">Base ICMS</th><th class="n">% ICMS</th><th class="n">Valor ICMS</th>` : ""}${ipiM ? `<th class="n">IPI devolvido</th>` : ""}</tr></thead><tbody>
+            ${m.itens.filter(i => icmsM || i.vipi > 0).map(i => `<tr><td>${escH(i.desc)}</td><td>${escH(i.orig)}</td>${icmsM ? `<td>900</td><td class="n">${br(i.vbc)}</td><td class="n">${br(i.picms)}</td><td class="n">${br(i.vicms)}</td>` : ""}${ipiM ? `<td class="n">${i.vipi ? br(i.vipi) : "—"}</td>` : ""}</tr>`).join("")}
+            <tr><td colspan="2"><b>Totais</b></td>${icmsM ? `<td></td><td class="n"><b>${br(m.t.vbc)}</b></td><td></td><td class="n"><b>${br(m.t.vicms)}</b></td>` : ""}${ipiM ? `<td class="n"><b>${br(m.t.vipi)}</b></td>` : ""}</tr></tbody></table></div>`;
+          const icmsOk = m.nat.icms === "auto" ? `<div style="margin-top:6px">O <b>ICMS já sai calculado pelo Bling</b> (natureza "Devolução de compra - ICMS ${m.nat.aliq}%"): confira na nota a base de R$ ${br(m.t.vbc)} e o ICMS de R$ ${br(m.t.vicms)} (pode haver diferença de centavos por arredondamento).</div>` : m.nat.icms === "nenhum" ? `<div style="margin-top:6px">A compra veio sem ICMS destacado (fornecedor do Simples): não há ICMS a informar.</div>` : "";
+          if (!icmsM && !ipiM) return icmsOk + `<div style="margin-top:6px"><b>Não há imposto para digitar.</b> Confira o total de <b>R$ ${br(m.t.vnf)}</b>. ${email}</div>`;
+          return icmsOk + `<div style="margin-top:6px"><b>Antes de emitir, no Bling</b> (${icmsM ? "os impostos desta devolução" : "o IPI devolvido"} só ${icmsM ? "entram" : "entra"} item a item, na tela do Bling):</div>
+            <ol><li>Desligue o "Cálculo automático" de impostos.</li>
+            ${icmsM ? `<li>Em cada item (lápis): aba ICMS → CSOSN 900, % base 100, e os valores da tabela abaixo.</li>` : ""}
+            ${ipiM ? `<li>${icmsM ? "Nos itens com IPI" : "Só nos itens da tabela abaixo (lápis)"}: aba IPI → "Sem IPI", % devolução 100 e o valor de IPI da tabela.</li>` : ""}
+            <li>Ligue de novo o cálculo automático e confira: o total da nota tem que dar <b>R$ ${br(m.t.vnf)}</b>${!icmsM ? " e o ICMS tem que continuar calculado" : ""}.</li><li>${email}</li></ol>` + tab; })()}
+        </div>`
       : `<div class="linha" style="gap:8px;margin-top:10px;align-items:center"><button id="dvCriar" ${m.itens.length && !m.erros.length ? "" : "disabled"}>Criar rascunho no Bling</button><span class="orig">cria a nota como pendente no Bling; nada é emitido por aqui</span></div>`}`;
   const g = id => bx.querySelector("#" + id);
   g("dvX").onclick = ev => { ev.preventDefault(); fundo.style.display = "none"; };

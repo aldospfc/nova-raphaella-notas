@@ -5,7 +5,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // - Força sempre: saída (tipo 1), finalidade 4 (devolução) e a natureza "Devolução de compra" do Bling da Nova Raphaella.
 // - Usa o token do Bling guardado em bling_auth (renovado pela função "bling", que roda de 5 em 5 minutos).
 // - Registra o rascunho em devolucoes_bling (histórico e saldo devolvível por item da nota de origem).
-// v1 (27/11/2026).
+// v1 (27/11/2026). v2 (28/11/2026): aceita as naturezas com ICMS calculado (o site escolhe pela alíquota da nota de origem).
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +14,9 @@ const cors = {
 };
 const resp = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const API = "https://api.bling.com.br/Api/v3";
+// naturezas de devolução de compra aceitas: a base (CSOSN 102) e as de ICMS calculado (CSOSN 900 com 18, 12, 7 e 4%), criadas em 28/11/2026
 const NATUREZA_DEVOLUCAO_COMPRA = 14220696243;
+const NATUREZAS_ACEITAS = [14220696243, 15112032159, 15112032160, 15112032161, 15112032163];
 const URL_SB = Deno.env.get("SUPABASE_URL")!, SERVICO = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const cabServico = { apikey: SERVICO, Authorization: "Bearer " + SERVICO, "Content-Type": "application/json" };
 
@@ -36,7 +38,8 @@ Deno.serve(async (req: Request) => {
     if (dig(nfe.documentoReferenciado?.chaveAcesso).length !== 44) return resp({ ok: false, msg: "Chave da nota de origem inválida." });
     for (const i of nfe.itens) if (!(Number(i.quantidade) > 0) || !(Number(i.valor) >= 0) || !String(i.descricao || "").trim()) return resp({ ok: false, msg: "Item sem descrição, quantidade ou valor." });
     // o que não pode variar
-    nfe.tipo = 1; nfe.finalidade = 4; nfe.naturezaOperacao = { id: NATUREZA_DEVOLUCAO_COMPRA };
+    nfe.tipo = 1; nfe.finalidade = 4;
+    nfe.naturezaOperacao = { id: NATUREZAS_ACEITAS.includes(Number(nfe.naturezaOperacao?.id)) ? Number(nfe.naturezaOperacao.id) : NATUREZA_DEVOLUCAO_COMPRA };
 
     const a = await (await fetch(URL_SB + "/rest/v1/bling_auth?id=eq.1&select=access_token,expires_at", { headers: cabServico })).json();
     const tk = a?.[0];

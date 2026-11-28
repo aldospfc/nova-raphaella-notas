@@ -9,6 +9,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // v2: o pedido pode trazer "nota" (item de uma nota de entrada: descricao completa do fornecedor, codigo do fornecedor, fornecedor, NCM,
 //   quantas unidades por embalagem, lojas de destino). Com isso a busca de fotos fica mais certeira e o produto pode ir ao site
 //   antes mesmo de entrar no cadastro das lojas.
+// v3: envio em massa. "publicar" devolve o endereco da foto no Sanity; produto que ja esta no site devolve nome, marca, descricao e foto;
+//   acao "bling_completar": poe nome, marca, descricao e foto (a mesma aprovada para o site) nos cadastros que o sistema ACABOU de criar
+//   no Bling (PATCH /produtos/{id}). Usa o token que a funcao "bling" mantem em bling_auth; nunca renova o token aqui.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -50,7 +53,22 @@ async function cadastro(ean: string) {
 }
 async function noSite(ean: string) {
   const k = semZeros(ean);
-  return await sanity(`*[_type == "produto" && (_id == $id || ean in $eans)][0]{_id, nome, "slug": slug.current}`, { id: "produto-" + k.padStart(13, "0"), eans: [k, k.padStart(13, "0"), k.padStart(14, "0")] });
+  return await sanity(`*[_type == "produto" && (_id == $id || ean in $eans)][0]{_id, nome, "slug": slug.current, marca, descricao, "imagem": imagem.asset->url}`, { id: "produto-" + k.padStart(13, "0"), eans: [k, k.padStart(13, "0"), k.padStart(14, "0")] });
+}
+
+// baixa a foto escolhida e sobe para o Sanity (o site e o Bling passam a usar a copia do Sanity, que nao some)
+async function subirFoto(img: string, nome: string): Promise<{ id: string; url: string }> {
+  const r = await fetch(img, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NovaRaphaellaSync/1.0", Accept: "image/avif,image/webp,image/*,*/*;q=0.8" }, redirect: "follow" });
+  if (!r.ok) throw new Error("o site da foto respondeu " + r.status);
+  const ct = (r.headers.get("content-type") || "").split(";")[0].trim();
+  if (!ct.startsWith("image/")) throw new Error("o endereço não é de uma imagem");
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  if (bytes.byteLength < 5000) throw new Error("a imagem é pequena demais");
+  if (bytes.byteLength > 12_000_000) throw new Error("a imagem é grande demais");
+  const up = await fetch(`${SANITY_API}/assets/images/${DATASET}?filename=${encodeURIComponent(slugify(nome) + ".jpg")}`, { method: "POST", headers: { Authorization: `Bearer ${Deno.env.get("SANITY_TOKEN")}`, "Content-Type": ct }, body: bytes });
+  if (!up.ok) throw new Error("o Sanity recusou a imagem (" + up.status + ")");
+  const d = (await up.json()).document;
+  return { id: d._id, url: String(d.url || "") };
 }
 
 type Nota = { xprod: string; desc: string; cod: string; forn: string; ncm: string; un: string; div: number; disp: string };
@@ -150,20 +168,9 @@ async function publicar(b: Record<string, unknown>) {
   const ja = await noSite(ean);
   if (ja) return { ok: true, ja_no_site: ja };
 
-  // foto: baixa aqui e sobe para o Sanity (o site passa a servir a copia dele)
-  let assetId = "";
-  try {
-    const r = await fetch(img, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NovaRaphaellaSync/1.0", Accept: "image/avif,image/webp,image/*,*/*;q=0.8" }, redirect: "follow" });
-    if (!r.ok) throw new Error("o site da foto respondeu " + r.status);
-    const ct = (r.headers.get("content-type") || "").split(";")[0].trim();
-    if (!ct.startsWith("image/")) throw new Error("o endereço não é de uma imagem");
-    const bytes = new Uint8Array(await r.arrayBuffer());
-    if (bytes.byteLength < 5000) throw new Error("a imagem é pequena demais");
-    if (bytes.byteLength > 12_000_000) throw new Error("a imagem é grande demais");
-    const up = await fetch(`${SANITY_API}/assets/images/${DATASET}?filename=${encodeURIComponent(slugify(nome) + ".jpg")}`, { method: "POST", headers: { Authorization: `Bearer ${Deno.env.get("SANITY_TOKEN")}`, "Content-Type": ct }, body: bytes });
-    if (!up.ok) throw new Error("o Sanity recusou a imagem (" + up.status + ")");
-    assetId = (await up.json()).document._id;
-  } catch (e) { return { ok: false, foto: true, msg: "Não consegui usar essa foto: " + limpa((e as Error).message, 140) + ". Escolha outra." }; }
+  let assetId = "", fotoUrl = "";
+  try { const f = await subirFoto(img, nome); assetId = f.id; fotoUrl = f.url; }
+  catch (e) { return { ok: false, foto: true, msg: "Não consegui usar essa foto: " + limpa((e as Error).message, 140) + ". Escolha outra." }; }
 
   let slug = slugify(nome);
   if (await sanity(`count(*[_type == "produto" && slug.current == $slug])`, { slug })) slug = `${slug}-${ean.slice(-4)}`;
@@ -174,7 +181,35 @@ async function publicar(b: Record<string, unknown>) {
   if (!m.ok) return { ok: false, msg: "O Sanity recusou o produto: " + (await m.text()).slice(0, 200) };
   // historico na fila (evita reenvio e mostra o que ja foi)
   await supabase.from("site_import_queue").upsert({ ean, nome, marca, categoria_id: categoria, descricao, imagem_url: img, disponibilidade: disp, status: "ok", sanity_id: docId, erro: null, tentativas: 0, processed_at: new Date().toISOString() }, { onConflict: "ean" });
-  return { ok: true, publicado: true, slug, id: docId };
+  return { ok: true, publicado: true, slug, id: docId, imagem: fotoUrl };
+}
+
+// completa no Bling os cadastros recem-criados pelo sistema (so esses: produto que ja existia no Bling nao e tocado)
+async function blingCompletar(b: Record<string, unknown>) {
+  const itens = (Array.isArray(b.itens) ? b.itens : []).slice(0, 40) as Record<string, unknown>[];
+  const { data: au } = await supabase.from("bling_auth").select("access_token,expires_at").eq("id", 1).maybeSingle();
+  if (!au?.access_token || !(new Date(au.expires_at).getTime() - Date.now() > 60_000)) return { ok: false, msg: "O acesso ao Bling precisa ser renovado. Tente de novo em um minuto." };
+  const res: Record<string, unknown>[] = [];
+  for (const it of itens) {
+    const id = Number(it.bling_id), nome = limpa(it.nome, 120), marca = limpa(it.marca, 60), desc = limpa(it.descricao, 500).replace(/\s*Dispon[ií]vel na Nova Raphaella!?\s*$/i, "").trim();
+    let img = String(it.imagem_url || "").trim();
+    try {
+      if (!(id > 0)) throw new Error("sem o número do produto no Bling");
+      let avisoFoto = "";
+      if (/^https:\/\/\S+$/.test(img) && !img.startsWith("https://cdn.sanity.io/")) { try { img = (await subirFoto(img, nome || String(id))).url; } catch (e) { avisoFoto = "sem foto (" + limpa((e as Error).message, 100) + ")"; img = ""; } }
+      const corpo: Record<string, unknown> = { ...(nome.length >= 5 ? { nome } : {}), ...(marca ? { marca } : {}), ...(desc ? { descricaoCurta: "<p>" + desc.replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</p>" } : {}),
+        observacoes: "Cadastro criado pelo sistema das lojas, já com nome, descrição e foto aprovados no envio ao site." };
+      const chama = (c: Record<string, unknown>) => fetch("https://api.bling.com.br/Api/v3/produtos/" + id, { method: "PATCH", headers: { Authorization: "Bearer " + au.access_token, Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(c) });
+      const comFoto = /^https:\/\//.test(img) ? { ...corpo, midia: { video: { url: "" }, imagens: { imagensURL: [{ link: img }] } } } : corpo;
+      let r = await chama(comFoto);
+      if (r.status === 429) { await new Promise((ok) => setTimeout(ok, 1300)); r = await chama(comFoto); }
+      if (!r.ok && comFoto !== corpo) { const t = (await r.text()).slice(0, 160); await new Promise((ok) => setTimeout(ok, 400)); r = await chama(corpo); if (r.ok) avisoFoto = "texto gravado, mas o Bling recusou a foto (" + t + ")"; }
+      if (!r.ok) throw new Error("Bling " + r.status + ": " + (await r.text()).slice(0, 200));
+      res.push({ bling_id: id, ok: true, foto: !avisoFoto && /^https:\/\//.test(img), aviso: avisoFoto || null });
+    } catch (e) { res.push({ bling_id: id, ok: false, msg: limpa((e as Error).message, 240) }); }
+    await new Promise((ok) => setTimeout(ok, 380));
+  }
+  return { ok: true, itens: res };
 }
 
 Deno.serve(async (req: Request) => {
@@ -188,6 +223,7 @@ Deno.serve(async (req: Request) => {
     const b = await req.json().catch(() => ({}));
     if (b?.acao === "preparar") return resp(await preparar(String(b.ean || ""), lerNota(b.nota)));
     if (b?.acao === "publicar") return resp(await publicar(b));
+    if (b?.acao === "bling_completar") return resp(await blingCompletar(b));
     return resp({ ok: false, msg: "ação desconhecida" }, 400);
   } catch (e) {
     return resp({ ok: false, erro: "interno", msg: limpa((e as Error)?.message || e, 300) });

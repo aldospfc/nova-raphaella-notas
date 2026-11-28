@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="219">
+<meta name="versao" content="220">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -877,6 +877,7 @@
     <div id="vistaItens">
       <span class="ivista" title="como mostrar os itens da nota (fica guardado neste aparelho)"><a data-iv="lv" title="um cartão enxuto por item; o resto aparece em Detalhes">Compacto</a><a data-iv="cartao" title="cartão com todos os campos à mostra">Cartões</a><a data-iv="tabela">Tabela</a></span>
       <a id="recBt" class="rec-bt" title="liga/desliga a marcação do que chegou em cada item (o mesmo que a opção Conferir recebimento lá em cima)">☐ Conferir recebimento</a>
+      <a id="smBt" class="rec-bt" style="border-color:#8ab4f8;background:#eef4fe;color:#0b57d0" title="marque vários produtos desta nota e envie de uma vez ao site (e ao Bling): o sistema prepara fotos e textos e você revisa tudo numa tela só">🌐 Site e Bling em massa</a>
       <span class="legcor"><i class="lf"></i>falta algo para ir ao Gestão</span>
       <span class="legcor"><i class="lp"></i>preço definido</span>
       <span class="legcor"><i class="lr"></i>revisado (OK marcado)</span>
@@ -1098,7 +1099,7 @@
  </div>
 </main>
 <!-- painel flutuante (busca, avisos, trava, incluir usuário…): fora das abas para aparecer em qualquer tela -->
-<div id="lvRodape" style="display:none"><div id="lvRodTxt"></div><div class="lv-rod-bts"><div class="lv-mais"><button type="button" class="sec" id="lvMaisBt">⋯ Mais</button><div id="lvMaisMenu"><a data-px="bEntPos">Enviar ao Gestão e ao POS</a><a data-px="bSql">Só atualizar preços e categorias</a><a data-px="bSqlPos">Só preços, no Gestão e no POS</a><a data-px="bBling">Mandar ao e-commerce (Bling)</a><a data-px="bCsv">Baixar tabela de preços (CSV)</a></div></div><button type="button" id="lvEnviar" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão">Enviar ao Gestão</button></div></div>
+<div id="lvRodape" style="display:none"><div id="lvRodTxt"></div><div class="lv-rod-bts"><div class="lv-mais"><button type="button" class="sec" id="lvMaisBt">⋯ Mais</button><div id="lvMaisMenu"><a data-px="bEntPos">Enviar ao Gestão e ao POS</a><a data-px="bSql">Só atualizar preços e categorias</a><a data-px="bSqlPos">Só preços, no Gestão e no POS</a><a data-px="bBling">Mandar ao e-commerce (Bling)</a><a data-px="smBt">🌐 Site e Bling em massa</a><a data-px="bCsv">Baixar tabela de preços (CSV)</a></div></div><button type="button" id="lvEnviar" title="cadastra os produtos novos, dá entrada no estoque e grava custo, venda e categoria no Gestão">Enviar ao Gestão</button></div></div>
 <button type="button" id="lvBipar" title="volta para o campo de bipar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M16 7v10"/></svg>Bipar outro</button>
 <div id="busca"></div>
 
@@ -3080,7 +3081,7 @@ async function travaAbrir() {
 // Botão no produto aberto (aba Produtos). A função de borda "site-produtos" prepara (fotos pelo Serper, texto pela IA) e só
 // publica o que for aprovado aqui. Produto que já está no site não é enviado de novo.
 const ST = { g: null, d: null, foto: "" };
-function siteFechar() { const c = document.getElementById("stCaixa"); if (c) c.remove(); ST.g = ST.d = null; ST.foto = ""; }
+function siteFechar() { const c = document.getElementById("stCaixa"); if (c) c.remove(); ST.g = ST.d = null; ST.foto = ""; try { SM.id++; SM.passo = 0; } catch (e) {} }
 function siteCaixa(html) {
   let c = document.getElementById("stCaixa");
   if (!c) { c = document.createElement("div"); c.id = "stCaixa"; c.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;overflow:auto;padding:24px 12px"; document.body.appendChild(c); }
@@ -3095,14 +3096,18 @@ async function siteChamar(corpo) {
   } catch (e) { return { ok: false, msg: e.message || String(e) }; }
 }
 // item da nota de entrada → mesma prévia, com os dados da nota indo junto
+function siteNotaDe(it) {
+  let lj = [true, false]; try { lj = lojasItem(it); } catch (e) {}
+  const nome = (it.desc || it.xprod || "").trim();
+  return { xprod: it.xprod || nome, desc: it.desc || "", cod: it.cod || "", forn: (cab && !cab.manual && (cab.emitXml || cab.emit)) || "", ncm: it.ncm || "", un: it.un || "", div: it.div || 1,
+    disp: lj[0] && lj[1] ? "Ambas as lojas" : lj[1] ? "Loja 2 - Limoeiro" : "Loja 1 - Jardim Soraia" };
+}
 function siteDaNota(it) {
   const ean = String(it.ean || "").replace(/\D/g, "");
   if (!/^\d{8,14}$/.test(ean)) { msg("Preencha o código de barras deste item antes de enviar ao site."); return; }
-  let lj = [true, false]; try { lj = lojasItem(it); } catch (e) {}
-  const nome = (it.desc || it.xprod || "").trim();
+  try { siteFechar(); } catch (e) {}
   ST.form = null;
-  siteAbrir({ ean, 1: { descricao: nome }, nota: { xprod: it.xprod || nome, desc: it.desc || "", cod: it.cod || "", forn: (cab && !cab.manual && (cab.emitXml || cab.emit)) || "", ncm: it.ncm || "", un: it.un || "", div: it.div || 1,
-    disp: lj[0] && lj[1] ? "Ambas as lojas" : lj[1] ? "Loja 2 - Limoeiro" : "Loja 1 - Jardim Soraia" } });
+  siteAbrir({ ean, 1: { descricao: (it.desc || it.xprod || "").trim() }, nota: siteNotaDe(it) });
 }
 async function siteAbrir(g) {
   if (!supa || !g || !g.ean) return;
@@ -3166,6 +3171,188 @@ function siteDesenhar(erro) {
     };
   }
   c.querySelector("#stX").onclick = ev => { ev.preventDefault(); ST.form = null; siteFechar(); };
+}
+// ===================== Site e Bling em massa (itens da nota de entrada) — v220 =====================
+// Marca os itens, o sistema prepara todos (fotos + texto, função "site-produtos") e mostra tudo numa tela só para revisar; um clique
+// publica no site. Com "Bling" marcado, os itens que já podem ir ao e-commerce seguem o MESMO caminho do botão "Mandar ao e-commerce
+// (Bling)" (estoque unificado, acerto no Gestão da Loja 1), e o cadastro que for CRIADO no Bling sai com o nome, a descrição e a foto
+// aprovados aqui (produto que já existia no Bling não é alterado).
+const SM = { id: 0, passo: 0, linhas: [], site: true, bling: false, chec: null, blMsg: "", fim: null };
+function smMotivoBling(l) {
+  if (!/^\d{8,14}$/.test(l.ean)) return "sem código de barras";
+  if (SM.chec === null) return "consultando o Bling…";
+  if (SM.chec === false) return SM.blMsg || "o Bling não respondeu";
+  if (!(l.q1 > 0)) return "nada para a Loja 1";
+  if ((SM.chec[l.ean] || {}).unificado) return "já unificado: entra sozinho no Bling quando a nota é gravada no Gestão";
+  if (!l.it.e1) return "envie ao Gestão primeiro";
+  if (l.it.bl) return "já mandado em " + dataBr(l.it.bl);
+  return "";
+}
+const smCab = sub => `<div class="linha" style="justify-content:space-between;align-items:center"><b style="font-size:16px">🌐 Site e Bling em massa</b><a href="#" id="stX" style="font-size:12px">fechar ✕</a></div><div class="orig" style="margin-top:4px">${sub}</div>`;
+function smFechar(c) { c.querySelector("#stX").onclick = ev => { ev.preventDefault(); siteFechar(); }; }
+async function smAbrir() {
+  if (!supa || !cab || !itens.length) return msg("Abra uma nota primeiro.");
+  try { siteFechar(); } catch (e) {}
+  const id = ++SM.id; SM.passo = 1; SM.chec = null; SM.blMsg = ""; SM.fim = null;
+  SM.linhas = itens.filter(it => !it.jg).map(it => { const k = calc(it), q1 = qLojas(it, k)[0]; return { it, k, q1, ean: String(it.ean || "").replace(/\D/g, ""), sel: false, inc: false, d: null, f: null, foto: "", cdn: "", erro: "", res: {} }; });
+  smDesenhar();
+  let data = null, erro = "";
+  try { const r = await supa.functions.invoke("bling", { body: { acao: "checar", eans: SM.linhas.map(l => l.ean).filter(e => /^\d{8,14}$/.test(e)) } }); data = r.data; if (r.error) erro = r.error.message || ""; } catch (e) { erro = e.message || String(e); }
+  if (id !== SM.id) return;
+  if (data && data.ok) SM.chec = data.itens || {}; else { SM.chec = false; SM.blMsg = (data && data.msg) || erro || "o Bling não respondeu"; }
+  if (SM.passo === 1) smDesenhar();
+}
+function smDesenhar() {
+  if (SM.passo === 1) return smPasso1();
+  if (SM.passo === 3) return smPasso3();
+  if (SM.passo === 5) return smPasso5();
+}
+function smPasso1() {
+  const c = siteCaixa(smCab(`${escH(cab.emit || "")} · NF ${escH(cab.nnf || "")}. Marque os produtos; o sistema prepara fotos e textos de todos e mostra tudo junto para você revisar antes de publicar.`) + `
+    <div class="linha" style="gap:16px;margin-top:10px;align-items:center;flex-wrap:wrap"><b>Enviar para:</b>
+      <label style="cursor:pointer"><input type="checkbox" id="smSite" style="width:16px;height:16px;vertical-align:middle"${SM.site ? " checked" : ""}> Site (novaraphaella.com.br)</label>
+      <label style="cursor:pointer" title="o mesmo caminho do botão Mandar ao e-commerce (Bling): estoque unificado com o Gestão da Loja 1; o cadastro criado no Bling já sai com foto e descrição"><input type="checkbox" id="smBling" style="width:16px;height:16px;vertical-align:middle"${SM.bling ? " checked" : ""}> Bling (e-commerce)</label>
+      <a href="#" id="smTodos" style="font-size:12px;margin-left:auto">marcar todos</a></div>
+    <div style="max-height:56vh;overflow:auto;border:1px solid var(--borda);border-radius:6px;margin-top:8px"><table style="width:100%"><thead><tr><th></th><th>Produto</th><th>Bling</th></tr></thead><tbody>
+    ${SM.linhas.map((l, i) => { const semEan = !/^\d{8,14}$/.test(l.ean), mb = smMotivoBling(l), cb = (SM.chec && SM.chec[l.ean]) || {};
+      return `<tr${semEan ? ' style="opacity:.55"' : ""}><td><input type="checkbox" data-i="${i}" style="width:16px;height:16px"${semEan ? " disabled" : l.sel ? " checked" : ""}></td>
+        <td>${escH(l.it.desc || l.it.xprod || "")}<div class="orig mono" style="font-size:10px">${escH(l.ean || "sem código de barras: preencha no item para poder enviar")}</div></td>
+        <td style="font-size:11px">${mb ? `<span class="orig">${escH(mb)}</span>` : cb.bling ? `<span class="chip novo" title="${stAtr(cb.bling.nome || "")}">existe · só entra o estoque</span>` : `<span class="chip av">será criado com foto e texto</span>`}</td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="linha" style="gap:8px;justify-content:flex-end;margin-top:10px;align-items:center"><span id="smSt" class="orig"></span><button class="sec" id="smCancelar">Cancelar</button><button id="smPrep">Preparar selecionados</button></div>`);
+  smFechar(c);
+  const conta = () => { const n = SM.linhas.filter(l => l.sel).length; c.querySelector("#smPrep").textContent = n ? `Preparar ${n} selecionado${n > 1 ? "s" : ""}` : "Preparar selecionados"; c.querySelector("#smSt").textContent = n ? `leva uns 10 a 30 segundos por produto` : ""; };
+  for (const x of c.querySelectorAll("input[data-i]")) x.onchange = () => { SM.linhas[Number(x.dataset.i)].sel = x.checked; conta(); };
+  c.querySelector("#smSite").onchange = ev => { SM.site = ev.target.checked; };
+  c.querySelector("#smBling").onchange = ev => { SM.bling = ev.target.checked; };
+  c.querySelector("#smTodos").onclick = ev => { ev.preventDefault(); const pode = SM.linhas.filter(l => /^\d{8,14}$/.test(l.ean)), todos = pode.every(l => l.sel); for (const l of pode) l.sel = !todos; smPasso1(); };
+  c.querySelector("#smCancelar").onclick = siteFechar;
+  c.querySelector("#smPrep").onclick = smPreparar; conta();
+}
+async function smPreparar() {
+  const sel = SM.linhas.filter(l => l.sel);
+  if (!SM.site && !SM.bling) return msg("Marque para onde enviar: Site, Bling ou os dois.");
+  if (!sel.length) return msg("Marque pelo menos um produto.");
+  if (SM.bling && SM.chec === null) return msg("Ainda estou consultando o Bling. Espere uns segundos e tente de novo.");
+  const id = SM.id; SM.passo = 2; let feitos = 0;
+  const c = siteCaixa(smCab("Preparando: procurando fotos e escrevendo os textos…") + `<div style="margin-top:14px;font-size:15px"><b id="smProg">0 de ${sel.length}</b> <span class="orig">prontos — pode deixar esta janela aberta e esperar</span></div><div style="height:8px;background:var(--muted,#eef1f5);border-radius:4px;margin-top:8px"><div id="smBarra" style="height:8px;width:0;background:#0b57d0;border-radius:4px;transition:width .3s"></div></div>`);
+  smFechar(c);
+  const fila = sel.slice();
+  const um = async () => { while (fila.length && id === SM.id) { const l = fila.shift();
+    l.d = await siteChamar({ acao: "preparar", ean: l.ean, nota: siteNotaDe(l.it) }); smForm(l); feitos++;
+    if (id === SM.id && SM.passo === 2) { const p = document.getElementById("smProg"), b = document.getElementById("smBarra"); if (p) p.textContent = `${feitos} de ${sel.length}`; if (b) b.style.width = Math.round(feitos / sel.length * 100) + "%"; } } };
+  await Promise.all([um(), um(), um()]);
+  if (id !== SM.id) return;
+  SM.passo = 3; smDesenhar();
+}
+function smForm(l) {
+  const d = l.d || {}; l.erro = "";
+  if (!d.ok) { l.inc = false; l.f = null; return; }
+  if (d.ja_no_site) { const j = d.ja_no_site; l.f = { nome: j.nome || "", marca: j.marca || "", descricao: j.descricao || "" }; l.foto = ""; l.cdn = j.imagem || ""; l.inc = SM.bling && !smMotivoBling(l); return; }
+  const s = d.sugestao || {};
+  l.f = { nome: s.nome || "", marca: s.marca || "", categoria_id: s.categoria_id || "", descricao: s.descricao || "", disponibilidade: d.disponibilidade || "Ambas as lojas" };
+  l.foto = ((d.imagens || [])[0] || {}).url || ""; l.inc = true;
+}
+function smPasso3() {
+  const sel = SM.linhas.filter(l => l.sel);
+  const cartao = (l, i) => {
+    const d = l.d || {}, mb = SM.bling ? smMotivoBling(l) : "x", dest = `${SM.site && d.ok && !d.ja_no_site ? '<span class="chip ok" style="margin-top:0">site</span> ' : ""}${SM.bling ? (mb ? `<span class="orig" style="font-size:11px">Bling: ${escH(mb)}</span>` : '<span class="chip novo" style="margin-top:0">Bling</span>') : ""}`;
+    const topo = `<div class="linha" style="gap:8px;align-items:center"><span class="orig" style="flex:1;min-width:0">Na nota: <b>${escH(l.it.desc || l.it.xprod || "")}</b> <span class="mono">${escH(l.ean)}</span></span>${dest}</div>`;
+    if (!d.ok) return `<div style="border:1px solid var(--borda);border-radius:8px;padding:10px;margin-top:8px">${topo}<div class="chip falta" style="margin-top:6px">${escH(d.msg || "Não consegui preparar.")}</div></div>`;
+    if (d.ja_no_site) return `<div style="border:1px solid var(--borda);border-radius:8px;padding:10px;margin-top:8px">${topo}<div style="margin-top:6px"><span class="chip av" style="margin-top:0">já está no site</span> ${escH(d.ja_no_site.nome || "")}${SM.bling && !mb ? ` <label style="cursor:pointer;margin-left:8px"><input type="checkbox" data-inc="${i}"${l.inc ? " checked" : ""}> mandar ao Bling com o texto e a foto do site</label>` : ""}</div></div>`;
+    const s = d.sugestao || {}, imgs = (d.imagens || []).slice(0, 10), conf = { alta: ["ok", "produto reconhecido"], media: ["av", "confira: só a nota sustenta"], baixa: ["falta", "confira tudo: a IA ficou em dúvida"] }[s.confianca] || ["av", "confira"];
+    return `<div data-card="${i}" style="border:1px solid ${l.erro ? "#b42318" : "var(--borda)"};border-radius:8px;padding:10px;margin-top:8px;${l.inc ? "" : "opacity:.55"}">
+      <div class="linha" style="gap:8px;align-items:center"><input type="checkbox" data-inc="${i}" style="width:18px;height:18px" title="desmarque para não enviar este"${l.inc ? " checked" : ""}><div style="flex:1;min-width:0">${topo}</div></div>
+      <div class="orig" style="margin-top:4px"><span class="chip ${conf[0]}" style="margin-top:0">${conf[1]}</span>${s.observacao ? " " + escH(s.observacao) : ""}${(d.parecidos || []).length ? ` · <span title="${stAtr(d.parecidos.map(p => p.nome).join(" | "))}" style="color:#b45309">há ${d.parecidos.length} parecido(s) no site (passe o mouse)</span>` : ""}${(d.avisos || []).length ? ` · <span style="color:#b45309">${escH(d.avisos.join(" "))}</span>` : ""}</div>
+      <div style="display:flex;gap:6px;overflow-x:auto;margin-top:6px;padding-bottom:4px">${imgs.map((im, n) => `<div data-foto="${i}:${n}" title="${stAtr(im.dominio + " — achada pelo " + im.origem)}" style="flex:0 0 92px;border:3px solid ${l.foto === im.url ? "#0b57d0" : "var(--borda)"};border-radius:6px;padding:2px;cursor:pointer;background:#fff;text-align:center"><img src="${stAtr(im.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:80px;object-fit:contain;display:block"><a href="${stAtr(im.url)}" target="_blank" rel="noopener noreferrer" data-ver="1" style="font-size:10px">ver</a></div>`).join("") || `<span class="orig">Nenhuma foto encontrada: cole um endereço ao lado.</span>`}</div>
+      <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
+        <label class="c" style="flex:2;min-width:240px">Nome no site<input type="text" data-k="nome" data-i="${i}" maxlength="120" value="${stAtr(l.f.nome)}" style="width:100%"></label>
+        <label class="c" style="flex:1;min-width:120px">Marca<input type="text" data-k="marca" data-i="${i}" maxlength="60" value="${stAtr(l.f.marca)}" style="width:100%"></label>
+        <label class="c">Categoria<select data-k="categoria_id" data-i="${i}">${(d.categorias || []).map(k => `<option value="${stAtr(k._id)}"${k._id === l.f.categoria_id ? " selected" : ""}>${escH(k.nome)}</option>`).join("")}</select></label>
+        <label class="c">Disponível em<select data-k="disponibilidade" data-i="${i}">${["Ambas as lojas", "Loja 1 - Jardim Soraia", "Loja 2 - Limoeiro"].map(x => `<option${x === l.f.disponibilidade ? " selected" : ""}>${x}</option>`).join("")}</select></label>
+      </div>
+      <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:6px;align-items:flex-end">
+        <label class="c" style="flex:2;min-width:260px">Descrição<textarea data-k="descricao" data-i="${i}" maxlength="500" rows="2" style="width:100%">${escH(l.f.descricao)}</textarea></label>
+        <label class="c" style="flex:1;min-width:180px">…ou endereço de outra foto<input type="text" data-url="${i}" placeholder="https://" value="${stAtr(l.url || "")}" style="width:100%"></label>
+      </div>
+      <div data-erro="${i}" style="color:#b42318;font-size:12px;margin-top:4px">${escH(l.erro || "")}</div></div>`;
+  };
+  const c = siteCaixa(smCab("Confira cada produto: a primeira foto já vem marcada (clique em outra para trocar), ajuste o texto se precisar e desmarque o que não quiser enviar.") +
+    sel.map(cartao).join("") + `<div class="linha" style="gap:8px;justify-content:flex-end;margin-top:12px;align-items:center;position:sticky;bottom:-18px;background:#fff;padding:10px 0"><span id="smSt" class="orig"></span><button class="sec" id="smVoltar">Voltar</button><button id="smPub">Publicar</button></div>`);
+  smFechar(c);
+  const conta = () => { const n = sel.filter(l => l.inc).length; c.querySelector("#smPub").textContent = `Enviar ${n} produto${n === 1 ? "" : "s"}`; c.querySelector("#smPub").disabled = !n; };
+  for (const x of c.querySelectorAll("[data-k]")) x.addEventListener("input", () => { sel[Number(x.dataset.i)].f[x.dataset.k] = x.value; });
+  for (const x of c.querySelectorAll("[data-url]")) x.addEventListener("input", () => { const l = sel[Number(x.dataset.url)]; l.url = x.value.trim(); if (l.url) for (const el of c.querySelectorAll(`[data-foto^="${x.dataset.url}:"]`)) el.style.borderColor = "var(--borda)"; });
+  for (const x of c.querySelectorAll("[data-inc]")) x.onchange = () => { const i = Number(x.dataset.inc); sel[i].inc = x.checked; const k = c.querySelector(`[data-card="${i}"]`); if (k) k.style.opacity = x.checked ? "" : ".55"; conta(); };
+  for (const el of c.querySelectorAll("[data-foto]")) el.onclick = ev => { if (ev.target.closest("[data-ver]")) return; const [i, n] = el.dataset.foto.split(":").map(Number), l = sel[i]; l.foto = (l.d.imagens || [])[n].url; l.url = ""; const u = c.querySelector(`[data-url="${i}"]`); if (u) u.value = "";
+    for (const o of c.querySelectorAll(`[data-foto^="${i}:"]`)) o.style.borderColor = o === el ? "#0b57d0" : "var(--borda)"; };
+  c.querySelector("#smVoltar").onclick = () => { SM.passo = 1; smDesenhar(); };
+  c.querySelector("#smPub").onclick = smPublicar; conta();
+}
+async function smPublicar() {
+  const id = SM.id, sel = SM.linhas.filter(l => l.sel && l.inc && l.d && l.d.ok);
+  if (!sel.length) return;
+  const paraSite = SM.site ? sel.filter(l => !l.d.ja_no_site) : [], paraBling = SM.bling ? sel.filter(l => !smMotivoBling(l)) : [];
+  let ruim = 0;
+  for (const l of sel) { l.erro = ""; if (l.d.ja_no_site) continue; const foto = l.url || l.foto;
+    if (l.url && !/^https:\/\/\S+$/.test(l.url)) l.erro = "O endereço da foto precisa começar com https://";
+    else if ((l.f.nome || "").trim().length < 5) l.erro = "Escreva o nome do produto.";
+    else if (paraSite.includes(l) && !(l.f.marca || "").trim()) l.erro = "Preencha a marca (o site exige).";
+    else if (paraSite.includes(l) && !foto) l.erro = "Escolha uma foto, ou cole o endereço de uma.";
+    if (l.erro) ruim++; }
+  if (ruim) { smPasso3(); msg(`${ruim} produto(s) com algo faltando (borda vermelha). Corrija ou desmarque.`); return; }
+  if (!paraSite.length && !paraBling.length) return msg("Nenhum dos marcados tem para onde ir (já estão no site e não podem ir ao Bling agora).");
+  if (paraBling.length) { const novos = paraBling.filter(l => !(SM.chec[l.ean] || {}).unificado);
+    if (!confirm(`Mandar ${paraBling.length} item(ns) ao Bling?` + (novos.length ? `\n\n${novos.length} entram no estoque unificado agora: o estoque deles no Bling E no Gestão da Loja 1 passa a ser SÓ a quantidade desta nota.` : "") + (paraSite.length ? `\n\nE publicar ${paraSite.length} no site.` : ""))) return; }
+  SM.passo = 4; const total = paraSite.length + (paraBling.length ? 1 : 0); let feitos = 0;
+  const c = siteCaixa(smCab("Enviando… não feche esta janela.") + `<div style="margin-top:14px;font-size:15px"><b id="smProg">${paraSite.length ? "publicando no site: 0 de " + paraSite.length : "mandando ao Bling…"}</b></div>`);
+  smFechar(c);
+  const prog = t => { const p = document.getElementById("smProg"); if (p && id === SM.id) p.textContent = t; };
+  const fila = paraSite.slice();
+  const um = async () => { while (fila.length) { const l = fila.shift();
+    const r = await siteChamar({ acao: "publicar", ean: l.ean, nome: l.f.nome, marca: l.f.marca, categoria_id: l.f.categoria_id, descricao: l.f.descricao, disponibilidade: l.f.disponibilidade, imagem_url: l.url || l.foto, nota: siteNotaDe(l.it) });
+    l.res.site = r.ok ? (r.ja_no_site ? { ok: true, txt: "já estava no site" } : { ok: true, txt: "publicado" }) : { ok: false, txt: r.msg || "não publicou" };
+    if (r.ok && r.imagem) l.cdn = r.imagem; if (r.ok && r.ja_no_site && r.ja_no_site.imagem) l.cdn = r.ja_no_site.imagem;
+    feitos++; prog(`publicando no site: ${feitos} de ${paraSite.length}`); } };
+  await Promise.all([um(), um()]);
+  SM.fim = { bling: "" };
+  if (paraBling.length) {
+    prog(`mandando ${paraBling.length} ao Bling (uns segundos por item)…`);
+    const obs = `NF ${cab.nnf || ""} - ${cab.emit || ""}`.slice(0, 120);
+    let r = null, e2 = null;
+    try { const x = await supa.functions.invoke("bling", { body: { acao: "unificar", origem: "nota", obs, fornecedor_cnpj: cab.cnpj || "", itens: paraBling.map(l => ({ compra: l.k.qtdUn > 0 ? (l.it.vprod || 0) / l.k.qtdUn : 0, ean: l.ean, codigo: l.it.cod || "", nome: ((l.f && l.f.nome) || l.it.desc || l.it.xprod || "").slice(0, 120), ncm: l.it.ncm || "", cest: l.it.cest || "", origem: l.it.orig, preco: l.k.venda, custo: l.k.custoUn, qtd: l.q1 })) } }); r = x.data; e2 = x.error; } catch (e) { e2 = e; }
+    if (e2 || !r || !r.ok) { for (const l of paraBling) l.res.bling = { ok: false, txt: (r && r.msg) || (e2 && e2.message) || "o Bling não respondeu" }; }
+    else {
+      const ok = r.itens.filter(x => x.ok), mapa = {}; for (const l of paraBling) mapa[l.ean] = { cod: l.it.aux || l.ean, q: l.q1 };
+      const hoje = vdIso(new Date()); for (const x of ok) { const l = paraBling.find(y => y.ean === x.ean); if (l) { l.it.bl = hoje; guardar(l.it); } }
+      let filaId = null; try { filaId = await estuGestao(ok.filter(x => x.primeira).map(x => ({ cod: mapa[x.ean].cod, modo: "set", q: mapa[x.ean].q })), "ecommerce", "E-commerce: inicio do estoque unificado " + obs); } catch (e) { SM.fim.bling += "Bling ok, mas não consegui pedir o acerto no Gestão: " + e.message + ". "; }
+      try { await estuRegistrarGestao(r.itens, mapa); } catch (e) {}
+      if (filaId) SM.fim.bling += `Acerto de estoque pedido ao Gestão da Loja 1 (pedido ${filaId}). `;
+      if (r.fornecedor_erro) SM.fim.bling += r.fornecedor_erro + " ";
+      // cadastro recém-criado no Bling: completa com nome, marca, descrição e foto aprovados
+      const criados = ok.filter(x => x.criado && x.bling_id).map(x => { const l = paraBling.find(y => y.ean === x.ean); return l && l.f ? { bling_id: x.bling_id, nome: l.f.nome, marca: l.f.marca, descricao: l.f.descricao, imagem_url: l.cdn || l.url || l.foto || "" } : null; }).filter(Boolean);
+      let comp = {};
+      if (criados.length) { prog(`completando ${criados.length} cadastro(s) novo(s) no Bling com foto e descrição…`); const k = await siteChamar({ acao: "bling_completar", itens: criados }); if (k.ok) for (const y of k.itens || []) comp[y.bling_id] = y; else SM.fim.bling += "Não consegui completar os cadastros novos: " + (k.msg || "") + " "; }
+      for (const x of r.itens) { const l = paraBling.find(y => y.ean === x.ean); if (!l) continue;
+        if (!x.ok) { l.res.bling = { ok: false, txt: x.msg || "erro" }; continue; }
+        const k = comp[x.bling_id];
+        l.res.bling = { ok: true, txt: x.criado ? (k ? (k.ok ? (k.foto ? "cadastro criado com foto e descrição" : "cadastro criado com descrição" + (k.aviso ? " — " + k.aviso : ", sem foto")) : "cadastro básico criado; não consegui completar (" + (k.msg || "") + ")") : "cadastro básico criado") : "já existia no Bling: entrou o estoque, cadastro não alterado" }; }
+    }
+  }
+  if (id !== SM.id) return;
+  SM.passo = 5; smDesenhar();
+  try { if (typeof desenharTabela === "function") desenharTabela(); } catch (e) {}
+}
+function smPasso5() {
+  const sel = SM.linhas.filter(l => l.res && (l.res.site || l.res.bling)), cel = r => !r ? `<span class="orig">—</span>` : `<span class="chip ${r.ok ? "ok" : "falta"}" style="margin-top:0">${r.ok ? "✅" : "erro"}</span> <span style="font-size:11px">${escH(r.txt)}</span>`;
+  const nS = sel.filter(l => l.res.site && l.res.site.ok).length, nB = sel.filter(l => l.res.bling && l.res.bling.ok).length, falhas = sel.filter(l => (l.res.site && !l.res.site.ok) || (l.res.bling && !l.res.bling.ok)).length;
+  const c = siteCaixa(smCab(`Pronto: <b>${nS}</b> no site${SM.bling ? ` · <b>${nB}</b> no Bling` : ""}${falhas ? ` · <b style="color:#b42318">${falhas} com erro</b>` : ""}. Os produtos podem levar alguns minutos para aparecer no site.`) + `
+    ${SM.fim && SM.fim.bling ? `<div class="chip av" style="display:block;margin-top:8px">${escH(SM.fim.bling)}</div>` : ""}
+    <div style="max-height:60vh;overflow:auto;border:1px solid var(--borda);border-radius:6px;margin-top:8px"><table style="width:100%"><thead><tr><th>Produto</th><th>Site</th><th>Bling</th></tr></thead><tbody>
+    ${sel.map(l => `<tr><td>${escH((l.f && l.f.nome) || l.it.desc || l.it.xprod || "")}<div class="orig mono" style="font-size:10px">${escH(l.ean)}</div></td><td>${cel(l.res.site)}</td><td>${cel(l.res.bling)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="linha" style="justify-content:flex-end;margin-top:10px"><button id="smOk">Fechar</button></div>`);
+  smFechar(c); c.querySelector("#smOk").onclick = siteFechar;
 }
 // ===================== Modo balcão (trava por PIN) =====================
 // Quando o sistema fica aberto no computador da loja: depois de LK.minutos sem uso (ou no botão "travar") ficam só as telas
@@ -7608,6 +7795,7 @@ async function estuAbrirNota() {
   };
 }
 document.getElementById("bBling").addEventListener("click", estuAbrirNota);
+document.getElementById("smBt").addEventListener("click", smAbrir);
 // ---- avulso (Produtos) ----
 const AV = { lista: [] };
 async function avBuscar() {

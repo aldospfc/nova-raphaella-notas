@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="218">
+<meta name="versao" content="219">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -291,7 +291,8 @@
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(1) { grid-column: auto; order: 1; align-self: center; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(4) { grid-column: auto; order: 2; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) { grid-column: 2 / -1; order: 8; margin-top: -4px; }
-  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10)::before, body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) > input, body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) > a.sug { display: none; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10)::before, body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) > input, body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) > a.sug:not([data-site]) { display: none; }
+  body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) > a.sug[data-site] { float: right; font-size: 12px; font-weight: 700; padding: 2px 6px; } /* v219: "🌐 site" aparece também na lista compacta */
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(10) .chip { margin-top: 0; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(9) { grid-column: auto; order: 4; font-weight: 800; font-size: 15px; }
   body.modoCartao.modoLv #tb tr.it:not(.aberto) > td:nth-child(14) { grid-column: auto; order: 5; font-weight: 800; font-size: 15px; }

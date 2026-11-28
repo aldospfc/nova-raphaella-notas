@@ -2,7 +2,7 @@
 # Quando chega um pedido, grava no Gestao pelo isql e avisa a nuvem; em seguida roda o agente para subir o estoque novo.
 # E' iniciado pelo proprio agente (a cada 5 min ele confere se o ouvinte esta vivo). Nao precisa de tarefa propria.
 $ErrorActionPreference = "Stop"
-$Versao = "2.8.8"
+$Versao = "2.8.9"
 $Pasta = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Log = Join-Path $Pasta "ouvinte.log"
 $Vivo = Join-Path $Pasta "ouvinte.alive"
@@ -593,6 +593,33 @@ function LeTransf($item) {
   return $ok
 }
 
+# 2.8.9: orcamentos do sistema que devem ficar disponiveis no caixa. A cada minuto confere a pasta do PDV com a nuvem:
+#        repoe o arquivo 9xxxxxxx.txt que sumiu (orcamento ainda nao fechado) e tira o que nao vale mais (virou venda, perdido, vencido).
+#        So mexe na faixa propria 9xxxxxxx.txt; nunca toca nos orcamentos do Gestao. Se a pasta nao existir (loja sem orcamento no caixa), nao faz nada.
+function SincOrcPos {
+  $raiz = "C:\Server_PDV"
+  if ($cfg.pos_pasta) { $raiz = Split-Path -Parent (Split-Path -Parent (([string]$cfg.pos_pasta).TrimEnd("\"))) }
+  $dir = Join-Path $raiz "transf"
+  if (-not (Test-Path $dir)) { return }
+  $tem = New-Object System.Collections.ArrayList
+  foreach ($f in @(Get-ChildItem $dir -File -Filter "9*.txt" -ErrorAction SilentlyContinue)) { if ($f.Name -match '^9\d{7}\.txt$') { [void]$tem.Add($f.BaseName) } }
+  $json = '{"p_token":"' + $cfg.token + '","p_tem":[' + ((@($tem) | ForEach-Object { '"' + $_ + '"' }) -join ",") + ']}'
+  $r = RpcBruto "orc_pos_sync" $json
+  if (-not $r -or -not $r.ok) { return }
+  foreach ($g in @($r.gravar)) {
+    if (-not $g -or ([string]$g.num) -notmatch '^9\d{7}$') { continue }
+    $arq = Join-Path $dir (([string]$g.num) + ".txt")
+    if (Test-Path $arq) { continue }
+    [IO.File]::WriteAllText($arq, ((([string]$g.conteudo) -replace "\r?\n", "`r`n").TrimEnd() + "`r`n"), [Text.Encoding]::GetEncoding(1252))
+    Escreve ("Orcamento " + $g.num + " colocado na pasta do caixa.")
+  }
+  foreach ($a in @($r.apagar)) {
+    if (-not $a -or ([string]$a) -notmatch '^9\d{7}$') { continue }
+    $arq = Join-Path $dir (([string]$a) + ".txt")
+    if (Test-Path $arq -PathType Leaf) { Remove-Item $arq -Force; Escreve ("Orcamento " + $a + " retirado da pasta do caixa (nao vale mais).") }
+  }
+}
+
 # Executa um pedido da fila: grava o SQL num arquivo e roda pelo isql (igual ao .bat antigo)
 function Aplica($item) {
   $id = [int]$item.id
@@ -671,12 +698,13 @@ $erroVenda = ""
 $ultimoCupom = (Get-Date).AddSeconds(-30)
 $erroCupom = ""
 $ultimoErro = ""
+$erroOrc = ""
 while ($true) {
   try {
     Set-Content -Path $Vivo -Value $PID
     if (Test-Path $Parar) { Escreve "Pedido para parar. Encerrando."; Remove-Item $Parar -Force; break }
     if ((Get-Item $Eu).LastWriteTime -ne $MeuCarimbo) { Escreve "Ouvinte atualizado; reiniciando na proxima passada do agente."; break }
-    if (((Get-Date) - $ultimaBatida).TotalSeconds -ge 60) { $null = Rpc "ouvinte_bate" @{ p_token = $cfg.token; p_versao = $Versao }; $ultimaBatida = Get-Date; try { ReentregaPos } catch { Escreve ("POS: nao consegui conferir os caixas: " + $_.Exception.Message) } }
+    if (((Get-Date) - $ultimaBatida).TotalSeconds -ge 60) { $null = Rpc "ouvinte_bate" @{ p_token = $cfg.token; p_versao = $Versao }; $ultimaBatida = Get-Date; try { ReentregaPos } catch { Escreve ("POS: nao consegui conferir os caixas: " + $_.Exception.Message) }; try { SincOrcPos; $erroOrc = "" } catch { $mo = $_.Exception.Message; if ($mo -ne $erroOrc) { Escreve ("Orcamentos do caixa: " + $mo); $erroOrc = $mo } } }
     if (((Get-Date) - $ultimaVenda).TotalSeconds -ge 300) {
       $ultimaVenda = Get-Date
       try { SobeVendas; $erroVenda = "" } catch { $mv = $_.Exception.Message; if ($mv -ne $erroVenda) { Escreve ("Vendas: " + $mv); $erroVenda = $mv } }

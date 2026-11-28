@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="203">
+<meta name="versao" content="204">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5571,8 +5571,8 @@ function orDesenharEd() {
   g("orCaixa").addEventListener("click", orEnviarCaixa);
   g("orCam").addEventListener("click", () => lerCamera(c => { const q = document.getElementById("orQ"); if (q) { q.value = c; orBuscar(true); } }));
   g("orDup").addEventListener("click", () => { const num = Math.max(0, ...[...OR.docs.values()].map(x => Number(x.num) || 0)) + 1; const n = { ...JSON.parse(JSON.stringify(o)), id: Date.now().toString(36), num, status: "aberto", criado: new Date().toISOString(), validade: orMaisDias(orCfg().validade_dias) }; OR.docs.set(n.id, n); OR.atual = n; orSalvar(true); orDesenharEd(); orDesenharLista(); });
-  for (const b of ed.querySelectorAll("[data-st]")) b.addEventListener("click", () => { o.status = b.dataset.st; if (o.status === "venda") o.vendaEm = new Date().toISOString(); orSalvar(true); orDesenharEd(); orDesenharLista(); });
-  g("orExcluir").addEventListener("click", ev => { ev.preventDefault(); if (!confirm(`Excluir o orçamento nº ${o.num}?`)) return; db.doc("orcamentos/" + o.id).delete().catch(() => {}); OR.docs.delete(o.id); OR.atual = null; ed.style.display = "none"; orDesenharLista(); });
+  for (const b of ed.querySelectorAll("[data-st]")) b.addEventListener("click", () => { o.status = b.dataset.st; if (o.status === "venda") o.vendaEm = new Date().toISOString(); if (o.status === "venda" || o.status === "perdido") orTirarDoCaixa(o); orSalvar(true); orDesenharEd(); orDesenharLista(); });
+  g("orExcluir").addEventListener("click", ev => { ev.preventDefault(); if (!confirm(`Excluir o orçamento nº ${o.num}?`)) return; orTirarDoCaixa(o); db.doc("orcamentos/" + o.id).delete().catch(() => {}); OR.docs.delete(o.id); OR.atual = null; ed.style.display = "none"; orDesenharLista(); });
 }
 function orAtualizarTotais() { const o = OR.atual; if (!o) return; const sel = document.activeElement, id = sel && sel.id, pos = sel && sel.selectionStart; orDesenharEd(); if (id) { const e = document.getElementById(id); if (e) { e.focus(); try { if (pos != null) e.setSelectionRange(pos, pos); } catch (_e) {} } } }
 function orDesenharItens() {
@@ -5659,6 +5659,12 @@ function orFiscalDoGestao(txt) {
   }
   return m;
 }
+// orçamento fechado (virou venda, não fechou) ou excluído: deixa de valer no caixa; o PC da loja tira o arquivo da pasta em até 1 minuto
+function orTirarDoCaixa(o) {
+  if (!o || !o.caixaNum || !supa) return;
+  supa.from("orc_pos_arquivos").update({ ativo: false }).eq("orc_id", o.id).then(r => { if (r.error) msg("Não consegui tirar o orçamento do caixa: " + r.error.message); });
+  delete o.caixaNum; delete o.caixaTot; delete o.caixaEm;
+}
 async function orFilaEsperar(id, seg) {
   for (let t = 0; t < seg; t += 2) {
     await new Promise(r => setTimeout(r, 2000));
@@ -5692,14 +5698,19 @@ async function orEnviarCaixa() {
     rot("gravando no caixa…");
     const num = orNumCaixa(o);
     const linhas = its.map(i => orLinhaCaixa(i.ean, i.desc, Number(i.qtd), orPrecoCaixa(o, i), fis.get(String(i.ean).padStart(13, "0"))));
-    const corpo = [`--APAGAR ${num}.txt`, `--GRAVAR ${num}.txt`, ...linhas, "============|00000000000000000000", "--FIM"].join("\n");
+    const arquivo = [...linhas, "============|00000000000000000000"].join("\n");
+    // fica registrado como "ativo no caixa": o PC da loja repõe o arquivo se ele sumir, até o orçamento virar venda, ser dado como perdido ou vencer
+    const reg = await supa.from("orc_pos_arquivos").upsert({ loja_id: 1, num, orc_id: o.id, orc_num: Number(o.num) || null, conteudo: arquivo, ativo: true, valido_ate: o.validade || null, enviado_em: new Date().toISOString(), gravado_em: null });
+    if (reg.error) throw new Error(reg.error.message);
+    const corpo = [`--APAGAR ${num}.txt`, `--GRAVAR ${num}.txt`, arquivo, "--FIM"].join("\n");
     const b = await supa.from("fila").insert({ loja_id: 1, tipo: "orc_pos", titulo: `Orcamento ${o.num} para o caixa (no ${num})`, conteudo: corpo, status: "pendente" }).select("id").single();
     if (b.error) throw new Error(b.error.message);
     const rb = await orFilaEsperar(b.data.id, 60);
     if (!rb) throw new Error("o PC da Loja 1 não respondeu (está ligado?)");
     if (rb.status !== "aplicado" || !/GRAVADO: /.test(rb.resultado || "")) throw new Error(/^ERRO/.test(rb.resultado || "") ? rb.resultado : rb.trava_motivo || "o programa do PC da loja ainda não está na versão que grava orçamentos; tente de novo em alguns minutos");
+    await supa.from("orc_pos_arquivos").update({ gravado_em: new Date().toISOString() }).eq("loja_id", 1).eq("num", num);
     o.caixaNum = num; o.caixaEm = new Date().toISOString(); o.caixaTot = orTotalCaixa(o); orSalvar(true); orDesenharEd(); orDesenharLista();
-    alert(`Orçamento no caixa.\n\nNo caixa (com o caixa aberto): tecla O, digite ${num} e Enter.\n\n${its.length} item(ns) · total ${orBrl(o.caixaTot)}${o.descPct > 0 ? ` (desconto de ${br(o.descPct, 1)}% já nos preços)` : ""}\nA venda cai aberta: desconto e forma de pagamento são escolhidos no caixa.`);
+    alert(`Orçamento no caixa.\n\nNo caixa (com o caixa aberto): tecla O, digite ${num} e Enter.\n\n${its.length} item(ns) · total ${orBrl(o.caixaTot)}${o.descPct > 0 ? ` (desconto de ${br(o.descPct, 1)}% já nos preços)` : ""}\nA venda cai aberta: desconto e forma de pagamento são escolhidos no caixa.\n\nO orçamento fica disponível no caixa até ${orData(o.validade) || "ser fechado"}; quando a venda for feita, marque "Virou venda" para ele sair do caixa.`);
   } catch (e) { msg("Não consegui enviar ao caixa: " + (e.message || e)); }
   finally { rot(""); }
 }

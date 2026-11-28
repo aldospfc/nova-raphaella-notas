@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="209">
+<meta name="versao" content="210">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -753,6 +753,7 @@
   .nt-pe button { padding: 4px 12px; font-size: 12px; }
   .nt-x { margin-left: auto; color: #b42318; font-size: 11px; font-weight: 700; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
   .nt-x:hover, .nt-x.conf { background: var(--erro-suave); }
+  .dvbox { background: #f6f7f9; border: 1px solid var(--borda); border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.45; } .dvbox ol { margin: 4px 0 0 18px; padding: 0; }
 </style>
 </head>
 <body>
@@ -7406,7 +7407,7 @@ function foDetalhe(f) {
         ${campo("Endereço", foEnd(f), "larga")}${campo("Cidade/UF", (f.municipio || "") + (f.uf ? "/" + f.uf : ""))}${campo("CEP", foCep(f.cep))}${campo("Cód. município (IBGE)", f.cod_mun)}
         ${campo("Telefone", foFone(f.fone))}${f.iest ? campo("IE substituto tributário", f.iest) : ""}${f.cnae ? campo("CNAE", f.cnae) : ""}${f.im ? campo("Inscrição municipal", f.im) : ""}</div>
       <div class="linha" style="gap:8px;margin-top:12px"><button class="btn-ico" data-copiar>${ICO_COPIAR} Copiar dados para a nota</button><button class="sec" data-copiarcnpj>Copiar só o CNPJ</button></div>
-      <div class="fo-notas"><b>Notas deste fornecedor (${ns.length})</b><div style="margin-top:4px">${ns.slice(0, 30).map(n => `<div>${dataBr(n.emissao)} · NF ${escH(n.nnf || "")}${n.chave.endsWith("#2") ? ` <span class="badge l2">Loja 2</span>` : ""} · ${orBrl(n.vnf)} · <a data-abrir="${foA(n.chave.replace(/#2$/, ""))}">abrir</a></div>`).join("") || `<span class="orig">—</span>`}</div></div>
+      <div class="fo-notas"><b>Notas deste fornecedor (${ns.length})</b><div style="margin-top:4px">${ns.slice(0, 30).map(n => `<div>${dataBr(n.emissao)} · NF ${escH(n.nnf || "")}${n.chave.endsWith("#2") ? ` <span class="badge l2">Loja 2</span>` : ""} · ${orBrl(n.vnf)} · <a data-abrir="${foA(n.chave.replace(/#2$/, ""))}">abrir</a>${n.chave.endsWith("#2") ? "" : ` · <a data-dev="${foA(n.chave)}" title="monta a nota de devolução desta compra e cria o rascunho no Bling para você conferir e emitir">nota de devolução</a>`}</div>`).join("") || `<span class="orig">—</span>`}</div></div>
     </div>
     <div class="fo-edit"><label class="c">E-mail<input type="email" data-ed="email" value="${foA(f.email)}" placeholder="para mandar a nota de devolução"></label>
       <label class="c">Representante (nome)<input type="text" data-ed="contato" value="${foA(f.contato)}" placeholder="nome do vendedor ou representante"></label>
@@ -7414,6 +7415,121 @@ function foDetalhe(f) {
       <div class="linha" style="gap:8px;flex-wrap:wrap"><button type="button" class="sec" data-zapshare title="abre o WhatsApp para você escolher para quem mandar o contato do representante, com o nome da empresa">Compartilhar contato no WhatsApp</button><button type="button" class="sec" data-zapabrir title="abre a conversa com o representante no WhatsApp">Abrir conversa</button></div>
       <label class="c">Observações<textarea data-ed="obs" rows="4" placeholder="condições, prazos, como pedir devolução…">${escH(f.obs || "")}</textarea></label>
       <div class="linha" style="gap:8px;align-items:center"><button data-salvar>Salvar</button><span class="orig" data-st></span></div></div></div>`;
+}
+// ---------- Nota de devolução de compra (rascunho no Bling) ----------
+// Só a Loja 1 emite pelo Bling (a Loja 2 tem outro CNPJ, que não está no Bling). O sistema monta a nota a partir do XML da compra e
+// cria um RASCUNHO no Bling; a emissão é sempre feita pelo Aldo, lá. Regras fiscais (Simples Nacional, SP): finalidade 4, nota de origem
+// referenciada, CFOP espelho (x.202, ou x.411 quando a compra veio com ST), mesmos unitários da origem, ICMS e IPI da origem proporcionais
+// à quantidade devolvida, informados nas informações complementares (Res. CGSN 140/2018, art. 59, §7) e, no Bling, item a item.
+const DV_CNPJ_L1 = "26834196000103";
+function dvLerXml(texto) {
+  const d = new DOMParser().parseFromString(texto, "application/xml");
+  const inf = d.getElementsByTagNameNS(NS, "infNFe")[0]; if (!inf) throw new Error("Não achei a NF-e no XML guardado desta nota.");
+  const ide = filho(inf, "ide"), emit = filho(inf, "emit"), dest = filho(inf, "dest");
+  const g = (el, tag) => { const e = el && el.getElementsByTagNameNS(NS, tag)[0]; return e ? e.textContent.trim() : ""; };
+  const itens = [...inf.children].filter(c => c.localName === "det").map(det => {
+    const p = filho(det, "prod"), imp = filho(det, "imposto"), icms = imp && filho(imp, "ICMS"), ic = icms && icms.children[0], ipi = imp && filho(imp, "IPI");
+    const ean = g(p, "cEAN");
+    return { n: Number(det.getAttribute("nItem")), cod: g(p, "cProd"), ean: /^\d{8,14}$/.test(ean) ? ean : "", desc: g(p, "xProd"), ncm: g(p, "NCM"), cest: g(p, "CEST"), cfop: g(p, "CFOP"), un: g(p, "uCom"),
+      qtd: num(g(p, "qCom")), vun: num(g(p, "vUnCom")), vprod: num(g(p, "vProd")), vdesc: num(g(p, "vDesc")), vfrete: num(g(p, "vFrete")), voutro: num(g(p, "vOutro")),
+      orig: g(ic, "orig") || "0", cst: g(ic, "CST") || g(ic, "CSOSN"), vbc: num(g(ic, "vBC")), picms: num(g(ic, "pICMS")), vicms: num(g(ic, "vICMS")),
+      vbcst: num(g(ic, "vBCST")) || num(g(ic, "vBCSTRet")), vicmsst: num(g(ic, "vICMSST")) || num(g(ic, "vICMSSTRet")), pipi: num(g(ipi, "pIPI")), vipi: num(g(ipi, "vIPI")) };
+  });
+  return { chave: (inf.getAttribute("Id") || "").replace(/^NFe/, ""), nnf: g(ide, "nNF"), serie: g(ide, "serie"), emissao: (g(ide, "dhEmi") || g(ide, "dEmi")).slice(0, 10), destCnpj: g(dest, "CNPJ"),
+    emit: { cnpj: g(emit, "CNPJ"), razao: g(emit, "xNome"), ie: g(emit, "IE"), crt: g(emit, "CRT"), fone: g(emit, "fone"), logradouro: g(emit, "xLgr"), numero: g(emit, "nro"), complemento: g(emit, "xCpl"), bairro: g(emit, "xBairro"), municipio: g(emit, "xMun"), uf: g(emit, "UF"), cep: g(emit, "CEP") }, itens };
+}
+// compra com substituição tributária? (CFOP x.4xx, CST/CSOSN de ST ou valor de ST no item)
+const dvTemST = it => /^[56]4/.test(String(it.cfop)) || ["10", "30", "60", "70", "201", "202", "203", "500"].includes(String(it.cst)) || it.vicmsst > 0;
+// CFOP da devolução = espelho da compra: mesma abrangência (5 dentro do estado, 6 fora) e x.411 se veio com ST, senão x.202
+const dvCfop = it => (String(it.cfop)[0] === "6" ? "6" : "5") + (dvTemST(it) ? "411" : "202");
+const dvNcm = v => { const d = String(v || "").replace(/\D/g, ""); return d.length === 8 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}` : d; };
+const dvCest = v => { const d = String(v || "").replace(/\D/g, ""); return d.length === 7 ? `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}` : d; };
+// Monta a devolução. qtds = { nItem: quantidade a devolver }; ja = { nItem: quantidade já devolvida em rascunhos anteriores }
+function dvMontar(nota, qtds, motivo, f, ja) {
+  const itens = [], erros = [];
+  for (const it of nota.itens) {
+    const q = Number(qtds[it.n]) || 0; if (!(q > 0)) continue;
+    const saldo = r2(it.qtd - ((ja && ja[it.n]) || 0));
+    if (q > saldo + 1e-9) { erros.push(`Item ${it.n} (${it.desc}): só dá para devolver ${br(saldo, 0)} (comprou ${br(it.qtd, 0)}${ja && ja[it.n] ? `, já devolveu ${br(ja[it.n], 0)}` : ""}).`); continue; }
+    const fr = q / it.qtd, p = v => r2(v * fr);
+    itens.push({ n: it.n, cod: it.cod, ean: it.ean, desc: it.desc, ncm: it.ncm, cest: it.cest, un: it.un, orig: it.orig, cfop: dvCfop(it), st: dvTemST(it), qtd: q, vun: it.vun, total: r2(q * it.vun),
+      vdesc: p(it.vdesc), vfrete: p(it.vfrete), voutro: p(it.voutro), vbc: p(it.vbc), picms: it.picms, vicms: p(it.vicms), vbcst: p(it.vbcst), vicmsst: p(it.vicmsst), pipi: it.pipi, vipi: p(it.vipi) });
+  }
+  const soma = k => r2(itens.reduce((a, i) => a + i[k], 0));
+  const t = { vprod: soma("total"), vdesc: soma("vdesc"), vfrete: soma("vfrete"), voutro: soma("voutro"), vbc: soma("vbc"), vicms: soma("vicms"), vipi: soma("vipi"), vbcst: soma("vbcst"), vicmsst: soma("vicmsst") };
+  t.vnf = r2(t.vprod - t.vdesc + t.vfrete + t.voutro + t.vipi); // o IPI devolvido soma no total da nota (vIPIDevol)
+  const total = itens.length === nota.itens.length && itens.every(i => { const o = nota.itens.find(x => x.n === i.n); return Math.abs(o.qtd - i.qtd) < 1e-9; }) && !(ja && Object.keys(ja).length);
+  const semAc = v => semAcento(String(v || "")).toUpperCase();
+  const obs = `DEVOLUCAO ${total ? "TOTAL" : "PARCIAL"} REFERENTE A NF-E N. ${nota.nnf}, SERIE ${nota.serie}, EMITIDA EM ${dataBr(nota.emissao)}, CHAVE ${nota.chave}. MOTIVO: ${semAc(motivo) || "____"}. ` +
+    `VALORES DO IMPOSTO CONFORME NF DE ORIGEM: BASE DE CALCULO ICMS R$ ${br(t.vbc)} - ICMS R$ ${br(t.vicms)} - IPI R$ ${br(t.vipi)}${t.vicmsst > 0 ? ` - BASE ICMS ST R$ ${br(t.vbcst)} - ICMS ST R$ ${br(t.vicmsst)}` : ""} (RES. CGSN 140/2018, ART. 59, PAR. 7). ` +
+    `DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE IPI.`;
+  const e = nota.emit, agora = new Date(), z = v => String(v).padStart(2, "0");
+  const nfe = { tipo: 1, finalidade: 4, dataOperacao: `${agora.getFullYear()}-${z(agora.getMonth() + 1)}-${z(agora.getDate())} ${z(agora.getHours())}:${z(agora.getMinutes())}:${z(agora.getSeconds())}`,
+    contato: { nome: e.razao, tipoPessoa: "J", numeroDocumento: e.cnpj, ie: e.ie || "", contribuinte: e.ie ? 1 : 9, telefone: (f && f.fone) || e.fone || "", email: (f && f.email) || "",
+      endereco: { endereco: e.logradouro, numero: e.numero, complemento: e.complemento || "", bairro: e.bairro, cep: e.cep, municipio: e.municipio, uf: e.uf } },
+    observacoes: obs, documentoReferenciado: { modelo: "55", data: nota.emissao, numero: nota.nnf, serie: nota.serie, chaveAcesso: nota.chave },
+    transporte: { fretePorConta: 9 },
+    itens: itens.map(i => { const o = { codigo: i.ean || i.cod, descricao: i.desc, unidade: i.un, quantidade: i.qtd, valor: i.vun, tipo: "P", classificacaoFiscal: dvNcm(i.ncm), origem: Number(i.orig) || 0 }; if (i.cest) o.cest = dvCest(i.cest); return o; }) };
+  return { itens, t, total, obs, nfe, erros, temST: itens.some(i => i.st), cfops: [...new Set(itens.map(i => i.cfop))] };
+}
+const DV = { nota: null, f: null, ja: {}, ant: [], qt: {}, feito: null };
+async function dvAbrir(chave, f) {
+  if (!db || !supa) return msg("Entre no sistema para montar a nota de devolução.");
+  try {
+    const q = await db.collection(`notas/${chave}/xml`).get(), texto = q.docs.map(d => d.data().t).join("");
+    if (!texto) return msg("O XML desta nota não está guardado no sistema (nota lançada sem XML): não dá para montar a devolução por aqui.");
+    const nota = dvLerXml(texto);
+    if (nota.destCnpj !== DV_CNPJ_L1) return msg("Esta compra foi faturada para a Loja 2. Só a Loja 1 emite nota pelo Bling; a devolução da Loja 2 precisa ser feita no sistema dela.");
+    const r = await supa.from("devolucoes_bling").select("id, bling_id, numero, itens, total, motivo, criado_em").eq("chave", nota.chave).order("id");
+    const ja = {}; for (const d of r.data || []) for (const i of d.itens || []) ja[i.n] = r2((ja[i.n] || 0) + (Number(i.qtd) || 0));
+    Object.assign(DV, { nota, f, ja, ant: r.data || [], qt: {}, feito: null, motivo: "" });
+    dvDesenhar();
+  } catch (e) { msg("Não consegui abrir a devolução: " + (e.message || e)); }
+}
+function dvDesenhar() {
+  let fundo = document.getElementById("modalDv");
+  if (!fundo) { fundo = document.createElement("div"); fundo.id = "modalDv"; fundo.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:3vh 8px;overflow:auto"; fundo.innerHTML = `<div class="painel" style="width:min(980px,98vw);margin:0;max-height:none"></div>`; document.body.appendChild(fundo); }
+  fundo.style.display = "flex"; const bx = fundo.firstElementChild, { nota, f, ja } = DV, m = dvMontar(nota, DV.qt, DV.motivo, f, ja);
+  const temAnt = DV.ant.length, fx = DV.feito;
+  bx.innerHTML = `<div class="linha" style="justify-content:space-between;align-items:center"><b style="font-size:16px">Nota de devolução — ${escH(nota.emit.razao)}</b><a href="#" id="dvX" style="color:var(--cinza)">fechar ✕</a></div>
+    <div class="orig" style="margin-top:4px">Compra: NF ${escH(nota.nnf)} série ${escH(nota.serie)}, de ${dataBr(nota.emissao)} · fornecedor de ${escH(nota.emit.uf)}${nota.emit.crt === "1" ? " (Simples Nacional)" : ""} · a nota sai pela Loja 1, no Bling, como rascunho: você confere e emite lá.</div>
+    ${temAnt ? `<div class="dvbox" style="margin-top:8px"><b>Já existe devolução desta nota:</b> ${DV.ant.map(d => `<span style="white-space:nowrap">nº ${escH(d.numero || "?")} (${orBrl(Number(d.total) || 0)}, ${new Date(d.criado_em).toLocaleDateString("pt-BR")}) <a href="https://www.bling.com.br/notas.fiscais.php#edit/${d.bling_id}" target="_blank" rel="noopener">abrir no Bling</a> · <a href="#" data-esq="${d.id}" title="use se você apagou esse rascunho no Bling: as quantidades voltam a ficar disponíveis para devolver">esquecer</a></span>`).join(" &nbsp;|&nbsp; ")}. As quantidades já devolvidas foram descontadas abaixo.</div>` : ""}
+    <div class="rolagem" style="margin-top:8px"><table><thead><tr><th>#</th><th>Produto</th><th class="n">Comprou</th><th class="n">Pode devolver</th><th class="n">Devolver</th><th class="n">Unitário</th><th class="n">Total</th><th class="n">ICMS</th><th class="n">IPI</th></tr></thead><tbody>
+      ${nota.itens.map(it => { const saldo = r2(it.qtd - (ja[it.n] || 0)), i = m.itens.find(x => x.n === it.n);
+        return `<tr><td>${it.n}</td><td>${escH(it.desc)}<div class="orig">${escH(it.ean || it.cod)} · NCM ${escH(it.ncm)} · CFOP da compra ${escH(it.cfop)}</div></td><td class="n">${br(it.qtd, 0)} ${escH(it.un)}</td><td class="n">${br(saldo, 0)}</td>
+          <td class="n"><input type="number" min="0" max="${saldo}" step="1" data-q="${it.n}" value="${DV.qt[it.n] || ""}" style="width:70px;text-align:right" ${saldo > 0 && !fx ? "" : "disabled"}></td>
+          <td class="n">${br(it.vun)}</td><td class="n">${i ? br(i.total) : "—"}</td><td class="n">${i ? br(i.vicms) : "—"}</td><td class="n">${i ? br(i.vipi) : "—"}</td></tr>`; }).join("")}
+      </tbody></table></div>
+    <div class="linha" style="gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
+      ${fx ? "" : `<button class="sec" id="dvTudo">Devolver tudo o que resta</button><button class="sec" id="dvZera">Limpar</button>`}
+      <label class="c" style="flex:1;min-width:240px">Motivo (vai na nota)<input type="text" id="dvMotivo" value="${escH(DV.motivo || "")}" placeholder="ex.: mercadoria com defeito, enviada em desacordo com o pedido" ${fx ? "disabled" : ""}></label>
+    </div>
+    ${m.erros.length ? `<div class="dvbox" style="margin-top:8px;color:#b42318">${m.erros.map(escH).join("<br>")}</div>` : ""}
+    ${m.itens.length ? `<div class="dvbox" style="margin-top:8px"><b>${m.total ? "Devolução total" : "Devolução parcial"}</b> · ${m.itens.length} item(ns) · produtos R$ ${br(m.t.vprod)}${m.t.vipi ? ` + IPI devolvido R$ ${br(m.t.vipi)}` : ""}${m.t.vfrete ? ` + frete R$ ${br(m.t.vfrete)}` : ""}${m.t.vdesc ? ` − desconto R$ ${br(m.t.vdesc)}` : ""} = <b>total da nota R$ ${br(m.t.vnf)}</b> · CFOP ${m.cfops.join(" e ")} · ICMS da origem: base R$ ${br(m.t.vbc)}, valor R$ ${br(m.t.vicms)}
+        ${m.temST ? `<div style="color:#b42318;margin-top:4px"><b>Atenção:</b> há item comprado com substituição tributária (ICMS-ST R$ ${br(m.t.vicmsst)}). A devolução sai com CFOP x.411 e o ICMS-ST da origem precisa ser informado item a item no Bling — confirme com a contabilidade antes de emitir.</div>` : ""}</div>
+      <label class="c" style="display:block;margin-top:8px">Informações complementares (vão na nota)<textarea id="dvObs" rows="4" style="width:100%" readonly>${escH(m.obs)}</textarea></label>` : `<div class="orig" style="margin-top:8px">Digite a quantidade a devolver de cada item.</div>`}
+    ${fx ? `<div class="dvbox" style="margin-top:10px;border-left:4px solid #16a34a"><b>Rascunho nº ${escH(fx.numero || "")} criado no Bling.</b> <a href="${escH(fx.link)}" target="_blank" rel="noopener" style="font-weight:700">Abrir no Bling</a> — ainda NÃO foi emitida.
+        <div style="margin-top:6px"><b>Antes de emitir, no Bling</b> (os impostos da devolução não vão pela integração; o Bling só aceita item a item):</div>
+        <ol style="margin:4px 0 0 18px;padding:0"><li>Desligue o "Cálculo automático" de impostos.</li><li>Em cada item (lápis): aba ICMS → CSOSN 900, % base 100, e os valores da tabela abaixo; aba IPI → "Sem IPI", % devolução 100 e o valor de IPI da tabela.</li><li>Ligue de novo o cálculo automático e confira: o total da nota tem que dar <b>R$ ${br(m.t.vnf)}</b>.</li><li>Confira o e-mail do fornecedor no contato${f && f.email ? ` (${escH(f.email)})` : " — <b>este fornecedor está sem e-mail no cadastro</b>"} e emita.</li></ol>
+        <div class="rolagem" style="margin-top:6px"><table><thead><tr><th>Item</th><th>Origem</th><th>CSOSN</th><th class="n">Base ICMS</th><th class="n">% ICMS</th><th class="n">Valor ICMS</th><th class="n">IPI devolvido</th></tr></thead><tbody>
+          ${m.itens.map(i => `<tr><td>${escH(i.desc)}</td><td>${escH(i.orig)}</td><td>900</td><td class="n">${br(i.vbc)}</td><td class="n">${br(i.picms)}</td><td class="n">${br(i.vicms)}</td><td class="n">${i.vipi ? br(i.vipi) : "—"}</td></tr>`).join("")}
+          <tr><td colspan="3"><b>Totais</b></td><td class="n"><b>${br(m.t.vbc)}</b></td><td></td><td class="n"><b>${br(m.t.vicms)}</b></td><td class="n"><b>${br(m.t.vipi)}</b></td></tr></tbody></table></div></div>`
+      : `<div class="linha" style="gap:8px;margin-top:10px;align-items:center"><button id="dvCriar" ${m.itens.length && !m.erros.length ? "" : "disabled"}>Criar rascunho no Bling</button><span class="orig">cria a nota como pendente no Bling; nada é emitido por aqui</span></div>`}`;
+  const g = id => bx.querySelector("#" + id);
+  g("dvX").onclick = ev => { ev.preventDefault(); fundo.style.display = "none"; };
+  for (const i of bx.querySelectorAll("[data-q]")) i.addEventListener("change", () => { const v = Math.max(0, Number(i.value) || 0); if (v) DV.qt[i.dataset.q] = v; else delete DV.qt[i.dataset.q]; dvDesenhar(); });
+  if (g("dvMotivo")) g("dvMotivo").addEventListener("change", ev => { DV.motivo = ev.target.value.trim(); dvDesenhar(); });
+  if (g("dvTudo")) g("dvTudo").onclick = () => { DV.qt = {}; for (const it of nota.itens) { const s = r2(it.qtd - (ja[it.n] || 0)); if (s > 0) DV.qt[it.n] = s; } dvDesenhar(); };
+  if (g("dvZera")) g("dvZera").onclick = () => { DV.qt = {}; dvDesenhar(); };
+  for (const a of bx.querySelectorAll("[data-esq]")) a.onclick = async ev => { ev.preventDefault(); if (!confirm("Esquecer este rascunho? Use só se ele foi apagado no Bling. As quantidades voltam a ficar disponíveis para devolver.")) return; const r = await supa.from("devolucoes_bling").delete().eq("id", Number(a.dataset.esq)); if (r.error) return msg("Não consegui: " + r.error.message); dvAbrir(nota.chave, f); };
+  if (g("dvCriar")) g("dvCriar").onclick = async () => {
+    if (!DV.motivo) return msg("Escreva o motivo da devolução (ele vai na nota).");
+    if (!confirm(`Criar no Bling o rascunho da nota de devolução para ${nota.emit.razao}?\n\n${m.itens.length} item(ns) · total R$ ${br(m.t.vnf)}\n\nA nota fica pendente no Bling; você confere e emite lá.`)) return;
+    const b = g("dvCriar"); b.disabled = true; b.textContent = "criando no Bling…";
+    const { data, error } = await supa.functions.invoke("devolucao", { body: { acao: "criar", nfe: m.nfe, registro: { itens: m.itens.map(i => ({ n: i.n, ean: i.ean, desc: i.desc, qtd: i.qtd, vun: i.vun, total: i.total, vbc: i.vbc, picms: i.picms, vicms: i.vicms, vipi: i.vipi })), total: m.t.vnf, motivo: DV.motivo } } });
+    if (error || !data || !data.ok) { b.disabled = false; b.textContent = "Criar rascunho no Bling"; return msg("Não consegui criar a nota no Bling: " + ((data && data.msg) || (error && error.message) || "erro")); }
+    DV.feito = data; dvDesenhar(); try { window.open(data.link, "_blank", "noopener"); } catch (_e) {}
+  };
 }
 // WhatsApp do representante: só dígitos com DDI 55 (para o link) e formato para mostrar
 const foZap = v => { let d = String(v || "").replace(/\D/g, "").replace(/^0+/, ""); if (!d) return ""; if (d.length <= 11) d = "55" + d; return d; };
@@ -7425,6 +7541,7 @@ function foLigarDetalhe(det, f) {
   det.querySelector("[data-copiar]").addEventListener("click", () => copiar(foTexto(f), "Dados do fornecedor copiados — é só colar."));
   det.querySelector("[data-copiarcnpj]").addEventListener("click", () => copiar(foCnpj(f.cnpj), "CNPJ copiado."));
   for (const a of det.querySelectorAll("[data-abrir]")) a.addEventListener("click", () => { mostrar("entrada"); if (db) abrirNota(a.dataset.abrir); });
+  for (const a of det.querySelectorAll("[data-dev]")) a.addEventListener("click", ev => { ev.preventDefault(); dvAbrir(a.dataset.dev, f); });
   { const v = k => det.querySelector(`[data-ed=${k}]`).value.trim(), emp = f.fantasia && f.fantasia !== f.razao ? f.fantasia : (f.razao || "");
     det.querySelector("[data-zapshare]").addEventListener("click", () => { const nome = v("contato"), z = foZap(v("whats"));
       if (!nome && !z) return msg("Preencha o nome e o WhatsApp do representante antes de compartilhar.");

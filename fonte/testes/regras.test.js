@@ -268,6 +268,35 @@ secao("9. Clientes (juntados a partir dos orçamentos)");
   confere("ficha do cliente mostra os 3 orçamentos e o botão de lembrar a validade", w.document.querySelectorAll("#clEd [data-orc]").length === 3 && w.document.querySelectorAll("#clEd [data-val]").length === 1);
 }
 
+// ---------- 10. nota de devolução de compra ----------
+secao("10. Nota de devolução de compra (rascunho no Bling)");
+{
+  // recorte de uma NF-e real de compra (fornecedor de SP, regime normal, ICMS 18%, um item com IPI)
+  const det = (n, ean, desc, ncm, q, vun, vprod, vicms, ipi) => `<det nItem="${n}"><prod><cProd>PR ${n}</cProd><cEAN>${ean}</cEAN><xProd>${desc}</xProd><NCM>${ncm}</NCM><CFOP>5101</CFOP><uCom>PC</uCom><qCom>${q}.0000</qCom><vUnCom>${vun}</vUnCom><vProd>${vprod}</vProd></prod><imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><vBC>${vprod}</vBC><pICMS>18.0000</pICMS><vICMS>${vicms}</vICMS></ICMS00></ICMS><IPI>${ipi ? `<IPITrib><CST>50</CST><vBC>${vprod}</vBC><pIPI>6.5000</pIPI><vIPI>${ipi}</vIPI></IPITrib>` : `<IPINT><CST>51</CST></IPINT>`}</IPI></imposto></det>`;
+  const xml = `<?xml version="1.0"?><nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe35261147741285000185550010000309081517341830"><ide><serie>1</serie><nNF>30908</nNF><dhEmi>2026-11-25T11:20:37-03:00</dhEmi></ide><emit><CNPJ>47741285000185</CNPJ><xNome>FORNECEDOR TESTE LTDA</xNome><enderEmit><xLgr>AV TESTE</xLgr><nro>25</nro><xBairro>CENTRO</xBairro><xMun>SAO PAULO</xMun><UF>SP</UF><CEP>08490490</CEP><fone>1125597070</fone></enderEmit><IE>109634360110</IE><CRT>3</CRT></emit><dest><CNPJ>26834196000103</CNPJ></dest>${det(1, "7897216950310", "PRANCHETA EUCATEX", "44219900", 48, "2.7500000000", "132.00", "23.76", "")}${det(2, "7897216901930", "ESPETO P/PAPEL", "83059000", 10, "6.9500000000", "69.50", "12.51", "4.52")}</infNFe></NFe></nfeProc>`;
+  const nota = ev("dvLerXml")(xml), montar = ev("dvMontar");
+  confere("lê a nota de origem (número, série, emissão, chave, 2 itens)", nota.nnf === "30908" && nota.serie === "1" && nota.emissao === "2026-11-25" && nota.chave.length === 44 && nota.itens.length === 2);
+  const m = montar(nota, { 1: 12, 2: 10 }, "mercadoria com defeito", { email: "nf@fornecedor.com" }, {});
+  confere("CFOP espelho: compra 5.101 sem ST → devolução 5.202", m.cfops.join() === "5202");
+  igual("unitário é o da nota de origem (2,75)", m.itens[0].vun, 2.75);
+  igual("total do item = quantidade × unitário da origem (12 × 2,75)", m.itens[0].total, 33);
+  igual("ICMS proporcional à quantidade devolvida (12 de 48 → 23,76 ÷ 4)", m.itens[0].vicms, 5.94);
+  igual("IPI da origem devolvido inteiro quando devolve tudo do item", m.itens[1].vipi, 4.52);
+  igual("total da nota = produtos + IPI devolvido (33 + 69,50 + 4,52)", m.t.vnf, 107.02);
+  confere("devolução de parte de um item é PARCIAL", m.total === false && m.obs.startsWith("DEVOLUCAO PARCIAL REFERENTE A NF-E N. 30908, SERIE 1, EMITIDA EM 25/11/2026, CHAVE 35261147741285000185550010000309081517341830."));
+  confere("informações complementares levam base e valor do ICMS, IPI e a frase do Simples", m.obs.includes("BASE DE CALCULO ICMS R$ 102,50 - ICMS R$ 18,45 - IPI R$ 4,52") && m.obs.includes("NAO GERA DIREITO A CREDITO FISCAL DE IPI") && m.obs.includes("MOTIVO: MERCADORIA COM DEFEITO"), m.obs);
+  confere("nota para o Bling: saída, finalidade devolução, origem referenciada pela chave", m.nfe.tipo === 1 && m.nfe.finalidade === 4 && m.nfe.documentoReferenciado.chaveAcesso === nota.chave && m.nfe.documentoReferenciado.numero === "30908");
+  confere("fornecedor vai com CNPJ, IE e endereço do XML", m.nfe.contato.numeroDocumento === "47741285000185" && m.nfe.contato.ie === "109634360110" && m.nfe.contato.endereco.uf === "SP" && m.nfe.contato.email === "nf@fornecedor.com");
+  confere("item vai com código de barras, NCM formatado e unitário da origem", m.nfe.itens[0].codigo === "7897216950310" && m.nfe.itens[0].classificacaoFiscal === "4421.99.00" && m.nfe.itens[0].valor === 2.75 && m.nfe.itens[0].quantidade === 12);
+  const tudo = montar(nota, { 1: 48, 2: 10 }, "x", null, {});
+  confere("devolver todos os itens inteiros é devolução TOTAL", tudo.total === true && tudo.obs.startsWith("DEVOLUCAO TOTAL"));
+  igual("devolução total fecha com a nota de origem (132 + 69,50 + 4,52)", tudo.t.vnf, 206.02);
+  const demais = montar(nota, { 1: 40 }, "x", null, { 1: 12 });
+  confere("não deixa devolver mais do que o saldo (já devolveu 12 de 48, pede 40)", demais.erros.length === 1 && demais.itens.length === 0, JSON.stringify(demais.erros));
+  const st = ev("dvCfop");
+  confere("compra com ST vira x.411; de fora do estado vira 6.xxx", st({ cfop: "5403", cst: "10", vicmsst: 3 }) === "5411" && st({ cfop: "6102", cst: "00", vicmsst: 0 }) === "6202" && st({ cfop: "6403", cst: "10", vicmsst: 1 }) === "6411");
+}
+
 // ---------- resultado ----------
 if (errosPagina.length) { falhas++; console.log("\n✘ a página teve erro ao carregar: " + errosPagina.slice(0, 3).join(" | ")); }
 console.log(`\n${ok} regras ok, ${falhas} com problema.`);

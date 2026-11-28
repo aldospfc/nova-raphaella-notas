@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="217">
+<meta name="versao" content="218">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -1474,7 +1474,7 @@ function desenhar() {
       ${it.m ? `<td class="n"><input class="p" type="text" inputmode="decimal" data-c="qtd" placeholder="qtd"><div class="orig">custo un. <input class="p" type="text" inputmode="decimal" data-c="vun" style="width:60px"></div></td><td class="n" data-o="vprod"></td><td class="n">${it.vipi || it.vst ? br((it.vipi || 0) + (it.vst || 0)) : "-"}</td>`
         : `<td class="n">${br(it.qtd, 0)} ${it.un}<div class="orig">× ${br(it.vun)}</div></td><td class="n">${br(it.vprod)}</td><td class="n">${br(it.vipi)}</td>`}
       <td class="n"><input class="p" type="number" min="1" step="1" data-c="div"></td><td class="n" data-o="qtdUn"></td>
-      <td><input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-c="ean" placeholder="bipar ou digitar"> <a class="sug" style="cursor:pointer;color:#0b57d0" data-b="1">buscar</a> <a class="sug" style="cursor:pointer;color:#0b57d0" data-cam="1" title="ler o código de barras com a câmera do celular">📷</a><div data-o="st"></div></td>
+      <td><input class="ean mono" type="text" inputmode="numeric" maxlength="14" data-c="ean" placeholder="bipar ou digitar"> <a class="sug" style="cursor:pointer;color:#0b57d0" data-b="1">buscar</a> <a class="sug" style="cursor:pointer;color:#0b57d0" data-cam="1" title="ler o código de barras com a câmera do celular">📷</a> <a class="sug" style="cursor:pointer;color:#0b57d0;white-space:nowrap" data-site="1" title="monta a página deste produto no site novaraphaella.com.br usando os dados da nota (descrição do fornecedor, código, NCM): procura fotos, escreve o texto e mostra uma prévia para você aprovar">🌐 site</a><div data-o="st"></div></td>
       <td class="n"><input class="p" type="number" min="1" max="100" data-c="pct" placeholder="${gPct()}"></td>
       <td class="n"><input class="p" type="number" min="0.5" max="1" step="0.01" data-c="fd"></td>
       <td class="n" data-o="custoItem"></td><td class="n custo" data-o="custoUn"></td>
@@ -1517,6 +1517,7 @@ function desenhar() {
     }
     tr.querySelector("[data-b]").addEventListener("click", () => abrirBusca(it));
     tr.querySelector("[data-cam]").addEventListener("click", () => lerCamera(c => usarEan(it, c)));
+    tr.querySelector("[data-site]").addEventListener("click", () => siteDaNota(it));
     tr.querySelector("[data-c=rev]").addEventListener("change", ev => { it.rev = ev.target.checked ? 1 : 0; tr.classList.toggle("rev", !!it.rev); it.tocado = true; totais(); guardar(it); });
     tr.querySelector("[data-d]").addEventListener("click", () => { if (abertos.has(it.n)) abertos.delete(it.n); else abertos.add(it.n); tr.querySelector("[data-d]").textContent = (abertos.has(it.n) ? "▾ " : "▸ ") + rot(it); tr.classList.toggle("aberto", abertos.has(it.n)); desenharDetalhe(it); });
     const rx = tr.querySelector("[data-x]"); if (rx) rx.addEventListener("click", () => { if (rx.dataset.ok) removerItem(it); else { rx.dataset.ok = "1"; rx.textContent = "confirmar"; } });
@@ -3073,6 +3074,8 @@ async function travaAbrir() {
   const pc = b.querySelector("[data-pc]"); if (pc) pc.onclick = async () => feito(await supa.from("promocoes").update({ status: "cancelada", encerrada_em: new Date().toISOString() }).in("id", P.map(p => p.id)), "Promoções canceladas.");
 }
 // ===================== Enviar ao site (produto do cadastro das lojas → Sanity, com prévia) =====================
+// Botão no produto aberto (aba Produtos) e em cada item da nota de entrada ("🌐 site", v218): pela nota vão junto a descrição completa
+// do fornecedor, o código dele, o fornecedor e o NCM, para a busca achar a foto certa, e o produto pode ir antes de entrar no cadastro.
 // Botão no produto aberto (aba Produtos). A função de borda "site-produtos" prepara (fotos pelo Serper, texto pela IA) e só
 // publica o que for aprovado aqui. Produto que já está no site não é enviado de novo.
 const ST = { g: null, d: null, foto: "" };
@@ -3090,6 +3093,16 @@ async function siteChamar(corpo) {
     return data || { ok: false, msg: "sem resposta" };
   } catch (e) { return { ok: false, msg: e.message || String(e) }; }
 }
+// item da nota de entrada → mesma prévia, com os dados da nota indo junto
+function siteDaNota(it) {
+  const ean = String(it.ean || "").replace(/\D/g, "");
+  if (!/^\d{8,14}$/.test(ean)) { msg("Preencha o código de barras deste item antes de enviar ao site."); return; }
+  let lj = [true, false]; try { lj = lojasItem(it); } catch (e) {}
+  const nome = (it.desc || it.xprod || "").trim();
+  ST.form = null;
+  siteAbrir({ ean, 1: { descricao: nome }, nota: { xprod: it.xprod || nome, desc: it.desc || "", cod: it.cod || "", forn: (cab && !cab.manual && (cab.emitXml || cab.emit)) || "", ncm: it.ncm || "", un: it.un || "", div: it.div || 1,
+    disp: lj[0] && lj[1] ? "Ambas as lojas" : lj[1] ? "Loja 2 - Limoeiro" : "Loja 1 - Jardim Soraia" } });
+}
 async function siteAbrir(g) {
   if (!supa || !g || !g.ean) return;
   ST.g = g; ST.foto = "";
@@ -3097,14 +3110,14 @@ async function siteAbrir(g) {
   siteCaixa(`<b style="font-size:16px">🌐 Enviar ao site</b> <a href="#" id="stX" style="float:right;font-size:12px">fechar</a>
     <div style="margin-top:6px"><b>${escH(base.descricao || "")}</b> <span class="mono orig">${escH(g.ean)}</span></div>
     <div class="orig" style="margin-top:10px">Preparando: procurando fotos e escrevendo o texto… (leva de 10 a 30 segundos)</div>`).querySelector("#stX").onclick = ev => { ev.preventDefault(); siteFechar(); };
-  const d = await siteChamar({ acao: "preparar", ean: String(g.ean) });
+  const d = await siteChamar({ acao: "preparar", ean: String(g.ean), nota: g.nota || undefined });
   if (ST.g !== g) return; // fechou enquanto preparava
   ST.d = d; siteDesenhar();
 }
 function siteDesenhar(erro) {
   const g = ST.g, d = ST.d; if (!g || !d) return;
   const base = g[1] || g[2], cab = `<b style="font-size:16px">🌐 Enviar ao site</b> <a href="#" id="stX" style="float:right;font-size:12px">fechar</a>
-    <div style="margin-top:6px" class="orig">No cadastro: <b>${escH(base.descricao || "")}</b> <span class="mono">${escH(g.ean)}</span></div>`;
+    <div style="margin-top:6px" class="orig">${g.nota ? "Na nota" : "No cadastro"}: <b>${escH(base.descricao || "")}</b> <span class="mono">${escH(g.ean)}</span></div>`;
   let c;
   if (!d.ok) c = siteCaixa(cab + `<div class="chip falta" style="margin-top:10px">${escH(d.msg || "Não consegui preparar.")}</div>`);
   else if (d.publicado) c = siteCaixa(cab + `<div class="chip ok" style="margin-top:10px;font-size:13px">✅ Publicado no site</div><div class="orig" style="margin-top:6px">Página: <span class="mono">${escH(d.slug || "")}</span>. Pode levar alguns minutos para aparecer no site.</div>`);
@@ -3144,7 +3157,7 @@ function siteDesenhar(erro) {
       if (!f.marca.trim()) { er.textContent = "Preencha a marca (o site exige)."; return; }
       if (!foto) { er.textContent = "Escolha uma foto, ou cole o endereço de uma."; return; }
       ST.form = f; q("#stPublicar").disabled = true; er.style.color = "var(--cinza)"; er.textContent = "Publicando… (baixando a foto e criando a página)";
-      const r = await siteChamar({ acao: "publicar", ean: String(g.ean), nome: f.nome, marca: f.marca, categoria_id: f.categoria_id, descricao: f.descricao, disponibilidade: f.disponibilidade, imagem_url: foto });
+      const r = await siteChamar({ acao: "publicar", ean: String(g.ean), nome: f.nome, marca: f.marca, categoria_id: f.categoria_id, descricao: f.descricao, disponibilidade: f.disponibilidade, imagem_url: foto, nota: g.nota || undefined });
       if (ST.g !== g) return;
       if (r.ok) { ST.form = null; ST.d = r; siteDesenhar(); return; }
       if (r.foto) ST.foto = "";

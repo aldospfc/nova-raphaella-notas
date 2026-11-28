@@ -6,6 +6,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //   acao "publicar": recebe o que o usuario aprovou (texto e a foto escolhida), sobe a foto para o Sanity e cria o produto.
 // Segredos: SANITY_TOKEN (Editor no projeto l2j20ikp), SERPER_API_KEY (busca de imagens), ANTHROPIC_API_KEY (texto; modelo em ROMANEIO_MODELO).
 // So usuario de perfil completo (rpc permitido). v1 (28/11/2026).
+// v2: o pedido pode trazer "nota" (item de uma nota de entrada: descricao completa do fornecedor, codigo do fornecedor, fornecedor, NCM,
+//   quantas unidades por embalagem, lojas de destino). Com isso a busca de fotos fica mais certeira e o produto pode ir ao site
+//   antes mesmo de entrar no cadastro das lojas.
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -50,12 +53,24 @@ async function noSite(ean: string) {
   return await sanity(`*[_type == "produto" && (_id == $id || ean in $eans)][0]{_id, nome, "slug": slug.current}`, { id: "produto-" + k.padStart(13, "0"), eans: [k, k.padStart(13, "0"), k.padStart(14, "0")] });
 }
 
-async function preparar(ean: string) {
+type Nota = { xprod: string; desc: string; cod: string; forn: string; ncm: string; un: string; div: number; disp: string };
+function lerNota(n: unknown): Nota | null {
+  if (!n || typeof n !== "object") return null;
+  const o = n as Record<string, unknown>;
+  const nota = { xprod: limpa(o.xprod, 160), desc: limpa(o.desc, 80), cod: limpa(o.cod, 40), forn: limpa(o.forn, 80), ncm: limpa(o.ncm, 10).replace(/\D/g, ""), un: limpa(o.un, 6), div: Math.max(1, Math.round(Number(o.div) || 1)), disp: DISP.includes(String(o.disp)) ? String(o.disp) : "" };
+  return nota.xprod || nota.desc ? nota : null;
+}
+const eanOk = (e: string) => /^\d{8,14}$/.test(String(e || "").replace(/\D/g, "")) && semZeros(e).length >= 7;
+
+async function preparar(ean: string, nota: Nota | null) {
   const prods = await cadastro(ean);
-  if (!prods.length) return { ok: false, erro: "cadastro", msg: "Não achei este código de barras no cadastro das lojas (ou está inativo)." };
-  const eanCad = String(prods[0].ean), lojas = [...new Set(prods.map((p) => p.loja_id))];
-  const disponibilidade = lojas.includes(1) && lojas.includes(2) ? DISP[0] : lojas.includes(1) ? DISP[1] : DISP[2];
-  const nomes = [...new Set(prods.map((p) => limpa(p.descricao, 120)))];
+  if (!prods.length && !nota) return { ok: false, erro: "cadastro", msg: "Não achei este código de barras no cadastro das lojas (ou está inativo)." };
+  if (!prods.length && !eanOk(ean)) return { ok: false, erro: "ean", msg: "Preencha o código de barras deste item antes de enviar ao site." };
+  const eanCad = prods.length ? String(prods[0].ean) : String(ean).replace(/\D/g, ""), lojas = [...new Set(prods.map((p) => p.loja_id))];
+  const disponibilidade = nota?.disp || (lojas.includes(1) && lojas.includes(2) ? DISP[0] : lojas.includes(2) && !lojas.includes(1) ? DISP[2] : DISP[1]);
+  const nomes = [...new Set([...prods.map((p) => limpa(p.descricao, 120)), ...(nota ? [nota.desc || nota.xprod] : [])].filter(Boolean))];
+  // fornecedor sem "LTDA", "COMERCIO DE..." etc.: serve de pista de marca na busca
+  const fornCurto = nota ? nota.forn.replace(/\b(LTDA|S\.?A\.?|EIRELI|ME|EPP|INDUSTRIA|IND\.?|COMERCIO|COM\.?|DISTRIBUIDORA|DISTRIB\.?|IMPORTACAO|EXPORTACAO|IMP\.?|EXP\.?|DE|DO|DA|E)\b/gi, " ").replace(/[^\p{L}\p{N} ]/gu, " ").replace(/\s+/g, " ").trim().split(" ").slice(0, 2).join(" ") : "";
   const avisos: string[] = [];
 
   const ja = await noSite(eanCad);
@@ -77,11 +92,18 @@ async function preparar(ean: string) {
       if (i.title) titulos.push(limpa(i.title, 120));
     }
   };
-  const buscas = await Promise.allSettled([serper("images", k.padStart(13, "0"), 10), serper("images", nomes[0], 10), serper("search", k.padStart(13, "0"), 8)]);
+  const codForn = nota && nota.cod.replace(/[^A-Za-z0-9]/g, "").length >= 4 && fornCurto ? `${fornCurto} ${nota.cod}` : "";
+  const buscas = await Promise.allSettled([serper("images", k.padStart(13, "0"), 10), serper("images", nomes[0], 10), serper("search", k.padStart(13, "0"), 8),
+    nota?.xprod ? serper("images", nota.xprod + (fornCurto && !nota.xprod.toUpperCase().includes(fornCurto.toUpperCase().split(" ")[0]) ? " " + fornCurto : ""), 10) : Promise.resolve(null),
+    codForn ? serper("images", codForn, 8) : Promise.resolve(null),
+    nota?.xprod ? serper("search", nota.xprod, 6) : Promise.resolve(null)]);
   if (buscas.some((b) => b.status === "rejected" && String((b as PromiseRejectedResult).reason?.message).includes("SEM_SERPER"))) { semSerper = true; avisos.push("A busca de fotos ainda não está ligada: falta cadastrar o segredo SERPER_API_KEY no Supabase. Você pode colar o endereço de uma foto."); }
   else for (const b of buscas) if (b.status === "rejected") avisos.push("Uma das buscas falhou: " + limpa((b as PromiseRejectedResult).reason?.message, 120));
   if (buscas[0].status === "fulfilled") juntar(buscas[0].value, "código de barras");
+  if (buscas[3].status === "fulfilled" && buscas[3].value) juntar(buscas[3].value, "nome completo da nota");
+  if (buscas[4].status === "fulfilled" && buscas[4].value) juntar(buscas[4].value, "código do fornecedor");
   if (buscas[1].status === "fulfilled") juntar(buscas[1].value, "nome");
+  if (buscas[5].status === "fulfilled" && buscas[5].value) for (const o of (buscas[5].value?.organic || []).slice(0, 6)) titulos.unshift(limpa(o.title, 120) + (o.snippet ? " — " + limpa(o.snippet, 160) : ""));
   if (buscas[2].status === "fulfilled") for (const o of (buscas[2].value?.organic || []).slice(0, 8)) titulos.unshift(limpa(o.title, 120) + (o.snippet ? " — " + limpa(o.snippet, 160) : ""));
 
   // texto: IA (se nao der, cai num rascunho simples com o nome do cadastro)
@@ -100,8 +122,9 @@ Devolva SOMENTE um JSON, sem texto antes ou depois, com as chaves:
 - "descricao": 2 a 3 frases em portugues do Brasil, ate 420 caracteres, dizendo para que serve e o principal diferencial, terminando com "Disponível na Nova Raphaella!".
 - "confianca": "alta" se o nome do cadastro e os titulos da internet concordam sobre qual e o produto; "media" se so o cadastro sustenta; "baixa" se ha duvida sobre qual e o produto.
 - "observacao": uma frase curta sobre o que conferir (cor, tamanho, quantidade na embalagem), ou "".
+Quando vier um bloco "Nota fiscal do fornecedor", ele e a fonte mais confiavel sobre qual e o produto: a descricao da nota e a do proprio fornecedor. O fornecedor pode ser o fabricante (entao e a marca) ou so um distribuidor (entao nao e a marca): decida pelos titulos da internet e pela descricao. Se a nota veio em caixa/pacote com varias unidades e a loja vende por unidade, a pagina e da UNIDADE: nao ponha "caixa com N" no nome.
 Regras: nao invente medida, quantidade, cor, material ou personagem que nao esteja no nome do cadastro nem nos titulos. Em duvida entre o cadastro e a internet, vale o cadastro. Nao cite preco. Use acentuacao correta no nome e na descricao.`;
-    const usuario = `Codigo de barras: ${eanCad}\nNome no cadastro: ${nomes.join(" | ")}\n\nCategorias do site:\n${categorias.map((c) => `- ${c._id}: ${c.nome}`).join("\n")}\n\nTitulos encontrados na internet:\n${[...new Set(titulos)].slice(0, 18).map((t) => "- " + t).join("\n") || "(nenhum)"}`;
+    const usuario = `Codigo de barras: ${eanCad}\nNome no cadastro: ${nomes.join(" | ")}\n${nota ? `\nNota fiscal do fornecedor:\n- descricao na nota: ${nota.xprod}\n- fornecedor (emitente): ${nota.forn}\n- codigo do produto no fornecedor: ${nota.cod}\n- NCM: ${nota.ncm}\n- unidade na nota: ${nota.un}${nota.div > 1 ? ` (cada uma com ${nota.div} unidades de venda; a loja vende por unidade)` : ""}\n` : ""}\nCategorias do site:\n${categorias.map((c) => `- ${c._id}: ${c.nome}`).join("\n")}\n\nTitulos encontrados na internet:\n${[...new Set(titulos)].slice(0, 18).map((t) => "- " + t).join("\n") || "(nenhum)"}`;
     const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({ model: modelo, max_tokens: 1500, system: sistema, messages: [{ role: "user", content: usuario }] }) });
     const j = await r.json().catch(() => null);
@@ -112,13 +135,13 @@ Regras: nao invente medida, quantidade, cor, material ou personagem que nao este
       descricao: limpa(d.descricao, 500), confianca: ["alta", "media", "baixa"].includes(d.confianca) ? d.confianca : "media", observacao: limpa(d.observacao, 200) };
   } catch (e) { avisos.push("A IA não conseguiu escrever o texto (" + limpa((e as Error).message, 120) + "): preencha à mão."); }
 
-  return { ok: true, ean: eanCad, cadastro: prods, disponibilidade, sugestao, categorias, imagens: imagens.slice(0, 16), parecidos, avisos, sem_serper: semSerper };
+  return { ok: true, ean: eanCad, cadastro: prods, disponibilidade, sugestao, categorias, imagens: imagens.slice(0, nota ? 20 : 16), parecidos, avisos, sem_serper: semSerper };
 }
 
 async function publicar(b: Record<string, unknown>) {
   const prods = await cadastro(String(b.ean || ""));
-  if (!prods.length) return { ok: false, msg: "Este código de barras não está no cadastro das lojas." };
-  const ean = semZeros(String(prods[0].ean)).padStart(13, "0"), nome = limpa(b.nome, 120), marca = limpa(b.marca, 60), descricao = limpa(b.descricao, 500), categoria = String(b.categoria_id || ""), disp = String(b.disponibilidade || ""), img = String(b.imagem_url || "").trim();
+  if (!prods.length && !(lerNota(b.nota) && eanOk(String(b.ean || "")))) return { ok: false, msg: "Este código de barras não está no cadastro das lojas." };
+  const ean = semZeros(prods.length ? String(prods[0].ean) : String(b.ean)).padStart(13, "0"), nome = limpa(b.nome, 120), marca = limpa(b.marca, 60), descricao = limpa(b.descricao, 500), categoria = String(b.categoria_id || ""), disp = String(b.disponibilidade || ""), img = String(b.imagem_url || "").trim();
   if (nome.length < 5) return { ok: false, msg: "Escreva o nome do produto." };
   if (!marca) return { ok: false, msg: "Preencha a marca (o site exige)." };
   if (!DISP.includes(disp)) return { ok: false, msg: "Escolha em qual loja o produto está disponível." };
@@ -163,7 +186,7 @@ Deno.serve(async (req: Request) => {
     if (!p.ok || (await p.json()) !== true) return resp({ ok: false, erro: "sem_permissao", msg: "Entre no sistema de novo." }, 403);
     if (!Deno.env.get("SANITY_TOKEN")) return resp({ ok: false, msg: "Falta o segredo SANITY_TOKEN no Supabase." });
     const b = await req.json().catch(() => ({}));
-    if (b?.acao === "preparar") return resp(await preparar(String(b.ean || "")));
+    if (b?.acao === "preparar") return resp(await preparar(String(b.ean || ""), lerNota(b.nota)));
     if (b?.acao === "publicar") return resp(await publicar(b));
     return resp({ ok: false, msg: "ação desconhecida" }, 400);
   } catch (e) {

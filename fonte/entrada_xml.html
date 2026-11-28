@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="206">
+<meta name="versao" content="207">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5700,7 +5700,7 @@ async function orEnviarCaixa() {
     const linhas = its.map(i => orLinhaCaixa(i.ean, i.desc, Number(i.qtd), orPrecoCaixa(o, i), fis.get(String(i.ean).padStart(13, "0"))));
     const arquivo = [...linhas, "============|00000000000000000000"].join("\n");
     // fica registrado como "ativo no caixa": o PC da loja repõe o arquivo se ele sumir, até o orçamento virar venda, ser dado como perdido ou vencer
-    const reg = await supa.from("orc_pos_arquivos").upsert({ loja_id: 1, num, orc_id: o.id, orc_num: Number(o.num) || null, conteudo: arquivo, ativo: true, valido_ate: o.validade || null, enviado_em: new Date().toISOString(), gravado_em: null });
+    const reg = await supa.from("orc_pos_arquivos").upsert({ loja_id: 1, num, orc_id: o.id, orc_num: Number(o.num) || null, conteudo: arquivo, ativo: true, valido_ate: o.validade || null, enviado_em: new Date().toISOString(), gravado_em: null, falta_desde: null, sumiu_em: null, vendido_em: null, cupom: null });
     if (reg.error) throw new Error(reg.error.message);
     const corpo = [`--APAGAR ${num}.txt`, `--GRAVAR ${num}.txt`, arquivo, "--FIM"].join("\n");
     const b = await supa.from("fila").insert({ loja_id: 1, tipo: "orc_pos", titulo: `Orcamento ${o.num} para o caixa (no ${num})`, conteudo: corpo, status: "pendente" }).select("id").single();

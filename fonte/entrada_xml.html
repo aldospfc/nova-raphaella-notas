@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nova Raphaella">
-<meta name="versao" content="204">
+<meta name="versao" content="205">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -5539,7 +5539,7 @@ function orDesenharEd() {
       <label class="c">Cliente<input type="text" id="orCliente" value="${orA(o.cliente)}" style="width:220px" placeholder="nome"></label>
       <label class="c">WhatsApp<input type="tel" id="orTel" value="${orA(o.tel)}" style="width:140px" placeholder="(11) 9...."></label>
       <label class="c">Loja (preços)<select id="orLoja"><option value="1" ${o.loja == 1 ? "selected" : ""}>Loja 1</option><option value="2" ${o.loja == 2 ? "selected" : ""}>Loja 2</option></select></label>
-      <label class="c">Válido até<input type="date" id="orVal" value="${o.validade || ""}"></label>
+      <label class="c" title="depois desta data o orçamento sai do caixa sozinho e não pode mais ser puxado">Válido até (no caixa também)<input type="date" id="orVal" value="${o.validade || ""}"></label>
       <label class="c">Desconto geral %<input type="number" id="orDesc" min="0" max="100" step="0.5" value="${o.descPct || 0}" style="width:80px"></label>
     </div>
     <div class="linha" style="gap:8px;margin-top:10px;align-items:flex-end;flex-wrap:wrap">
@@ -5563,6 +5563,8 @@ function orDesenharEd() {
   const campo = (id, k, conv) => g(id).addEventListener("input", ev => { o[k] = conv ? conv(ev.target.value) : ev.target.value; orSalvar(); if (k === "descPct") orAtualizarTotais(); });
   campo("orCliente", "cliente"); campo("orTel", "tel"); campo("orVal", "validade"); campo("orObs", "obs"); campo("orDesc", "descPct", v => Math.min(100, Math.max(0, parseFloat(v) || 0)));
   g("orLoja").addEventListener("change", ev => { o.loja = Number(ev.target.value); orSalvar(); orRepreco(); });
+  // mudou a validade de um orçamento que já está no caixa: o caixa passa a valer até a nova data (sem precisar reenviar)
+  g("orVal").addEventListener("change", () => { if (o.caixaNum && supa) supa.from("orc_pos_arquivos").update({ valido_ate: o.validade || null }).eq("orc_id", o.id).then(r => { if (r.error) msg("Não consegui atualizar a validade no caixa: " + r.error.message); else msg(`Validade no caixa atualizada: o orçamento pode ser puxado até ${orData(o.validade) || "ser fechado"}.`); }); });
   g("orBuscarB").addEventListener("click", () => orBuscar());
   g("orQ").addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); orBuscar(true); } });
   g("orImp").addEventListener("click", orImprimir); g("orZap").addEventListener("click", orWhats); g("orZapPdf").addEventListener("click", orPdfWhats); g("orFecharB").addEventListener("click", orFechar);
